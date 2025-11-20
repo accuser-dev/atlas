@@ -239,7 +239,7 @@ The project uses Terraform modules for scalability and reusability:
 
 8. **Loki Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `loki01`
-   - Image: `ghcr.io/accuser/atlas/atlas-loki:latest` (published from [docker/loki/](docker/loki/))
+   - Image: `ghcr.io/accuser/atlas/loki:latest` (published from [docker/loki/](docker/loki/))
    - Internal endpoint: `http://loki01.incus:3100`
    - Resource limits: 2 CPUs, 2GB memory
    - Storage: 50GB persistent volume for `/loki`
@@ -255,7 +255,7 @@ The project uses Terraform modules for scalability and reusability:
 
 10. **Prometheus Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `prometheus01`
-    - Image: `ghcr.io/accuser/atlas/atlas-prometheus:latest` (published from [docker/prometheus/](docker/prometheus/))
+    - Image: `ghcr.io/accuser/atlas/prometheus:latest` (published from [docker/prometheus/](docker/prometheus/))
     - Internal endpoint: `http://prometheus01.incus:9090`
     - Resource limits: 2 CPUs, 2GB memory
     - Storage: 100GB persistent volume for `/prometheus`
@@ -302,7 +302,7 @@ Each service with persistent storage uses Incus storage volumes:
 2. Add service to GitHub Actions matrix in `.github/workflows/terraform-ci.yml`
 3. Create Terraform module in `terraform/modules/yourservice/`
 4. Add `domain`, `allowed_ip_range`, and port variables to module
-5. Set default image to `docker:ghcr.io/accuser/atlas/atlas-yourservice:latest`
+5. Set default image to `docker:ghcr.io/accuser/atlas/yourservice:latest`
 6. Create `templates/caddyfile.tftpl` for reverse proxy config
 7. Add `caddy_config_block` output using templatefile()
 8. Instantiate module in [terraform/main.tf](terraform/main.tf)
@@ -314,7 +314,7 @@ Each service with persistent storage uses Incus storage volumes:
 1. Create Docker image in `docker/yourservice/` with Dockerfile
 2. Add service to GitHub Actions matrix in `.github/workflows/terraform-ci.yml`
 3. Create Terraform module in `terraform/modules/yourservice/`
-4. Set default image to `docker:ghcr.io/accuser/atlas/atlas-yourservice:latest`
+4. Set default image to `docker:ghcr.io/accuser/atlas/yourservice:latest`
 5. Add storage and network configuration to module
 6. Add endpoint output for internal connectivity
 7. Instantiate module in [terraform/main.tf](terraform/main.tf)
@@ -338,7 +338,7 @@ module "grafana02" {
   domain           = "grafana-dev.accuser.dev"
   allowed_ip_range = "192.168.68.0/22"
 
-  # Uses ghcr.io image by default (docker:ghcr.io/accuser/atlas/atlas-grafana:latest)
+  # Uses ghcr.io image by default (docker:ghcr.io/accuser/atlas/grafana:latest)
   # Optional: Override to use official image
   # image = "docker:grafana/grafana:latest"
 
@@ -459,10 +459,10 @@ The complete observability stack is designed to work together:
 **Default: GitHub Container Registry Images**
 
 All modules are configured to use custom images published to GitHub Container Registry:
-- Caddy: `docker:ghcr.io/accuser/atlas/atlas-caddy:latest`
-- Grafana: `docker:ghcr.io/accuser/atlas/atlas-grafana:latest`
-- Loki: `docker:ghcr.io/accuser/atlas/atlas-loki:latest`
-- Prometheus: `docker:ghcr.io/accuser/atlas/atlas-prometheus:latest`
+- Caddy: `docker:ghcr.io/accuser/atlas/caddy:latest`
+- Grafana: `docker:ghcr.io/accuser/atlas/grafana:latest`
+- Loki: `docker:ghcr.io/accuser/atlas/loki:latest`
+- Prometheus: `docker:ghcr.io/accuser/atlas/prometheus:latest`
 
 These images are:
 - Built automatically by GitHub Actions on push to main/develop
