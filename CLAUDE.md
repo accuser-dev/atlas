@@ -73,7 +73,7 @@ make clean-terraform     # Clean Terraform cache
 make format
 ```
 
-**Note:** Production images are built and published automatically via GitHub Actions to `ghcr.io/accuser/atlas/atlas-*:latest`. Local builds are only needed for development/testing.
+**Note:** Production images are built and published automatically via GitHub Actions to `ghcr.io/accuser/atlas/*:latest`. Local builds are only needed for development/testing.
 
 ### Direct Terraform Operations
 ```bash
@@ -110,10 +110,10 @@ terraform output
 **Production Images (GitHub Container Registry):**
 
 Images are automatically built and published by GitHub Actions when code is pushed to `main` or `develop` branches:
-- Caddy: `ghcr.io/accuser/atlas/atlas-caddy:latest`
-- Grafana: `ghcr.io/accuser/atlas/atlas-grafana:latest`
-- Loki: `ghcr.io/accuser/atlas/atlas-loki:latest`
-- Prometheus: `ghcr.io/accuser/atlas/atlas-prometheus:latest`
+- Caddy: `ghcr.io/accuser/atlas/caddy:latest`
+- Grafana: `ghcr.io/accuser/atlas/grafana:latest`
+- Loki: `ghcr.io/accuser/atlas/loki:latest`
+- Prometheus: `ghcr.io/accuser/atlas/prometheus:latest`
 
 **Local Development:**
 ```bash
