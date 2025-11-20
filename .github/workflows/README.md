@@ -19,27 +19,50 @@ Validates Terraform configuration and builds Docker images on every push or pull
 
 **Jobs:**
 
-1. **docker-build** - Validates Docker images can be built
-   - Builds all four service images (Caddy, Grafana, Loki, Prometheus)
-   - Uses Docker BuildKit with GitHub Actions cache
-   - Does not push images (validation only)
-   - Images are tagged as `atlas/<service>:ci`
+Jobs run in this order to optimize cost and performance:
 
-2. **terraform-checks** - Validates Terraform configuration
-   - Runs after docker-build job completes
-   - Checks:
-     - Format: `terraform fmt -check -recursive`
-     - Initialization: `terraform init -backend=false`
-     - Validation: `terraform validate`
-     - Plan: `terraform plan` (dry run with test variables)
-   - Comments results on pull requests
-   - Fails if format or validation checks fail
+1. **terraform-validate** - Quick validation checks (runs first, ~30 seconds)
+   - Format check: `terraform fmt -check -recursive`
+   - Initialization: `terraform init -backend=false`
+   - Validation: `terraform validate`
+   - **Fails fast** if Terraform config is invalid
+   - Prevents expensive Docker builds if Terraform has issues
+
+2. **docker-build** - Validates Docker images (runs only after validation passes)
+   - Uses **matrix strategy** to build all 4 images in parallel
+   - Services: `[caddy, grafana, loki, prometheus]`
+   - Each image builds independently with `fail-fast: false`
+   - Uses Docker BuildKit with GitHub Actions cache (per-service scope)
+   - Images are tagged as `atlas/<service>:ci`
+   - **Does not push** images (validation only)
+
+3. **terraform-plan** - Generates Terraform plan (runs after both jobs complete)
+   - Runs `terraform plan` with test variables
+   - Creates a dry-run plan to preview infrastructure changes
+   - Comments plan results on pull requests
+   - Uses `continue-on-error: true` for informational purposes
+
+**Job Dependencies:**
+```
+terraform-validate (fast, fails fast)
+         ↓
+docker-build (expensive, runs in parallel via matrix)
+         ↓
+terraform-plan (informational)
+```
+
+**Performance Optimizations:**
+
+1. **Fail fast validation** - Cheap Terraform checks run first
+2. **Matrix builds** - Docker images build in parallel (4 concurrent jobs)
+3. **Per-service cache** - Each Docker image has its own cache scope
+4. **fail-fast: false** - One failed Docker build doesn't cancel others
 
 **Working Directory:**
 All Terraform commands run in the `terraform/` directory.
 
 **Test Variables:**
-The workflow creates a minimal `terraform.tfvars` file for plan testing with placeholder values.
+The terraform-plan job creates a minimal `terraform.tfvars` file with placeholder values.
 
 ## Local Testing
 

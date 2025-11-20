@@ -24,68 +24,9 @@ env:
   TF_VERSION: '1.13.5'
 
 jobs:
-  docker-build:
-    name: Docker Build Validation
+  terraform-validate:
+    name: Terraform Format and Validate
     runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Caddy Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./docker/caddy
-          push: false
-          load: true
-          tags: atlas/caddy:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build Grafana Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./docker/grafana
-          push: false
-          load: true
-          tags: atlas/grafana:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build Loki Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./docker/loki
-          push: false
-          load: true
-          tags: atlas/loki:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build Prometheus Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./docker/prometheus
-          push: false
-          load: true
-          tags: atlas/prometheus:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Docker Build Summary
-        run: |
-          echo "✅ All Docker images built successfully!"
-          echo ""
-          echo "Built images:"
-          docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | grep -E "(REPOSITORY|atlas)" || echo "No atlas images found in local registry"
-
-  terraform-checks:
-    name: Terraform Validation and Checks
-    runs-on: ubuntu-latest
-    needs: docker-build
 
     steps:
       - name: Checkout code
@@ -100,7 +41,6 @@ jobs:
         id: fmt
         working-directory: terraform
         run: terraform fmt -check -recursive
-        continue-on-error: true
 
       - name: Terraform Init
         id: init
@@ -111,6 +51,62 @@ jobs:
         id: validate
         working-directory: terraform
         run: terraform validate -no-color
+
+      - name: Validation Summary
+        run: |
+          echo "✅ Terraform validation passed!"
+          echo "- Format: ${{ steps.fmt.outcome }}"
+          echo "- Init: ${{ steps.init.outcome }}"
+          echo "- Validate: ${{ steps.validate.outcome }}"
+
+  docker-build:
+    name: Build Docker Image (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    needs: terraform-validate
+    strategy:
+      matrix:
+        service: [caddy, grafana, loki, prometheus]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.service }} Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docker/${{ matrix.service }}
+          push: false
+          load: true
+          tags: atlas/${{ matrix.service }}:ci
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Verify Image
+        run: |
+          echo "✅ ${{ matrix.service }} image built successfully!"
+          docker images atlas/${{ matrix.service }}:ci
+
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: [terraform-validate, docker-build]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init -backend=false
 
       - name: Terraform Plan (Dry Run)
         id: plan
@@ -137,18 +133,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-            <details><summary>Validation Output</summary>
-
-            \`\`\`
-            ${{ steps.validate.outputs.stdout }}
-            \`\`\`
-
-            </details>
-
-            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+            const output = `#### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
 
             <details><summary>Show Plan</summary>
 
@@ -167,23 +152,8 @@ jobs:
               body: output
             })
 
-      - name: Check Results
-        if: steps.fmt.outcome == 'failure' || steps.validate.outcome == 'failure'
-        run: |
-          echo "::error::Terraform checks failed!"
-          if [ "${{ steps.fmt.outcome }}" == "failure" ]; then
-            echo "::error::Terraform formatting check failed. Run 'terraform fmt -recursive' to fix."
-          fi
-          if [ "${{ steps.validate.outcome }}" == "failure" ]; then
-            echo "::error::Terraform validation failed. Check the validation output above."
-          fi
-          exit 1
-
-      - name: Success Summary
+      - name: Plan Summary
         if: success()
         run: |
-          echo "✅ All Terraform checks passed!"
-          echo "- Format: ${{ steps.fmt.outcome }}"
-          echo "- Init: ${{ steps.init.outcome }}"
-          echo "- Validate: ${{ steps.validate.outcome }}"
+          echo "✅ Terraform plan completed!"
           echo "- Plan: ${{ steps.plan.outcome }}"
