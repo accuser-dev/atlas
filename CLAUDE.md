@@ -41,6 +41,7 @@ atlas/
 │   ├── versions.tf           # Version constraints
 │   └── terraform.tfvars      # Variable values (gitignored)
 ├── Makefile                  # Build and deployment automation
+├── CONTRIBUTING.md           # Contribution guidelines and GitHub Flow workflow
 └── CLAUDE.md                 # This file
 ```
 
@@ -126,6 +127,44 @@ IMAGE_TAG=v1.0.0 make build-all
 The `terraform/terraform.tfvars` file contains sensitive variables and is gitignored. Required variables:
 - `cloudflare_api_token`: Cloudflare API token for DNS management
 - Network configuration variables (IPv4 addresses for development, testing, staging, production, and management networks)
+
+## Development Workflow
+
+### GitHub Flow
+
+This project uses **GitHub Flow** for development. All work happens on feature branches created from and merged back to the `develop` branch.
+
+**Branch Structure:**
+- `main` - Production-ready code (protected)
+- `develop` - Main development branch (base for all feature branches)
+- `feature/*`, `fix/*`, `docs/*` - Short-lived branches for specific work
+
+**Quick Start:**
+```bash
+# Start new work
+git checkout develop
+git pull origin develop
+git checkout -b feature/issue-X-description
+
+# Make changes, commit, and push
+git add .
+git commit -m "fix: description of change
+
+Fixes #X"
+git push -u origin feature/issue-X-description
+
+# Create PR targeting develop
+gh pr create --base develop --title "Fix: Description" --body "Fixes #X"
+```
+
+**Important Notes:**
+- Always branch from `develop`
+- Always target `develop` in pull requests
+- Link issues with "Fixes #X" in PR descriptions
+- Wait for CI checks to pass before merging
+- Delete feature branches after merging
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed workflow guidelines.
 
 ## Architecture
 

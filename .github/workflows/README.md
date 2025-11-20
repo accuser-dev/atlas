@@ -90,6 +90,30 @@ When adding new workflows:
 4. Document the workflow in this README
 5. Test locally with `act` if possible
 
+## GitHub Flow Integration
+
+This workflow is designed to support GitHub Flow with `develop` as the main development branch:
+
+**Feature Branch Workflow:**
+1. Create branch from `develop`: `git checkout -b feature/issue-X-description`
+2. Make changes and push: `git push -u origin feature/issue-X-description`
+3. Open PR targeting `develop`
+4. CI runs validation and builds (does not push images)
+5. After approval and CI passes, merge to `develop`
+6. CI rebuilds and pushes images with `develop` tag
+
+**Release Workflow:**
+1. When `develop` is stable, create PR from `develop` to `main`
+2. CI validates the production-ready code
+3. After approval, merge to `main`
+4. CI rebuilds and pushes images with `latest` tag
+5. Tag the release on `main`: `git tag -a v1.0.0 -m "Release 1.0.0"`
+
+**Image Tagging Strategy:**
+- `latest` - Production images from `main` branch
+- `develop` - Development images from `develop` branch
+- `<branch>-<sha>` - Branch-specific builds (on push to main/develop)
+
 ## Workflow Best Practices
 
 - **Path filters**: Only trigger when relevant files change
@@ -98,3 +122,8 @@ When adding new workflows:
 - **PR comments**: Automatically comment results on pull requests
 - **Continue on error**: Use for non-critical checks that should be reported but not fail the build
 - **Dependency order**: Use `needs:` to sequence jobs appropriately
+
+## Related Documentation
+
+- [CONTRIBUTING.md](../../CONTRIBUTING.md) - Full GitHub Flow workflow guide
+- [CLAUDE.md](../../CLAUDE.md) - Project architecture and quick reference
