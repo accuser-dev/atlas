@@ -4,15 +4,28 @@ This directory contains custom Docker images for the Atlas monitoring stack.
 
 ## Overview
 
-The Atlas project uses custom Docker images that are built locally and accessed directly by Incus via the `docker:` protocol. This approach allows you to:
-- Pre-install plugins and packages
-- Bake in configuration defaults
-- Create reproducible, versioned deployments
-- Avoid runtime configuration complexity
+The Atlas project uses custom Docker images that are:
+- **Built automatically** by GitHub Actions when code is pushed to main/develop branches
+- **Published to GitHub Container Registry** (ghcr.io)
+- **Publicly accessible** without authentication
+- **Extended from official images** with custom plugins and configuration
 
-## Building Images
+## Image Registry
 
-### Quick Start
+All production images are published to GitHub Container Registry:
+
+- **Caddy**: `ghcr.io/accuser/atlas/atlas-caddy:latest`
+- **Grafana**: `ghcr.io/accuser/atlas/atlas-grafana:latest`
+- **Loki**: `ghcr.io/accuser/atlas/atlas-loki:latest`
+- **Prometheus**: `ghcr.io/accuser/atlas/atlas-prometheus:latest`
+
+These images are used by default in all Terraform modules.
+
+## Local Development
+
+### Building Images Locally
+
+For testing and development, you can build images locally:
 
 ```bash
 # Build all images
@@ -25,12 +38,6 @@ make build-loki
 make build-prometheus
 ```
 
-### What Happens During Build
-
-1. **Build** - Docker image is built using the Dockerfile
-2. **Tag** - Image is tagged (default: `atlas/<service>:latest`)
-3. **Available** - Image is immediately available to Incus via Docker daemon
-
 ### Viewing Built Images
 
 ```bash
@@ -41,123 +48,174 @@ make list-images
 docker images | grep atlas
 ```
 
+**Note:** Local builds are tagged as `atlas/<service>:latest` and are for testing only. Production deployments use images from ghcr.io.
+
+## CI/CD Workflow
+
+### Automatic Builds
+
+When you push code to GitHub:
+
+1. **GitHub Actions triggers** on push to `main` or `develop` branches
+2. **Docker images are built** in parallel (all four services)
+3. **Images are published** to ghcr.io with appropriate tags
+4. **Images are cached** for faster subsequent builds
+
+### Image Tags
+
+Published images receive multiple tags:
+
+- `latest` - Latest build from main branch
+- `develop` - Latest build from develop branch
+- `main-<sha>` or `develop-<sha>` - Commit-specific tags
+
+### Making Images Public
+
+After the first push, images default to private. To make them public:
+
+1. Visit: `https://github.com/accuser/atlas/packages`
+2. Click on each package (atlas-caddy, atlas-grafana, atlas-loki, atlas-prometheus)
+3. Go to "Package settings"
+4. Scroll to "Danger Zone"
+5. Click "Change visibility" → "Public"
+
 ## Using Custom Images in Terraform
 
-### Using Docker Protocol (Recommended)
+### Default Configuration
 
-After building images with `make build-all`, reference them in Terraform using the `docker:` protocol:
+All Terraform modules default to ghcr.io images:
 
 ```hcl
 module "grafana01" {
   source = "./modules/grafana"
 
-  # Use custom image from local Docker daemon
-  image = "docker:atlas/grafana:latest"
+  # Default image (no override needed)
+  # image = "docker:ghcr.io/accuser/atlas/atlas-grafana:latest"
 
   # ... other configuration
 }
 ```
 
-**How it works:**
-- When you use `docker:` protocol, Incus accesses images from your local Docker daemon directly
-- **No import step is needed** - images are available immediately after building
-- Incus will pull the image from Docker when creating the container
+### Using Specific Tags
+
+Override the image to use a specific tag:
+
+```hcl
+module "grafana01" {
+  source = "./modules/grafana"
+
+  # Use develop branch image
+  image = "docker:ghcr.io/accuser/atlas/atlas-grafana:develop"
+
+  # Or use specific commit
+  # image = "docker:ghcr.io/accuser/atlas/atlas-grafana:main-abc1234"
+
+  # ... other configuration
+}
+```
 
 ### Using Official Images
 
-You can continue using official images from Docker Hub:
+To use official upstream images instead:
 
 ```hcl
 module "grafana01" {
   source = "./modules/grafana"
 
-  # Use official Docker Hub image (default in modules)
-  image = "docker:grafana/grafana"
+  # Use official Docker Hub image
+  image = "docker:grafana/grafana:latest"
 
   # ... other configuration
 }
 ```
+
+## Customizing Images
+
+### Development Workflow
+
+1. **Edit Dockerfile** in `docker/<service>/Dockerfile`
+2. **Test locally**:
+   ```bash
+   make build-<service>
+   docker run atlas/<service>:latest
+   ```
+3. **Commit and push** to trigger CI/CD
+4. **Wait for build** to complete on GitHub Actions
+5. **Deploy updated image**:
+   ```bash
+   make terraform-apply
+   ```
+
+### Example: Adding Grafana Plugin
+
+```dockerfile
+# docker/grafana/Dockerfile
+FROM grafana/grafana:latest
+
+# Install custom plugin
+RUN grafana-cli plugins install grafana-piechart-panel
+
+# Add custom configuration
+COPY grafana.ini /etc/grafana/grafana.ini
+```
+
+After pushing to GitHub:
+- GitHub Actions builds the image
+- Published to ghcr.io
+- Next `terraform apply` pulls the updated image
 
 ## Image Management
 
 ### Updating Images
 
-When you modify a Dockerfile and want to update:
+Images are automatically rebuilt when:
+- Code is pushed to main or develop
+- Dockerfiles are modified
+- Base images are updated (manual rebuild needed)
+
+To force a rebuild without code changes:
+- Make a trivial change to the Dockerfile (e.g., add a comment)
+- Or trigger workflow manually in GitHub Actions
+
+### Forcing Terraform to Pull New Images
+
+After publishing updated images:
 
 ```bash
-# Rebuild specific image
-make build-grafana
-
-# Or rebuild all
-make build-all
-```
-
-**Important:** After rebuilding, Incus needs to recreate containers to use the new image:
-
-```bash
+# Option 1: Recreate specific container
 cd terraform
-terraform apply -replace='incus_instance.grafana01'
-```
+terraform apply -replace='module.grafana01.incus_instance.grafana'
 
-Or restart the container to pick up the new image:
-```bash
+# Option 2: Restart container
 incus restart grafana01
-```
 
-### Image Versioning
-
-You can tag images with versions:
-
-```bash
-# Build with specific tag
-IMAGE_TAG=v1.0.0 make build-all
-
-# This creates: atlas/grafana:v1.0.0, etc.
-```
-
-Then reference in Terraform:
-
-```hcl
-module "grafana01" {
-  image = "docker:atlas/grafana:v1.0.0"
-  # ...
-}
+# Option 3: Rebuild container with new image
+incus rebuild grafana01 docker:ghcr.io/accuser/atlas/atlas-grafana:latest
 ```
 
 ## How It Works
 
-### The Docker Protocol
+### GitHub Container Registry Integration
 
-When you use `docker:` protocol in Incus:
+When Terraform creates a container:
 
-```bash
-# Example: Using custom Grafana image in Terraform
-
-# 1. Build Docker image
-make build-grafana
-# Creates: atlas/grafana:latest in Docker
-
-# 2. Reference in Terraform
-# image = "docker:atlas/grafana:latest"
-
-# 3. Terraform apply
-# Incus pulls image directly from Docker daemon
-```
-
-### Behind the Scenes
-
-When Incus creates a container with `docker:` protocol:
-1. Incus checks if the image exists in Docker daemon
-2. If found, Incus pulls the image layers directly
-3. Container is created using the Docker image
-4. No separate import or conversion needed
+1. **Terraform requests** image from Incus
+2. **Incus uses docker: protocol** to pull from ghcr.io
+3. **Image is pulled** (or cached if already present)
+4. **Container is created** from the image
 
 ### Image Storage
 
-Images are stored in the Docker daemon:
-- Location: Docker's image storage (typically `/var/lib/docker/`)
-- Managed by Docker, not Incus
-- Use `docker images` to view available images
+- **Production images**: Stored in ghcr.io
+- **Local images**: Stored in Docker daemon (`/var/lib/docker/`)
+- **Incus cache**: Pulled images cached by Incus
+
+### Authentication
+
+Since images are public:
+- No authentication required
+- Incus can pull directly from ghcr.io
+- No credentials needed in Terraform
 
 ## Troubleshooting
 
@@ -167,117 +225,130 @@ Images are stored in the Docker daemon:
 Error: Failed to create instance: Image not found
 ```
 
-**Solution:**
-```bash
-# Verify the image exists in Docker
-docker images | grep atlas
+**Solutions:**
 
-# If missing, build it
-make build-grafana
+1. **Verify image exists** on ghcr.io:
+   ```bash
+   # Check package page
+   open https://github.com/accuser/atlas/packages
+   ```
 
-# Check the exact image name
-docker images atlas/grafana
+2. **Verify image is public**:
+   - Click on package
+   - Check visibility (should show "Public")
 
-# Ensure Terraform uses correct reference
-# image = "docker:atlas/grafana:latest"
-```
+3. **Test pull manually**:
+   ```bash
+   incus launch docker:ghcr.io/accuser/atlas/atlas-grafana:latest test
+   ```
+
+4. **Check image name** in Terraform module:
+   ```bash
+   grep "default.*image" terraform/modules/grafana/variables.tf
+   ```
 
 ### Container Uses Old Image Version
 
-If you've rebuilt an image but the container still uses the old version:
+If container doesn't reflect recent image changes:
 
 ```bash
-# Option 1: Recreate via Terraform
+# Force Terraform to recreate container
 cd terraform
-terraform apply -replace='incus_instance.grafana01'
+terraform apply -replace='module.grafana01.incus_instance.grafana'
 
-# Option 2: Restart container
+# Or restart to pick up new image
 incus restart grafana01
-
-# Option 3: Rebuild container
-incus rebuild grafana01 docker:atlas/grafana:latest
 ```
+
+### GitHub Actions Build Failed
+
+Check the workflow:
+
+1. Visit: `https://github.com/accuser/atlas/actions`
+2. Click on the failed workflow run
+3. Review Docker build logs
+4. Fix issues in Dockerfile
+5. Push fix to trigger rebuild
 
 ### Disk Space Issues
 
-Docker images can be large. Clean up periodically:
+Clean up old Docker images locally:
 
 ```bash
-# Remove unused Docker images
+# Remove unused images
 docker image prune -a
-
-# Remove dangling images
-docker image prune
 
 # Check disk usage
 docker system df
+
+# Clean everything (careful!)
+docker system prune -a
 ```
 
 ## Best Practices
 
-1. **Use Makefile targets** - `make build-all` handles everything correctly
-2. **Build before deploying** - Run `make build-all` before `terraform apply`
-3. **Use docker: protocol** - Always prefix with `docker:` in Terraform: `image = "docker:atlas/grafana:latest"`
-4. **Version your images** - Tag with versions for rollback capability
-5. **Test locally first** - Test image builds before using in production
-6. **Document changes** - Update service README when changing Dockerfiles
+1. **Test locally first** - Build and test images locally before pushing
+2. **Use semantic versioning** - Tag releases with version numbers when ready
+3. **Document changes** - Update service README when changing Dockerfiles
+4. **Keep images small** - Use multi-stage builds when possible
+5. **Cache layers** - Order Dockerfile commands to maximize cache hits
+6. **Public images only** - Keep images public for easy Incus access
 
 ## Example Workflow
 
+### Modifying Grafana Image
+
 ```bash
-# 1. Modify Dockerfile
+# 1. Create feature branch
+git checkout -b add-grafana-plugin
+
+# 2. Modify Dockerfile
 vim docker/grafana/Dockerfile
+# Add: RUN grafana-cli plugins install grafana-piechart-panel
 
-# 2. Build image
+# 3. Test locally (optional)
 make build-grafana
+docker run -p 3000:3000 atlas/grafana:latest
 
-# 3. Update Terraform to use custom image
-# Edit terraform/main.tf:
-#   image = "docker:atlas/grafana:latest"
+# 4. Commit and push
+git add docker/grafana/Dockerfile
+git commit -m "Add piechart plugin to Grafana"
+git push origin add-grafana-plugin
 
-# 4. Apply changes
-cd terraform
-terraform plan
-terraform apply
+# 5. Create PR, merge to main
 
-# 5. Verify
-incus list
+# 6. Wait for GitHub Actions to build and publish
+
+# 7. Deploy updated image
+make terraform-apply
+
+# 8. Verify
 incus exec grafana01 -- grafana-cli plugins list
 ```
 
-## Alternative: Docker Registry
+## Alternative: Docker Hub
 
-For production or team environments, consider using a Docker registry:
+If you prefer Docker Hub over ghcr.io:
 
-```bash
-# Option 1: Use Docker Hub
-docker tag atlas/grafana:latest yourusername/atlas-grafana:latest
-docker push yourusername/atlas-grafana:latest
+1. **Update GitHub Actions workflow** (`.github/workflows/terraform-ci.yml`):
+   ```yaml
+   - name: Log in to Docker Hub
+     uses: docker/login-action@v3
+     with:
+       username: ${{ secrets.DOCKERHUB_USERNAME }}
+       password: ${{ secrets.DOCKERHUB_TOKEN }}
+   ```
 
-# Use in Terraform
-# image = "docker:yourusername/atlas-grafana:latest"
+2. **Update image metadata**:
+   ```yaml
+   images: docker.io/yourusername/atlas-${{ matrix.service }}
+   ```
 
-# Option 2: Local registry
-docker run -d -p 5000:5000 --restart=always --name registry registry:2
-docker tag atlas/grafana:latest localhost:5000/atlas/grafana:latest
-docker push localhost:5000/atlas/grafana:latest
-
-# Use in Terraform
-# image = "docker:localhost:5000/atlas/grafana:latest"
-```
-
-**Benefits:**
-- ✅ Works well with CI/CD
-- ✅ Supports multiple team members
-- ✅ Versioning built-in
-- ✅ Remote access for Incus hosts
-
-**Considerations:**
-- ❌ Requires registry infrastructure (for local registry)
-- ❌ More complex than local Docker daemon
+3. **Update Terraform modules** to use Docker Hub images
 
 ## See Also
 
+- [GitHub Actions Workflow](../.github/workflows/terraform-ci.yml) - CI/CD configuration
 - [Makefile](../Makefile) - Build automation
 - [CLAUDE.md](../CLAUDE.md) - Project architecture and documentation
 - Individual service READMEs:

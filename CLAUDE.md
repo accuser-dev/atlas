@@ -48,10 +48,8 @@ atlas/
 
 ### Build and Deployment (Makefile)
 ```bash
-# Build all Docker images
+# Build Docker images locally (for testing only)
 make build-all
-
-# Build individual images
 make build-caddy
 make build-grafana
 make build-loki
@@ -63,7 +61,7 @@ make terraform-plan      # Plan changes
 make terraform-apply     # Apply changes
 make terraform-destroy   # Destroy infrastructure
 
-# Complete deployment (build images + apply Terraform)
+# Complete deployment (applies Terraform, pulls images from ghcr.io)
 make deploy
 
 # Cleanup
@@ -74,6 +72,8 @@ make clean-terraform     # Clean Terraform cache
 # Format Terraform files
 make format
 ```
+
+**Note:** Production images are built and published automatically via GitHub Actions to `ghcr.io/accuser/atlas/atlas-*:latest`. Local builds are only needed for development/testing.
 
 ### Direct Terraform Operations
 ```bash
@@ -106,18 +106,26 @@ terraform output
 ```
 
 ### Docker Image Management
-```bash
-# Build images with custom tags
-IMAGE_TAG=v1.0.0 make build-all
 
-# Build with custom registry
-DOCKER_REGISTRY=registry.accuser.dev make build-all
+**Production Images (GitHub Container Registry):**
+
+Images are automatically built and published by GitHub Actions when code is pushed to `main` or `develop` branches:
+- Caddy: `ghcr.io/accuser/atlas/atlas-caddy:latest`
+- Grafana: `ghcr.io/accuser/atlas/atlas-grafana:latest`
+- Loki: `ghcr.io/accuser/atlas/atlas-loki:latest`
+- Prometheus: `ghcr.io/accuser/atlas/atlas-prometheus:latest`
+
+**Local Development:**
+```bash
+# Build images locally for testing
+make build-all
+IMAGE_TAG=v1.0.0 make build-all
 ```
 
 ### Working with tfvars
 The `terraform/terraform.tfvars` file contains sensitive variables and is gitignored. Required variables:
 - `cloudflare_api_token`: Cloudflare API token for DNS management
-- Network configuration variables (IPv4/IPv6 addresses for development, testing, production networks)
+- Network configuration variables (IPv4 addresses for development, testing, production networks)
 
 ## Architecture
 
@@ -186,7 +194,7 @@ The project uses Terraform modules for scalability and reusability:
 
 2. **Network Configuration** ([terraform/networks.tf](terraform/networks.tf))
    - Three managed networks: development, testing, production
-   - Each network has configurable IPv4 and IPv6 addresses
+   - Each network has configurable IPv4 addresses
    - NAT enabled for external connectivity
 
 3. **Caddy Module** ([terraform/modules/caddy/](terraform/modules/caddy/))
@@ -199,7 +207,7 @@ The project uses Terraform modules for scalability and reusability:
 
 4. **Caddy Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `caddy01`
-   - Image: `docker:caddybuilds/caddy-cloudflare` (or custom `docker:atlas/caddy`)
+   - Image: `ghcr.io/accuser/atlas/atlas-caddy:latest` (published from [docker/caddy/](docker/caddy/))
    - Resource limits: 2 CPUs, 1GB memory (configurable)
    - Dual network interfaces:
      - `eth0`: Connected to "production" network
@@ -216,7 +224,7 @@ The project uses Terraform modules for scalability and reusability:
 
 6. **Grafana Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `grafana01`
-   - Image: `docker:grafana/grafana` (or custom `docker:atlas/grafana`)
+   - Image: `ghcr.io/accuser/atlas/atlas-grafana:latest` (published from [docker/grafana/](docker/grafana/))
    - Domain: `grafana.accuser.dev` (publicly accessible via Caddy)
    - Resource limits: 2 CPUs, 1GB memory
    - Storage: 10GB persistent volume for `/var/lib/grafana`
@@ -231,7 +239,7 @@ The project uses Terraform modules for scalability and reusability:
 
 8. **Loki Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `loki01`
-   - Image: `docker:grafana/loki` (or custom `docker:atlas/loki`)
+   - Image: `ghcr.io/accuser/atlas/atlas-loki:latest` (published from [docker/loki/](docker/loki/))
    - Internal endpoint: `http://loki01.incus:3100`
    - Resource limits: 2 CPUs, 2GB memory
    - Storage: 50GB persistent volume for `/loki`
@@ -247,7 +255,7 @@ The project uses Terraform modules for scalability and reusability:
 
 10. **Prometheus Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `prometheus01`
-    - Image: `docker:prom/prometheus` (or custom `docker:atlas/prometheus`)
+    - Image: `ghcr.io/accuser/atlas/atlas-prometheus:latest` (published from [docker/prometheus/](docker/prometheus/))
     - Internal endpoint: `http://prometheus01.incus:9090`
     - Resource limits: 2 CPUs, 2GB memory
     - Storage: 100GB persistent volume for `/prometheus`
@@ -291,33 +299,33 @@ Each service with persistent storage uses Incus storage volumes:
 **For public-facing services (with Caddy reverse proxy):**
 
 1. Create Docker image in `docker/yourservice/` with Dockerfile
-2. Build image with `make build-yourservice` or `docker build`
+2. Add service to GitHub Actions matrix in `.github/workflows/terraform-ci.yml`
 3. Create Terraform module in `terraform/modules/yourservice/`
 4. Add `domain`, `allowed_ip_range`, and port variables to module
-5. Create `templates/caddyfile.tftpl` for reverse proxy config
-6. Add `caddy_config_block` output using templatefile()
-7. Instantiate module in [terraform/main.tf](terraform/main.tf)
-8. Add module's `caddy_config_block` to Caddy's `service_blocks` list
+5. Set default image to `docker:ghcr.io/accuser/atlas/atlas-yourservice:latest`
+6. Create `templates/caddyfile.tftpl` for reverse proxy config
+7. Add `caddy_config_block` output using templatefile()
+8. Instantiate module in [terraform/main.tf](terraform/main.tf)
+9. Add module's `caddy_config_block` to Caddy's `service_blocks` list
+10. Push to GitHub to build and publish image
 
 **For internal-only services (no public access):**
 
 1. Create Docker image in `docker/yourservice/` with Dockerfile
-2. Build image with `make build-yourservice` or `docker build`
+2. Add service to GitHub Actions matrix in `.github/workflows/terraform-ci.yml`
 3. Create Terraform module in `terraform/modules/yourservice/`
-4. Add storage and network configuration to module
-5. Add endpoint output for internal connectivity
-6. Instantiate module in [terraform/main.tf](terraform/main.tf)
-7. Connect from other services using `yourservice.incus:port`
+4. Set default image to `docker:ghcr.io/accuser/atlas/atlas-yourservice:latest`
+5. Add storage and network configuration to module
+6. Add endpoint output for internal connectivity
+7. Instantiate module in [terraform/main.tf](terraform/main.tf)
+8. Connect from other services using `yourservice.incus:port`
+9. Push to GitHub to build and publish image
 
 **Example - Adding a new Grafana instance:**
 
-1. First, ensure the Grafana image is built:
-```bash
-make build-grafana
-# Image: atlas/grafana:latest
-```
+1. The Grafana image is already published to ghcr.io via GitHub Actions
 
-2. Then add to `terraform/main.tf`:
+2. Add to `terraform/main.tf`:
 ```hcl
 module "grafana02" {
   source = "./modules/grafana"
@@ -330,8 +338,9 @@ module "grafana02" {
   domain           = "grafana-dev.accuser.dev"
   allowed_ip_range = "192.168.68.0/22"
 
-  # Optional: Use custom image
-  # image = "docker:atlas/grafana:latest"
+  # Uses ghcr.io image by default (docker:ghcr.io/accuser/atlas/atlas-grafana:latest)
+  # Optional: Override to use official image
+  # image = "docker:grafana/grafana:latest"
 
   environment_variables = {
     GF_SECURITY_ADMIN_USER     = "admin"
@@ -421,7 +430,8 @@ The complete observability stack is designed to work together:
 1. **Customize Docker images** (optional):
    - Edit Dockerfiles in `docker/*/Dockerfile`
    - Add plugins, configuration files, or customizations
-   - Build images: `make build-all` or `make build-<service>`
+   - Test locally: `make build-<service>`
+   - Push to GitHub to trigger CI/CD build and publish
 
 2. **Configure Infrastructure**:
    - Edit Terraform modules in `terraform/modules/`
@@ -430,11 +440,12 @@ The complete observability stack is designed to work together:
 
 3. **Deploy**:
    ```bash
-   # Full deployment (build + apply)
+   # Deploy infrastructure (pulls images from ghcr.io)
    make deploy
 
    # Or step-by-step
-   make build-all
+   make terraform-init
+   make terraform-plan
    make terraform-apply
    ```
 
@@ -443,18 +454,43 @@ The complete observability stack is designed to work together:
    cd terraform && terraform output
    ```
 
-### Choosing Between Custom and Official Images
+### Docker Image Configuration
 
-**Use official images** (`docker:grafana/grafana`) when:
-- You don't need customizations
-- Configuration via environment variables is sufficient
-- You want automatic updates from upstream
+**Default: GitHub Container Registry Images**
 
-**Use custom images** (`docker:atlas/grafana`) when:
-- Installing Grafana plugins
-- Adding custom configuration files
-- Baking in organization-specific defaults
-- Building reproducible, versioned deployments
+All modules are configured to use custom images published to GitHub Container Registry:
+- Caddy: `docker:ghcr.io/accuser/atlas/atlas-caddy:latest`
+- Grafana: `docker:ghcr.io/accuser/atlas/atlas-grafana:latest`
+- Loki: `docker:ghcr.io/accuser/atlas/atlas-loki:latest`
+- Prometheus: `docker:ghcr.io/accuser/atlas/atlas-prometheus:latest`
+
+These images are:
+- Built automatically by GitHub Actions on push to main/develop
+- Published to GitHub Container Registry (ghcr.io)
+- Extended from official images with custom plugins and configuration
+- Publicly accessible (no authentication required)
+
+**Image Publishing Workflow:**
+
+1. Edit Dockerfile in `docker/*/Dockerfile`
+2. Push changes to `main` or `develop` branch
+3. GitHub Actions builds and publishes to ghcr.io
+4. Terraform pulls latest image on next apply
+
+**Switching to Official Images**
+
+To use official upstream images instead, override the `image` variable in [terraform/main.tf](terraform/main.tf):
+
+```hcl
+module "grafana01" {
+  source = "./modules/grafana"
+
+  # Use official image instead of custom ghcr.io image
+  image = "docker:grafana/grafana:latest"
+
+  # ... other configuration
+}
+```
 
 ### Post-Creation Configuration
 
@@ -473,12 +509,13 @@ The complete observability stack is designed to work together:
 ## Important Notes
 
 - The `terraform/terraform.tfvars` file is gitignored and must be created manually with required secrets
-- Caddy uses the `caddybuilds/caddy-cloudflare` base image (or custom `atlas/caddy`)
+- All services use custom images published to GitHub Container Registry (ghcr.io) by default
+- Images are automatically built and published by GitHub Actions on push to main/develop
 - Access to services is restricted to the 192.168.68.0/22 subnet by default
 - All services use the `production` network for connectivity
-- Storage volumes are created automatically when modules are applied
+- Storage volumes use the `local` storage pool and are created automatically when modules are applied
 - Each module has a `versions.tf` specifying the Incus provider requirement
-- Custom Docker images are built locally and referenced via `docker:atlas/<service>` protocol
+- Images must be public in GitHub Container Registry for Incus to pull without authentication
 
 ## Outputs
 
