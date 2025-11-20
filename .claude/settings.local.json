@@ -11,7 +11,12 @@
       "Bash(git fetch:*)",
       "Bash(git checkout:*)",
       "Bash(tree:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(docker save atlas/caddy:latest)",
+      "Bash(incus image import:*)",
+      "Bash(incus:*)",
+      "Bash(make list-images:*)",
+      "Bash(make help:*)"
     ],
     "deny": [],
     "ask": []
