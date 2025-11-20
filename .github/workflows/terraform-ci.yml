@@ -40,6 +40,7 @@ jobs:
         with:
           context: ./docker/caddy
           push: false
+          load: true
           tags: atlas/caddy:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -49,6 +50,7 @@ jobs:
         with:
           context: ./docker/grafana
           push: false
+          load: true
           tags: atlas/grafana:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -58,6 +60,7 @@ jobs:
         with:
           context: ./docker/loki
           push: false
+          load: true
           tags: atlas/loki:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -67,6 +70,7 @@ jobs:
         with:
           context: ./docker/prometheus
           push: false
+          load: true
           tags: atlas/prometheus:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -74,7 +78,9 @@ jobs:
       - name: Docker Build Summary
         run: |
           echo "✅ All Docker images built successfully!"
-          docker images | grep atlas
+          echo ""
+          echo "Built images:"
+          docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | grep -E "(REPOSITORY|atlas)" || echo "No atlas images found in local registry"
 
   terraform-checks:
     name: Terraform Validation and Checks
