@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use"
   type        = string
-  default     = "docker:prom/prometheus"
+  default     = "docker:ghcr.io/accuser/atlas/atlas-prometheus:latest"
 }
 
 variable "cpu_limit" {
@@ -29,7 +29,7 @@ variable "memory_limit" {
 variable "storage_pool" {
   description = "Storage pool for the root disk"
   type        = string
-  default     = "default"
+  default     = "local"
 }
 
 variable "monitoring_network" {
