@@ -63,6 +63,9 @@ jobs:
     name: Build Docker Image (${{ matrix.service }})
     runs-on: ubuntu-latest
     needs: terraform-validate
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         service: [caddy, grafana, loki, prometheus]
@@ -75,20 +78,38 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build ${{ matrix.service }} Image
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/atlas-${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and Push ${{ matrix.service }} Image
         uses: docker/build-push-action@v5
         with:
           context: ./docker/${{ matrix.service }}
-          push: false
-          load: true
-          tags: atlas/${{ matrix.service }}:ci
+          push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
       - name: Verify Image
         run: |
           echo "✅ ${{ matrix.service }} image built successfully!"
-          docker images atlas/${{ matrix.service }}:ci
+          echo "Tags: ${{ steps.meta.outputs.tags }}"
 
   terraform-plan:
     name: Terraform Plan
@@ -116,11 +137,8 @@ jobs:
           cat > terraform.tfvars <<EOF
           cloudflare_api_token = "test-token-for-ci"
           development_network_ipv4 = "10.0.1.1/24"
-          development_network_ipv6 = "fd00:1::1/64"
           testing_network_ipv4 = "10.0.2.1/24"
-          testing_network_ipv6 = "fd00:2::1/64"
           production_network_ipv4 = "10.0.3.1/24"
-          production_network_ipv6 = "fd00:3::1/64"
           EOF
           terraform plan -no-color -input=false
         continue-on-error: true
