@@ -21,7 +21,8 @@
 				"HashiCorp.terraform",
 				"Anthropic.claude-code",
 				"GitHub.vscode-github-actions",
-				"docker.docker"
+				"docker.docker",
+				"GitHub.copilot-chat"
 			]
 		}
 	},
