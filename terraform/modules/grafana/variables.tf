@@ -32,10 +32,10 @@ variable "storage_pool" {
   default     = "local"
 }
 
-variable "monitoring_network" {
-  description = "Monitoring network name"
+variable "network_name" {
+  description = "Network name to connect the container to"
   type        = string
-  default     = "monitoring"
+  default     = "management"
 }
 
 variable "environment_variables" {
