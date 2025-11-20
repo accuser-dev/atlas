@@ -233,14 +233,18 @@ The project includes GitHub Actions workflows for continuous integration:
 - Only when relevant files change (`.tf`, `.tftpl`, `Dockerfile`)
 
 **What it does:**
-1. **Docker Build Validation** - Builds all four Docker images to ensure they compile
-2. **Terraform Checks** - Validates format, initialization, and configuration
-3. **Plan Preview** - Generates a Terraform plan (dry run)
-4. **PR Comments** - Posts validation results on pull requests
+1. **Terraform Validation** (fast) - Validates format, initialization, and configuration
+2. **Docker Build** (parallel) - Builds all four images concurrently using matrix strategy
+3. **Terraform Plan** - Generates a plan preview (dry run)
+4. **PR Comments** - Posts plan results on pull requests
+
+**Performance optimizations:**
+- Cheap validation checks run first to fail fast
+- Docker images build in parallel (4 concurrent jobs)
+- Per-service GitHub Actions cache for faster rebuilds
+- Prevents expensive Docker builds if Terraform validation fails
 
 **Workflow file:** [.github/workflows/terraform-ci.yml](.github/workflows/terraform-ci.yml)
-
-All Terraform commands run in the `terraform/` directory, and Docker builds use GitHub Actions cache for faster builds.
 
 ## Post-Creation Configuration
 
