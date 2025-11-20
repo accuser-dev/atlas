@@ -67,9 +67,12 @@ atlas/
    # - network addresses (IPv4/IPv6)
    ```
 
-3. **Build Docker images** (optional, uses official images by default):
+3. **Build and import Docker images** (optional, uses official images by default):
    ```bash
-   cd ..
+   # Build images and import to Incus
+   make import-all
+
+   # Or just build without importing
    make build-all
    ```
 
@@ -93,25 +96,33 @@ atlas/
 
 ## Usage
 
-### Building Custom Images
+### Building and Importing Custom Images
 
-Build all images:
+Build and import all images to Incus:
+```bash
+make import-all
+```
+
+Import specific services:
+```bash
+make import-caddy
+make import-grafana
+make import-loki
+make import-prometheus
+```
+
+Build without importing (for testing):
 ```bash
 make build-all
+make build-grafana  # etc.
 ```
 
-Build specific services:
+List imported images:
 ```bash
-make build-caddy
-make build-grafana
-make build-loki
-make build-prometheus
+make list-images
 ```
 
-Build with custom tags:
-```bash
-IMAGE_TAG=v1.0.0 make build-all
-```
+**How it works:** Images are built with Docker, exported as tarballs, and imported into Incus with aliases like `atlas-grafana`. See [docker/README.md](docker/README.md) for details.
 
 ### Managing Infrastructure
 
@@ -152,15 +163,36 @@ By default, the project uses official Docker images:
 - `docker:grafana/loki`
 - `docker:prom/prometheus`
 
-To use custom images, modify the `image` parameter in `terraform/main.tf`:
-```hcl
-module "grafana01" {
-  source = "./modules/grafana"
+To use custom images:
 
-  image = "docker:atlas/grafana:latest"  # Custom image
-  # ... other configuration
-}
-```
+1. **Import images to Incus**:
+   ```bash
+   make import-all
+   ```
+
+2. **Update Terraform** to use the imported image in `terraform/main.tf`:
+   ```hcl
+   module "grafana01" {
+     source = "./modules/grafana"
+
+     image = "atlas-grafana"  # Use imported Incus image alias
+     # ... other configuration
+   }
+   ```
+
+3. **Apply changes**:
+   ```bash
+   cd terraform
+   terraform apply
+   ```
+
+**Image aliases after import:**
+- `atlas-caddy`
+- `atlas-grafana`
+- `atlas-loki`
+- `atlas-prometheus`
+
+See [docker/README.md](docker/README.md) for detailed information on image management.
 
 ### Customizing Docker Images
 
