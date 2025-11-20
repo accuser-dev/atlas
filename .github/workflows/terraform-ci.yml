@@ -137,6 +137,7 @@ jobs:
           # Create a minimal terraform.tfvars for plan testing
           cat > terraform.tfvars <<EOF
           cloudflare_api_token = "test-token-for-ci"
+          grafana_admin_password = "test-password-12345"
           development_network_ipv4 = "10.0.1.1/24"
           testing_network_ipv4 = "10.0.2.1/24"
           production_network_ipv4 = "10.0.3.1/24"
