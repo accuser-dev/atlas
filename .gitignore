@@ -1,8 +1,25 @@
-.terraform/
-*.tfstate
-*.tfstate.*
-crash.log
-override.tf
-override.tf.json
-*.tfvars
-.terraform.lock.hcl
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/crash.log
+terraform/override.tf
+terraform/override.tf.json
+terraform/*.tfvars
+terraform/.terraform.lock.hcl
+
+# Docker build artifacts
+docker/**/.dockerignore
+docker/**/node_modules/
+docker/**/*.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

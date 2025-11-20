@@ -9,7 +9,8 @@
       "Bash(terraform plan:*)",
       "Bash(cat:*)",
       "Bash(git fetch:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

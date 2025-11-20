@@ -6,10 +6,80 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Terraform infrastructure project that manages Incus containers for a complete monitoring stack including Caddy reverse proxy, Grafana, Prometheus, and Loki. The setup provisions containerized services with automatic HTTPS certificate management, persistent storage, and dynamic configuration generation.
 
+The project is organized into two main directories:
+- **`docker/`** - Custom Docker images for each service
+- **`terraform/`** - Infrastructure as Code using Terraform
+
+## Project Structure
+
+```
+atlas/
+├── docker/                    # Custom Docker images
+│   ├── caddy/                # Caddy reverse proxy with Cloudflare DNS
+│   │   ├── Dockerfile
+│   │   └── README.md
+│   ├── grafana/              # Grafana with optional plugins
+│   │   ├── Dockerfile
+│   │   └── README.md
+│   ├── loki/                 # Loki log aggregation
+│   │   ├── Dockerfile
+│   │   └── README.md
+│   └── prometheus/           # Prometheus metrics collection
+│       ├── Dockerfile
+│       └── README.md
+├── terraform/                 # Terraform infrastructure
+│   ├── modules/              # Reusable Terraform modules
+│   │   ├── caddy/
+│   │   ├── grafana/
+│   │   ├── loki/
+│   │   └── prometheus/
+│   ├── main.tf               # Module instantiations
+│   ├── variables.tf          # Variable definitions
+│   ├── networks.tf           # Network configuration
+│   ├── outputs.tf            # Output values
+│   ├── providers.tf          # Provider configuration
+│   ├── versions.tf           # Version constraints
+│   └── terraform.tfvars      # Variable values (gitignored)
+├── Makefile                  # Build and deployment automation
+└── CLAUDE.md                 # This file
+```
+
 ## Common Commands
 
-### Terraform Operations
+### Build and Deployment (Makefile)
 ```bash
+# Build all Docker images
+make build-all
+
+# Build individual images
+make build-caddy
+make build-grafana
+make build-loki
+make build-prometheus
+
+# Terraform operations
+make terraform-init      # Initialize Terraform
+make terraform-plan      # Plan changes
+make terraform-apply     # Apply changes
+make terraform-destroy   # Destroy infrastructure
+
+# Complete deployment (build images + apply Terraform)
+make deploy
+
+# Cleanup
+make clean               # Clean all build artifacts
+make clean-docker        # Clean Docker build cache
+make clean-terraform     # Clean Terraform cache
+
+# Format Terraform files
+make format
+```
+
+### Direct Terraform Operations
+```bash
+# Navigate to terraform directory
+cd terraform
+
 # Initialize Terraform (required first time or after provider changes)
 terraform init
 
@@ -35,8 +105,17 @@ terraform show
 terraform output
 ```
 
+### Docker Image Management
+```bash
+# Build images with custom tags
+IMAGE_TAG=v1.0.0 make build-all
+
+# Build with custom registry
+DOCKER_REGISTRY=registry.accuser.dev make build-all
+```
+
 ### Working with tfvars
-The `terraform.tfvars` file contains sensitive variables and is gitignored. Required variables:
+The `terraform/terraform.tfvars` file contains sensitive variables and is gitignored. Required variables:
 - `cloudflare_api_token`: Cloudflare API token for DNS management
 - Network configuration variables (IPv4/IPv6 addresses for development, testing, production networks)
 
@@ -46,108 +125,129 @@ The `terraform.tfvars` file contains sensitive variables and is gitignored. Requ
 
 The project uses Terraform modules for scalability and reusability:
 
-**Root Level:**
-- [versions.tf](versions.tf) - Terraform and provider version constraints
-- [providers.tf](providers.tf) - Provider configuration
-- [variables.tf](variables.tf) - Root-level input variable definitions
-- [main.tf](main.tf) - Module instantiations and orchestration
-- [networks.tf](networks.tf) - Network definitions (development, testing, production)
-- [outputs.tf](outputs.tf) - Output values (endpoints, configurations)
-- [terraform.tfvars](terraform.tfvars) - Variable values (gitignored, contains secrets)
+**Terraform Root Level:**
+- [terraform/versions.tf](terraform/versions.tf) - Terraform and provider version constraints
+- [terraform/providers.tf](terraform/providers.tf) - Provider configuration
+- [terraform/variables.tf](terraform/variables.tf) - Root-level input variable definitions
+- [terraform/main.tf](terraform/main.tf) - Module instantiations and orchestration
+- [terraform/networks.tf](terraform/networks.tf) - Network definitions (development, testing, production)
+- [terraform/outputs.tf](terraform/outputs.tf) - Output values (endpoints, configurations)
+- [terraform/terraform.tfvars](terraform/terraform.tfvars) - Variable values (gitignored, contains secrets)
 
-**Modules:**
-- [modules/caddy/](modules/caddy/) - Reverse proxy with dynamic Caddyfile generation
-  - [main.tf](modules/caddy/main.tf) - Profile, container, and Caddyfile templating
-  - [variables.tf](modules/caddy/variables.tf) - Module input variables
-  - [outputs.tf](modules/caddy/outputs.tf) - Module outputs
-  - [templates/Caddyfile.tftpl](modules/caddy/templates/Caddyfile.tftpl) - Caddyfile template
-  - [versions.tf](modules/caddy/versions.tf) - Provider requirements
+**Terraform Modules:**
+- [terraform/modules/caddy/](terraform/modules/caddy/) - Reverse proxy with dynamic Caddyfile generation
+  - [main.tf](terraform/modules/caddy/main.tf) - Profile, container, and Caddyfile templating
+  - [variables.tf](terraform/modules/caddy/variables.tf) - Module input variables
+  - [outputs.tf](terraform/modules/caddy/outputs.tf) - Module outputs
+  - [templates/Caddyfile.tftpl](terraform/modules/caddy/templates/Caddyfile.tftpl) - Caddyfile template
+  - [versions.tf](terraform/modules/caddy/versions.tf) - Provider requirements
 
-- [modules/grafana/](modules/grafana/) - Grafana observability platform
-  - [main.tf](modules/grafana/main.tf) - Profile, container, and storage volume
-  - [variables.tf](modules/grafana/variables.tf) - Module input variables including domain config
-  - [outputs.tf](modules/grafana/outputs.tf) - Module outputs including Caddy config block
-  - [templates/caddyfile.tftpl](modules/grafana/templates/caddyfile.tftpl) - Caddy reverse proxy template
-  - [versions.tf](modules/grafana/versions.tf) - Provider requirements
+- [terraform/modules/grafana/](terraform/modules/grafana/) - Grafana observability platform
+  - [main.tf](terraform/modules/grafana/main.tf) - Profile, container, and storage volume
+  - [variables.tf](terraform/modules/grafana/variables.tf) - Module input variables including domain config
+  - [outputs.tf](terraform/modules/grafana/outputs.tf) - Module outputs including Caddy config block
+  - [templates/caddyfile.tftpl](terraform/modules/grafana/templates/caddyfile.tftpl) - Caddy reverse proxy template
+  - [versions.tf](terraform/modules/grafana/versions.tf) - Provider requirements
 
-- [modules/loki/](modules/loki/) - Log aggregation system (internal only)
-  - [main.tf](modules/loki/main.tf) - Profile, container, and storage volume
-  - [variables.tf](modules/loki/variables.tf) - Module input variables
-  - [outputs.tf](modules/loki/outputs.tf) - Module outputs including endpoint
-  - [versions.tf](modules/loki/versions.tf) - Provider requirements
+- [terraform/modules/loki/](terraform/modules/loki/) - Log aggregation system (internal only)
+  - [main.tf](terraform/modules/loki/main.tf) - Profile, container, and storage volume
+  - [variables.tf](terraform/modules/loki/variables.tf) - Module input variables
+  - [outputs.tf](terraform/modules/loki/outputs.tf) - Module outputs including endpoint
+  - [versions.tf](terraform/modules/loki/versions.tf) - Provider requirements
 
-- [modules/prometheus/](modules/prometheus/) - Metrics collection and storage (internal only)
-  - [main.tf](modules/prometheus/main.tf) - Profile, container, storage volume, and config file
-  - [variables.tf](modules/prometheus/variables.tf) - Module input variables including prometheus.yml config
-  - [outputs.tf](modules/prometheus/outputs.tf) - Module outputs including endpoint
-  - [versions.tf](modules/prometheus/versions.tf) - Provider requirements
+- [terraform/modules/prometheus/](terraform/modules/prometheus/) - Metrics collection and storage (internal only)
+  - [main.tf](terraform/modules/prometheus/main.tf) - Profile, container, storage volume, and config file
+  - [variables.tf](terraform/modules/prometheus/variables.tf) - Module input variables including prometheus.yml config
+  - [outputs.tf](terraform/modules/prometheus/outputs.tf) - Module outputs including endpoint
+  - [versions.tf](terraform/modules/prometheus/versions.tf) - Provider requirements
+
+**Docker Images:**
+- [docker/caddy/](docker/caddy/) - Custom Caddy image with Cloudflare DNS plugin
+  - [Dockerfile](docker/caddy/Dockerfile) - Image build definition
+  - [README.md](docker/caddy/README.md) - Build and customization instructions
+
+- [docker/grafana/](docker/grafana/) - Custom Grafana image with optional plugins
+  - [Dockerfile](docker/grafana/Dockerfile) - Image build definition
+  - [README.md](docker/grafana/README.md) - Plugin installation and provisioning guide
+
+- [docker/loki/](docker/loki/) - Custom Loki image
+  - [Dockerfile](docker/loki/Dockerfile) - Image build definition
+  - [README.md](docker/loki/README.md) - Configuration instructions
+
+- [docker/prometheus/](docker/prometheus/) - Custom Prometheus image with optional rules
+  - [Dockerfile](docker/prometheus/Dockerfile) - Image build definition
+  - [README.md](docker/prometheus/README.md) - Alert and recording rules guide
 
 ### Infrastructure Components
 
-1. **Incus Provider** ([providers.tf](providers.tf), [versions.tf](versions.tf))
+1. **Incus Provider** ([terraform/providers.tf](terraform/providers.tf), [terraform/versions.tf](terraform/versions.tf))
    - Uses the `lxc/incus` provider (v1.0.0+)
    - Manages LXC/Incus containers and storage volumes
 
-2. **Network Configuration** ([networks.tf](networks.tf))
+2. **Network Configuration** ([terraform/networks.tf](terraform/networks.tf))
    - Three managed networks: development, testing, production
    - Each network has configurable IPv4 and IPv6 addresses
    - NAT enabled for external connectivity
 
-3. **Caddy Module** ([modules/caddy/](modules/caddy/))
+3. **Caddy Module** ([terraform/modules/caddy/](terraform/modules/caddy/))
    - Reverse proxy with automatic HTTPS via Let's Encrypt
    - Dynamic Caddyfile generation from service module outputs
    - Cloudflare DNS-01 ACME challenge support
    - Dual network interfaces (production + management)
    - Accepts `service_blocks` list for dynamic configuration
+   - Custom Docker image: [docker/caddy/](docker/caddy/)
 
-4. **Caddy Instance** (instantiated in [main.tf](main.tf))
+4. **Caddy Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `caddy01`
-   - Image: `docker:caddybuilds/caddy-cloudflare`
+   - Image: `docker:caddybuilds/caddy-cloudflare` (or custom `docker:atlas/caddy`)
    - Resource limits: 2 CPUs, 1GB memory (configurable)
    - Dual network interfaces:
      - `eth0`: Connected to "production" network
      - `eth1`: Connected to "incusbr0" bridge
    - Caddyfile dynamically generated from module outputs
 
-5. **Grafana Module** ([modules/grafana/](modules/grafana/))
+5. **Grafana Module** ([terraform/modules/grafana/](terraform/modules/grafana/))
    - Visualization and dashboarding platform
    - Persistent storage for dashboards and configuration (10GB)
    - Environment variable support for configuration
    - Generates Caddy reverse proxy configuration block
    - Domain-based access with IP restrictions
+   - Custom Docker image: [docker/grafana/](docker/grafana/)
 
-6. **Grafana Instance** (instantiated in [main.tf](main.tf))
+6. **Grafana Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `grafana01`
-   - Image: `docker:grafana/grafana`
+   - Image: `docker:grafana/grafana` (or custom `docker:atlas/grafana`)
    - Domain: `grafana.accuser.dev` (publicly accessible via Caddy)
    - Resource limits: 2 CPUs, 1GB memory
    - Storage: 10GB persistent volume for `/var/lib/grafana`
    - Network: Connected to production network
 
-7. **Loki Module** ([modules/loki/](modules/loki/))
+7. **Loki Module** ([terraform/modules/loki/](terraform/modules/loki/))
    - Log aggregation system (internal only)
    - Persistent storage for log data (50GB)
    - No public-facing reverse proxy configuration
    - Internal endpoint for Grafana data source
+   - Custom Docker image: [docker/loki/](docker/loki/)
 
-8. **Loki Instance** (instantiated in [main.tf](main.tf))
+8. **Loki Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `loki01`
-   - Image: `docker:grafana/loki`
+   - Image: `docker:grafana/loki` (or custom `docker:atlas/loki`)
    - Internal endpoint: `http://loki01.incus:3100`
    - Resource limits: 2 CPUs, 2GB memory
    - Storage: 50GB persistent volume for `/loki`
    - Network: Connected to production network (internal only)
 
-9. **Prometheus Module** ([modules/prometheus/](modules/prometheus/))
+9. **Prometheus Module** ([terraform/modules/prometheus/](terraform/modules/prometheus/))
    - Metrics collection and time-series database (internal only)
    - Persistent storage for metrics data (100GB)
    - Optional prometheus.yml configuration file injection
    - No public-facing reverse proxy configuration
    - Internal endpoint for Grafana data source
+   - Custom Docker image: [docker/prometheus/](docker/prometheus/)
 
-10. **Prometheus Instance** (instantiated in [main.tf](main.tf))
+10. **Prometheus Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `prometheus01`
-    - Image: `docker:prom/prometheus`
+    - Image: `docker:prom/prometheus` (or custom `docker:atlas/prometheus`)
     - Internal endpoint: `http://prometheus01.incus:9090`
     - Resource limits: 2 CPUs, 2GB memory
     - Storage: 100GB persistent volume for `/prometheus`
@@ -164,7 +264,7 @@ The project uses a template-based approach for generating Caddyfile configuratio
 
 **Adding a new public service:**
 ```hcl
-# In main.tf, add the service's caddy_config_block to the list
+# In terraform/main.tf, add the service's caddy_config_block to the list
 module "caddy01" {
   service_blocks = [
     module.grafana01.caddy_config_block,
@@ -190,22 +290,34 @@ Each service with persistent storage uses Incus storage volumes:
 
 **For public-facing services (with Caddy reverse proxy):**
 
-1. Create module in `modules/yourservice/`
-2. Add `domain`, `allowed_ip_range`, and port variables
-3. Create `templates/caddyfile.tftpl` for reverse proxy config
-4. Add `caddy_config_block` output using templatefile()
-5. Instantiate module in root [main.tf](main.tf)
-6. Add module's `caddy_config_block` to Caddy's `service_blocks` list
+1. Create Docker image in `docker/yourservice/` with Dockerfile
+2. Build image with `make build-yourservice` or `docker build`
+3. Create Terraform module in `terraform/modules/yourservice/`
+4. Add `domain`, `allowed_ip_range`, and port variables to module
+5. Create `templates/caddyfile.tftpl` for reverse proxy config
+6. Add `caddy_config_block` output using templatefile()
+7. Instantiate module in [terraform/main.tf](terraform/main.tf)
+8. Add module's `caddy_config_block` to Caddy's `service_blocks` list
 
 **For internal-only services (no public access):**
 
-1. Create module in `modules/yourservice/`
-2. Add storage and network configuration
-3. Add endpoint output for internal connectivity
-4. Instantiate module in root [main.tf](main.tf)
-5. Connect from other services using `yourservice.incus:port`
+1. Create Docker image in `docker/yourservice/` with Dockerfile
+2. Build image with `make build-yourservice` or `docker build`
+3. Create Terraform module in `terraform/modules/yourservice/`
+4. Add storage and network configuration to module
+5. Add endpoint output for internal connectivity
+6. Instantiate module in [terraform/main.tf](terraform/main.tf)
+7. Connect from other services using `yourservice.incus:port`
 
 **Example - Adding a new Grafana instance:**
+
+1. First, ensure the Grafana image is built:
+```bash
+make build-grafana
+# Image: atlas/grafana:latest
+```
+
+2. Then add to `terraform/main.tf`:
 ```hcl
 module "grafana02" {
   source = "./modules/grafana"
@@ -217,6 +329,9 @@ module "grafana02" {
 
   domain           = "grafana-dev.accuser.dev"
   allowed_ip_range = "192.168.68.0/22"
+
+  # Optional: Use custom image
+  # image = "docker:atlas/grafana:latest"
 
   environment_variables = {
     GF_SECURITY_ADMIN_USER     = "admin"
@@ -242,8 +357,9 @@ module "caddy01" {
 ### Key Design Patterns
 
 **Modular Architecture:**
-- Each service type has its own module in `modules/`
-- Modules are instantiated in the root [main.tf](main.tf)
+- Each service type has its own Docker image in `docker/`
+- Each service type has its own Terraform module in `terraform/modules/`
+- Modules are instantiated in the root [terraform/main.tf](terraform/main.tf)
 - Easy to scale by adding new module instances
 - Module parameters allow customization per instance
 
@@ -298,19 +414,75 @@ The complete observability stack is designed to work together:
 # Loki: http://loki01.incus:3100
 ```
 
+## Workflow
+
+### Development Workflow
+
+1. **Customize Docker images** (optional):
+   - Edit Dockerfiles in `docker/*/Dockerfile`
+   - Add plugins, configuration files, or customizations
+   - Build images: `make build-all` or `make build-<service>`
+
+2. **Configure Infrastructure**:
+   - Edit Terraform modules in `terraform/modules/`
+   - Modify main configuration in `terraform/main.tf`
+   - Update variables in `terraform/terraform.tfvars`
+
+3. **Deploy**:
+   ```bash
+   # Full deployment (build + apply)
+   make deploy
+
+   # Or step-by-step
+   make build-all
+   make terraform-apply
+   ```
+
+4. **Verify**:
+   ```bash
+   cd terraform && terraform output
+   ```
+
+### Choosing Between Custom and Official Images
+
+**Use official images** (`docker:grafana/grafana`) when:
+- You don't need customizations
+- Configuration via environment variables is sufficient
+- You want automatic updates from upstream
+
+**Use custom images** (`docker:atlas/grafana`) when:
+- Installing Grafana plugins
+- Adding custom configuration files
+- Baking in organization-specific defaults
+- Building reproducible, versioned deployments
+
+### Post-Creation Configuration
+
+**For Docker containers**:
+- ✅ **Custom Docker images** - Pre-install packages and plugins (recommended)
+- ✅ **Environment variables** - Configure at runtime via Terraform
+- ✅ **File injection** - Use Terraform `file` blocks for configuration files
+- ⚠️ **External scripts** - Use `incus exec` via separate orchestration script
+- ❌ **Terraform provisioners** - Avoid (fragile and non-declarative)
+- ❌ **Cloud-init** - Not available for Docker protocol images
+
+**For system containers** (future use):
+- ✅ **Cloud-init** - Use when launching system container images (`images:ubuntu/22.04`)
+- ✅ **Custom images** - Pre-configure with Packer or image builds
+
 ## Important Notes
 
-- The `terraform.tfvars` file is gitignored and must be created manually with required secrets
-- Caddy is built with Cloudflare DNS plugin (`caddybuilds/caddy-cloudflare` image)
+- The `terraform/terraform.tfvars` file is gitignored and must be created manually with required secrets
+- Caddy uses the `caddybuilds/caddy-cloudflare` base image (or custom `atlas/caddy`)
 - Access to services is restricted to the 192.168.68.0/22 subnet by default
 - All services use the `production` network for connectivity
 - Storage volumes are created automatically when modules are applied
 - Each module has a `versions.tf` specifying the Incus provider requirement
-- The cloud-init directory contains an alternative provisioning approach using xcaddy to build Caddy with plugins
+- Custom Docker images are built locally and referenced via `docker:atlas/<service>` protocol
 
 ## Outputs
 
-After applying, use `terraform output` to view:
+After applying, use `cd terraform && terraform output` to view:
 - `grafana_caddy_config` - Generated Caddy configuration for Grafana
 - `loki_endpoint` - Internal Loki endpoint URL
 - `prometheus_endpoint` - Internal Prometheus endpoint URL
