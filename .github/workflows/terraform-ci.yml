@@ -6,25 +6,80 @@ on:
       - main
       - develop
     paths:
-      - '**.tf'
-      - '**.tftpl'
+      - 'terraform/**.tf'
+      - 'terraform/**.tftpl'
+      - 'docker/**/Dockerfile'
       - '.github/workflows/terraform-ci.yml'
   pull_request:
     branches:
       - main
       - develop
     paths:
-      - '**.tf'
-      - '**.tftpl'
+      - 'terraform/**.tf'
+      - 'terraform/**.tftpl'
+      - 'docker/**/Dockerfile'
       - '.github/workflows/terraform-ci.yml'
 
 env:
   TF_VERSION: '1.13.5'
 
 jobs:
+  docker-build:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Caddy Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docker/caddy
+          push: false
+          tags: atlas/caddy:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Grafana Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docker/grafana
+          push: false
+          tags: atlas/grafana:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Loki Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docker/loki
+          push: false
+          tags: atlas/loki:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Prometheus Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docker/prometheus
+          push: false
+          tags: atlas/prometheus:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Docker Build Summary
+        run: |
+          echo "✅ All Docker images built successfully!"
+          docker images | grep atlas
+
   terraform-checks:
     name: Terraform Validation and Checks
     runs-on: ubuntu-latest
+    needs: docker-build
 
     steps:
       - name: Checkout code
@@ -37,19 +92,23 @@ jobs:
 
       - name: Terraform Format Check
         id: fmt
+        working-directory: terraform
         run: terraform fmt -check -recursive
         continue-on-error: true
 
       - name: Terraform Init
         id: init
+        working-directory: terraform
         run: terraform init -backend=false
 
       - name: Terraform Validate
         id: validate
+        working-directory: terraform
         run: terraform validate -no-color
 
       - name: Terraform Plan (Dry Run)
         id: plan
+        working-directory: terraform
         run: |
           # Create a minimal terraform.tfvars for plan testing
           cat > terraform.tfvars <<EOF
