@@ -1,0 +1,48 @@
+# Example Terraform Variables Configuration
+# Copy this file to terraform.tfvars and fill in your actual values
+# WARNING: terraform.tfvars is gitignored and should NEVER be committed
+
+# ============================================================================
+# REQUIRED VARIABLES
+# ============================================================================
+
+# Cloudflare API token for DNS management (required for Caddy ACME DNS-01 challenge)
+# Get this from: https://dash.cloudflare.com/profile/api-tokens
+# Required scopes: Zone:DNS:Edit
+cloudflare_api_token = "your-cloudflare-api-token-here"
+
+# ============================================================================
+# OPTIONAL NETWORK CONFIGURATION
+# ============================================================================
+# Override these if you need different network ranges
+# Default values are shown below - uncomment to customize
+
+# Development Network (default: 10.10.0.1/24)
+# development_network_ipv4 = "10.10.0.1/24"
+# development_network_nat  = "true"
+
+# Testing Network (default: 10.20.0.1/24)
+# testing_network_ipv4 = "10.20.0.1/24"
+# testing_network_nat  = "true"
+
+# Staging Network (default: 10.30.0.1/24)
+# staging_network_ipv4 = "10.30.0.1/24"
+# staging_network_nat  = "true"
+
+# Production Network (default: 10.40.0.1/24)
+# production_network_ipv4 = "10.40.0.1/24"
+# production_network_nat  = "true"
+
+# Management Network (default: 10.50.0.1/24)
+# Hosts internal services like Grafana, Loki, Prometheus
+# management_network_ipv4 = "10.50.0.1/24"
+# management_network_nat  = "true"
+
+# ============================================================================
+# USAGE INSTRUCTIONS
+# ============================================================================
+# 1. Copy this file: cp terraform.tfvars.example terraform.tfvars
+# 2. Edit terraform.tfvars and replace "your-cloudflare-api-token-here"
+# 3. Optionally customize network ranges if needed
+# 4. Never commit terraform.tfvars (it's in .gitignore)
+# 5. Run: terraform init && terraform plan
