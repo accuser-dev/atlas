@@ -20,7 +20,6 @@
 			"extensions": [
 				"HashiCorp.terraform",
 				"Anthropic.claude-code",
-				"ms-vscode.makefile-tools",
 				"GitHub.vscode-github-actions",
 				"docker.docker"
 			]
