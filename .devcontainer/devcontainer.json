@@ -2,6 +2,10 @@
 	"name": "Ubuntu",
 	"image": "mcr.microsoft.com/devcontainers/base:noble",
 	"features": {
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "lts"
+		},
 		"ghcr.io/devcontainers/features/terraform:1": {
 			"installSentinel": true,
 			"installTFsec": true,
@@ -15,7 +19,8 @@
 		"vscode": {
 			"extensions": [
 				"HashiCorp.terraform",
-				"Anthropic.claude-code"
+				"Anthropic.claude-code",
+				"ms-vscode.makefile-tools"
 			]
 		}
 	},

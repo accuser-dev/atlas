@@ -1,7 +1,8 @@
 #/usr/bin/env bash
-mkdir -p /etc/apt/keyrings/
-curl -fsSL https://pkgs.zabbly.com/key.asc -o /etc/apt/keyrings/zabbly.asc
+apt update
+apt install ca-certificates curl
 
+curl -fsSL https://pkgs.zabbly.com/key.asc -o /etc/apt/keyrings/zabbly.asc
 sh -c 'cat <<EOF > /etc/apt/sources.list.d/zabbly-incus-stable.sources
 Enabled: yes
 Types: deb
@@ -14,5 +15,5 @@ Signed-By: /etc/apt/keyrings/zabbly.asc
 EOF'
 
 apt-get update
-apt-get install -y incus-client nodejs
+apt-get install -y incus-client 
 
