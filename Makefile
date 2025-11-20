@@ -2,6 +2,7 @@
 # Manages Docker image builds and Terraform deployments
 
 .PHONY: help build-all build-caddy build-grafana build-loki build-prometheus \
+        list-images \
         terraform-init terraform-plan terraform-apply terraform-destroy \
         clean clean-docker clean-terraform
 
@@ -15,6 +16,7 @@ help:
 	@echo "  make build-grafana     - Build Grafana image"
 	@echo "  make build-loki        - Build Loki image"
 	@echo "  make build-prometheus  - Build Prometheus image"
+	@echo "  make list-images       - List Docker images"
 	@echo ""
 	@echo "Terraform Commands:"
 	@echo "  make terraform-init    - Initialize Terraform"
@@ -31,13 +33,13 @@ help:
 	@echo "  make clean-terraform   - Clean Terraform state and cache"
 
 # Docker image configuration
-DOCKER_REGISTRY ?= local
 IMAGE_TAG ?= latest
 
-CADDY_IMAGE := $(DOCKER_REGISTRY)/atlas-caddy:$(IMAGE_TAG)
-GRAFANA_IMAGE := $(DOCKER_REGISTRY)/atlas-grafana:$(IMAGE_TAG)
-LOKI_IMAGE := $(DOCKER_REGISTRY)/atlas-loki:$(IMAGE_TAG)
-PROMETHEUS_IMAGE := $(DOCKER_REGISTRY)/atlas-prometheus:$(IMAGE_TAG)
+# Docker image names
+CADDY_IMAGE := atlas/caddy:$(IMAGE_TAG)
+GRAFANA_IMAGE := atlas/grafana:$(IMAGE_TAG)
+LOKI_IMAGE := atlas/loki:$(IMAGE_TAG)
+PROMETHEUS_IMAGE := atlas/prometheus:$(IMAGE_TAG)
 
 # Build all Docker images
 build-all: build-caddy build-grafana build-loki build-prometheus
@@ -63,6 +65,11 @@ build-prometheus:
 	@echo "Building Prometheus image..."
 	docker build -t $(PROMETHEUS_IMAGE) docker/prometheus/
 	@echo "Prometheus image built: $(PROMETHEUS_IMAGE)"
+
+# List Docker images
+list-images:
+	@echo "Atlas Docker images:"
+	@docker images | grep -E "(REPOSITORY|atlas)" || echo "No atlas images found"
 
 # Terraform commands
 terraform-init:
