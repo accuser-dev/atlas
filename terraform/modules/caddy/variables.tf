@@ -33,13 +33,19 @@ variable "storage_pool" {
 }
 
 variable "production_network" {
-  description = "Production network name"
+  description = "Production network name (for public-facing applications)"
   type        = string
   default     = "production"
 }
 
 variable "management_network" {
-  description = "Management network name"
+  description = "Management network name (for internal services like monitoring)"
+  type        = string
+  default     = "management"
+}
+
+variable "external_network" {
+  description = "External network name (for external access, typically incusbr0)"
   type        = string
   default     = "incusbr0"
 }

@@ -30,6 +30,14 @@ resource "incus_profile" "caddy" {
       network = var.management_network
     }
   }
+
+  device {
+    name = "eth2"
+    type = "nic"
+    properties = {
+      network = var.external_network
+    }
+  }
 }
 
 resource "incus_instance" "caddy" {
