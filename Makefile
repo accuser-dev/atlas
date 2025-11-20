@@ -4,19 +4,22 @@
 .PHONY: help build-all build-caddy build-grafana build-loki build-prometheus \
         list-images \
         terraform-init terraform-plan terraform-apply terraform-destroy \
-        clean clean-docker clean-terraform
+        deploy clean clean-docker clean-terraform format
 
 # Default target
 help:
 	@echo "Atlas Infrastructure Management"
 	@echo ""
 	@echo "Docker Commands:"
-	@echo "  make build-all         - Build all Docker images"
+	@echo "  make build-all         - Build all Docker images locally (for testing)"
 	@echo "  make build-caddy       - Build Caddy image"
 	@echo "  make build-grafana     - Build Grafana image"
 	@echo "  make build-loki        - Build Loki image"
 	@echo "  make build-prometheus  - Build Prometheus image"
 	@echo "  make list-images       - List Docker images"
+	@echo ""
+	@echo "Note: Production images are built and published via GitHub Actions"
+	@echo "      Images are published to ghcr.io/accuser/atlas/atlas-*:latest"
 	@echo ""
 	@echo "Terraform Commands:"
 	@echo "  make terraform-init    - Initialize Terraform"
@@ -25,9 +28,10 @@ help:
 	@echo "  make terraform-destroy - Destroy infrastructure"
 	@echo ""
 	@echo "Deployment Commands:"
-	@echo "  make deploy            - Build all images and apply Terraform"
+	@echo "  make deploy            - Apply Terraform (pulls images from ghcr.io)"
 	@echo ""
-	@echo "Cleanup Commands:"
+	@echo "Utility Commands:"
+	@echo "  make format            - Format Terraform files"
 	@echo "  make clean             - Clean all build artifacts"
 	@echo "  make clean-docker      - Clean Docker build cache"
 	@echo "  make clean-terraform   - Clean Terraform state and cache"
@@ -35,7 +39,7 @@ help:
 # Docker image configuration
 IMAGE_TAG ?= latest
 
-# Docker image names
+# Docker image names (local builds for testing)
 CADDY_IMAGE := atlas/caddy:$(IMAGE_TAG)
 GRAFANA_IMAGE := atlas/grafana:$(IMAGE_TAG)
 LOKI_IMAGE := atlas/loki:$(IMAGE_TAG)
@@ -89,7 +93,7 @@ terraform-destroy:
 	cd terraform && terraform destroy
 
 # Combined deployment
-deploy: build-all terraform-apply
+deploy: terraform-apply
 	@echo "Deployment complete!"
 	@echo ""
 	@echo "Run 'cd terraform && terraform output' to see endpoints"
