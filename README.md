@@ -34,6 +34,8 @@ atlas/
 │   ├── outputs.tf            # Output values
 │   └── terraform.tfvars      # Secrets (gitignored)
 │
+├── .github/workflows/        # CI/CD workflows
+│   └── terraform-ci.yml      # Terraform validation and Docker builds
 ├── Makefile                  # Build and deployment automation
 ├── CLAUDE.md                 # Detailed architecture documentation
 └── README.md                 # This file
@@ -218,6 +220,27 @@ Persistent storage for each service:
 - `grafana01-data` (10GB) - Dashboards and settings
 - `loki01-data` (50GB) - Log storage
 - `prometheus01-data` (100GB) - Metrics storage
+
+## CI/CD
+
+The project includes GitHub Actions workflows for continuous integration:
+
+### Terraform CI Workflow
+
+**Triggers:**
+- Push to `main` or `develop` branches
+- Pull requests to `main` or `develop` branches
+- Only when relevant files change (`.tf`, `.tftpl`, `Dockerfile`)
+
+**What it does:**
+1. **Docker Build Validation** - Builds all four Docker images to ensure they compile
+2. **Terraform Checks** - Validates format, initialization, and configuration
+3. **Plan Preview** - Generates a Terraform plan (dry run)
+4. **PR Comments** - Posts validation results on pull requests
+
+**Workflow file:** [.github/workflows/terraform-ci.yml](.github/workflows/terraform-ci.yml)
+
+All Terraform commands run in the `terraform/` directory, and Docker builds use GitHub Actions cache for faster builds.
 
 ## Post-Creation Configuration
 
