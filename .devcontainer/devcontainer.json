@@ -1,0 +1,23 @@
+{
+	"name": "Ubuntu",
+	"image": "mcr.microsoft.com/devcontainers/base:noble",
+	"features": {
+		"ghcr.io/devcontainers/features/terraform:1": {
+			"installSentinel": true,
+			"installTFsec": true,
+			"installTerraformDocs": true,
+			"version": "latest",
+			"tflint": "latest",
+			"terragrunt": "latest"
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"HashiCorp.terraform",
+				"Anthropic.claude-code"
+			]
+		}
+	},
+	"onCreateCommand": "sudo .devcontainer/on-create.sh"
+}

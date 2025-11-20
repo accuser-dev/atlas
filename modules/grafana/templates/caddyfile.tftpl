@@ -1,0 +1,6 @@
+${domain} {
+	@denied not remote_ip ${allowed_ip_range}
+	abort @denied
+
+	reverse_proxy ${instance_name}.incus:${port}
+}
