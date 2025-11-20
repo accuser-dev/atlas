@@ -32,7 +32,7 @@ resource "incus_profile" "loki" {
     name = "eth0"
     type = "nic"
     properties = {
-      network = var.monitoring_network
+      network = var.network_name
     }
   }
 
