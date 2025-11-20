@@ -33,23 +33,21 @@ Jobs run in this order to optimize cost and performance:
    - Services: `[caddy, grafana, loki, prometheus]`
    - Each image builds independently with `fail-fast: false`
    - Uses Docker BuildKit with GitHub Actions cache (per-service scope)
-   - Images are tagged as `atlas/<service>:ci`
-   - **Does not push** images (validation only)
-
-3. **terraform-plan** - Generates Terraform plan (runs after both jobs complete)
-   - Runs `terraform plan` with test variables
-   - Creates a dry-run plan to preview infrastructure changes
-   - Comments plan results on pull requests
-   - Uses `continue-on-error: true` for informational purposes
+   - On PRs: Builds and validates images (does not push)
+   - On push to main/develop: Builds and pushes to GitHub Container Registry
 
 **Job Dependencies:**
 ```
 terraform-validate (fast, fails fast)
          ↓
 docker-build (expensive, runs in parallel via matrix)
-         ↓
-terraform-plan (informational)
 ```
+
+**Note:** `terraform plan` is not run in CI because:
+- Requires actual Incus infrastructure (not available in GitHub Actions)
+- Cannot connect to provider with test credentials
+- Validation is already covered by `terraform validate`
+- Developers should run `terraform plan` locally before creating PRs
 
 **Performance Optimizations:**
 

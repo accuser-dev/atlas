@@ -77,7 +77,7 @@ Fixes #
 - [ ] My code follows the project's style guidelines
 - [ ] I have run `terraform fmt` on all Terraform files
 - [ ] I have run `terraform validate` successfully
-- [ ] I have tested my changes locally with `terraform plan`
+- [ ] I have run `terraform plan` locally to verify changes (required for Terraform changes)
 - [ ] I have added tests that prove my fix is effective or feature works (if applicable)
 - [ ] New and existing tests pass locally
 - [ ] No secrets or sensitive data are committed

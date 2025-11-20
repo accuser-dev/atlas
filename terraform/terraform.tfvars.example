@@ -11,6 +11,11 @@
 # Required scopes: Zone:DNS:Edit
 cloudflare_api_token = "your-cloudflare-api-token-here"
 
+# Grafana admin password (must be at least 12 characters)
+# IMPORTANT: Use a strong, unique password. This will be used to access Grafana at grafana.accuser.dev
+# Generate a secure password: openssl rand -base64 16
+grafana_admin_password = "your-secure-grafana-password-here"
+
 # ============================================================================
 # OPTIONAL NETWORK CONFIGURATION
 # ============================================================================
@@ -42,7 +47,9 @@ cloudflare_api_token = "your-cloudflare-api-token-here"
 # USAGE INSTRUCTIONS
 # ============================================================================
 # 1. Copy this file: cp terraform.tfvars.example terraform.tfvars
-# 2. Edit terraform.tfvars and replace "your-cloudflare-api-token-here"
+# 2. Edit terraform.tfvars and replace placeholder values:
+#    - Set your Cloudflare API token
+#    - Set a strong Grafana admin password (min 12 characters)
 # 3. Optionally customize network ranges if needed
 # 4. Never commit terraform.tfvars (it's in .gitignore)
 # 5. Run: terraform init && terraform plan

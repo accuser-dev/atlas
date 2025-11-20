@@ -93,7 +93,8 @@ jobs:
           images: ghcr.io/${{ github.repository }}/${{ matrix.service }}
           tags: |
             type=ref,event=branch
-            type=sha,prefix={{branch}}-
+            type=ref,event=pr
+            type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and Push ${{ matrix.service }} Image
@@ -110,68 +111,3 @@ jobs:
         run: |
           echo "✅ ${{ matrix.service }} image built successfully!"
           echo "Tags: ${{ steps.meta.outputs.tags }}"
-
-  terraform-plan:
-    name: Terraform Plan
-    runs-on: ubuntu-latest
-    needs: [terraform-validate, docker-build]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Terraform Init
-        working-directory: terraform
-        run: terraform init -backend=false
-
-      - name: Terraform Plan (Dry Run)
-        id: plan
-        working-directory: terraform
-        run: |
-          # Create a minimal terraform.tfvars for plan testing
-          cat > terraform.tfvars <<EOF
-          cloudflare_api_token = "test-token-for-ci"
-          development_network_ipv4 = "10.0.1.1/24"
-          testing_network_ipv4 = "10.0.2.1/24"
-          production_network_ipv4 = "10.0.3.1/24"
-          EOF
-          terraform plan -no-color -input=false
-        continue-on-error: true
-        env:
-          TF_CLI_ARGS: "-lock=false"
-
-      - name: Comment PR with Results
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const output = `#### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
-
-            <details><summary>Show Plan</summary>
-
-            \`\`\`terraform
-            ${{ steps.plan.outputs.stdout }}
-            \`\`\`
-
-            </details>
-
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
-
-      - name: Plan Summary
-        if: success()
-        run: |
-          echo "✅ Terraform plan completed!"
-          echo "- Plan: ${{ steps.plan.outcome }}"
