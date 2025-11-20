@@ -207,7 +207,7 @@ The project uses Terraform modules for scalability and reusability:
 
 4. **Caddy Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `caddy01`
-   - Image: `ghcr.io/accuser/atlas/atlas-caddy:latest` (published from [docker/caddy/](docker/caddy/))
+   - Image: `ghcr.io/accuser/atlas/caddy:latest` (published from [docker/caddy/](docker/caddy/))
    - Resource limits: 2 CPUs, 1GB memory (configurable)
    - Dual network interfaces:
      - `eth0`: Connected to "production" network
@@ -224,7 +224,7 @@ The project uses Terraform modules for scalability and reusability:
 
 6. **Grafana Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `grafana01`
-   - Image: `ghcr.io/accuser/atlas/atlas-grafana:latest` (published from [docker/grafana/](docker/grafana/))
+   - Image: `ghcr.io/accuser/atlas/grafana:latest` (published from [docker/grafana/](docker/grafana/))
    - Domain: `grafana.accuser.dev` (publicly accessible via Caddy)
    - Resource limits: 2 CPUs, 1GB memory
    - Storage: 10GB persistent volume for `/var/lib/grafana`
