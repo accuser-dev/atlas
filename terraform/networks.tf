@@ -41,3 +41,14 @@ resource "incus_network" "production" {
     "ipv4.nat"     = var.production_network_nat
   }
 }
+
+resource "incus_network" "management" {
+  name        = "management"
+  description = "Management network for internal services (monitoring, etc.)"
+  type        = "bridge"
+
+  config = {
+    "ipv4.address" = var.management_network_ipv4
+    "ipv4.nat"     = var.management_network_nat
+  }
+}

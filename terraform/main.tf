@@ -13,13 +13,16 @@ module "caddy01" {
 
   # Network configuration - reference managed networks
   production_network = incus_network.production.name
-  management_network = "incusbr0"
+  management_network = incus_network.management.name
+  external_network   = "incusbr0"
 
   # Ensure networks are created before the container
   depends_on = [
     incus_network.development,
     incus_network.testing,
-    incus_network.production
+    incus_network.staging,
+    incus_network.production,
+    incus_network.management
   ]
 
   # Optional: Override defaults if needed
@@ -34,8 +37,8 @@ module "grafana01" {
   instance_name = "grafana01"
   profile_name  = "grafana01"
 
-  # Network configuration - use production network
-  monitoring_network = incus_network.production.name
+  # Network configuration - use management network for internal services
+  network_name = incus_network.management.name
 
   # Domain configuration for reverse proxy
   domain           = "grafana.accuser.dev"
@@ -62,7 +65,9 @@ module "grafana01" {
   depends_on = [
     incus_network.development,
     incus_network.testing,
-    incus_network.production
+    incus_network.staging,
+    incus_network.production,
+    incus_network.management
   ]
 }
 
@@ -72,8 +77,8 @@ module "loki01" {
   instance_name = "loki01"
   profile_name  = "loki01"
 
-  # Network configuration - use production network (internal monitoring)
-  monitoring_network = incus_network.production.name
+  # Network configuration - use management network for internal services
+  network_name = incus_network.management.name
 
   # Loki configuration
   loki_port = "3100"
@@ -91,7 +96,9 @@ module "loki01" {
   depends_on = [
     incus_network.development,
     incus_network.testing,
-    incus_network.production
+    incus_network.staging,
+    incus_network.production,
+    incus_network.management
   ]
 }
 
@@ -101,8 +108,8 @@ module "prometheus01" {
   instance_name = "prometheus01"
   profile_name  = "prometheus01"
 
-  # Network configuration - use production network (internal monitoring)
-  monitoring_network = incus_network.production.name
+  # Network configuration - use management network for internal services
+  network_name = incus_network.management.name
 
   # Prometheus configuration
   prometheus_port = "9090"
@@ -120,6 +127,8 @@ module "prometheus01" {
   depends_on = [
     incus_network.development,
     incus_network.testing,
-    incus_network.production
+    incus_network.staging,
+    incus_network.production,
+    incus_network.management
   ]
 }

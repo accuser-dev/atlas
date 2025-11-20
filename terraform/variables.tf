@@ -56,3 +56,16 @@ variable "production_network_nat" {
   type        = string
   default     = "true"
 }
+
+# Management Network Configuration
+variable "management_network_ipv4" {
+  description = "IPv4 address for management network (monitoring, internal services)"
+  type        = string
+  default     = "10.50.0.1/24"
+}
+
+variable "management_network_nat" {
+  description = "Enable NAT for management network IPv4"
+  type        = string
+  default     = "true"
+}
