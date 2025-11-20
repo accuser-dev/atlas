@@ -11,5 +11,5 @@ FROM prom/prometheus:latest
 # Add custom recording rules
 # COPY rules/ /etc/prometheus/rules/
 
-LABEL maintainer="your-email@example.com"
+LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Prometheus with pre-configured rules and settings"

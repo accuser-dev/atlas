@@ -7,5 +7,5 @@ FROM caddybuilds/caddy-cloudflare:latest
 # The Caddyfile will be managed by Terraform and injected at runtime
 # No need to copy it here unless you want a default fallback
 
-LABEL maintainer="your-email@example.com"
+LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Caddy reverse proxy with Cloudflare DNS support"

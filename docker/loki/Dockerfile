@@ -5,5 +5,5 @@ FROM grafana/loki:latest
 # Note: Terraform can also inject this configuration at runtime
 # COPY loki-config.yaml /etc/loki/loki-config.yaml
 
-LABEL maintainer="your-email@example.com"
+LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Loki log aggregation system"

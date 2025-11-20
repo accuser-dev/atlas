@@ -19,5 +19,5 @@ USER root
 # Switch back to grafana user
 USER grafana
 
-LABEL maintainer="your-email@example.com"
+LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Grafana with pre-installed plugins and configuration"
