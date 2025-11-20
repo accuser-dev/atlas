@@ -125,7 +125,7 @@ IMAGE_TAG=v1.0.0 make build-all
 ### Working with tfvars
 The `terraform/terraform.tfvars` file contains sensitive variables and is gitignored. Required variables:
 - `cloudflare_api_token`: Cloudflare API token for DNS management
-- Network configuration variables (IPv4 addresses for development, testing, production networks)
+- Network configuration variables (IPv4 addresses for development, testing, staging, production, and management networks)
 
 ## Architecture
 
@@ -138,7 +138,7 @@ The project uses Terraform modules for scalability and reusability:
 - [terraform/providers.tf](terraform/providers.tf) - Provider configuration
 - [terraform/variables.tf](terraform/variables.tf) - Root-level input variable definitions
 - [terraform/main.tf](terraform/main.tf) - Module instantiations and orchestration
-- [terraform/networks.tf](terraform/networks.tf) - Network definitions (development, testing, production)
+- [terraform/networks.tf](terraform/networks.tf) - Network definitions (development, testing, staging, production, management)
 - [terraform/outputs.tf](terraform/outputs.tf) - Output values (endpoints, configurations)
 - [terraform/terraform.tfvars](terraform/terraform.tfvars) - Variable values (gitignored, contains secrets)
 
@@ -193,15 +193,16 @@ The project uses Terraform modules for scalability and reusability:
    - Manages LXC/Incus containers and storage volumes
 
 2. **Network Configuration** ([terraform/networks.tf](terraform/networks.tf))
-   - Three managed networks: development, testing, production
-   - Each network has configurable IPv4 addresses
+   - Five managed networks: development, testing, staging, production, management
+   - Each network has configurable IPv4 addresses (default 10.10.0.1/24 through 10.50.0.1/24)
    - NAT enabled for external connectivity
+   - Management network (10.50.0.1/24) hosts internal services like monitoring
 
 3. **Caddy Module** ([terraform/modules/caddy/](terraform/modules/caddy/))
    - Reverse proxy with automatic HTTPS via Let's Encrypt
    - Dynamic Caddyfile generation from service module outputs
    - Cloudflare DNS-01 ACME challenge support
-   - Dual network interfaces (production + management)
+   - Triple network interfaces (production + management + external)
    - Accepts `service_blocks` list for dynamic configuration
    - Custom Docker image: [docker/caddy/](docker/caddy/)
 
@@ -209,9 +210,10 @@ The project uses Terraform modules for scalability and reusability:
    - Instance name: `caddy01`
    - Image: `ghcr.io/accuser/atlas/caddy:latest` (published from [docker/caddy/](docker/caddy/))
    - Resource limits: 2 CPUs, 1GB memory (configurable)
-   - Dual network interfaces:
-     - `eth0`: Connected to "production" network
-     - `eth1`: Connected to "incusbr0" bridge
+   - Triple network interfaces:
+     - `eth0`: Connected to "production" network (public-facing apps)
+     - `eth1`: Connected to "management" network (internal services like Grafana)
+     - `eth2`: Connected to "incusbr0" bridge (external access)
    - Caddyfile dynamically generated from module outputs
 
 5. **Grafana Module** ([terraform/modules/grafana/](terraform/modules/grafana/))
@@ -228,7 +230,7 @@ The project uses Terraform modules for scalability and reusability:
    - Domain: `grafana.accuser.dev` (publicly accessible via Caddy)
    - Resource limits: 2 CPUs, 1GB memory
    - Storage: 10GB persistent volume for `/var/lib/grafana`
-   - Network: Connected to production network
+   - Network: Connected to management network
 
 7. **Loki Module** ([terraform/modules/loki/](terraform/modules/loki/))
    - Log aggregation system (internal only)
@@ -243,7 +245,7 @@ The project uses Terraform modules for scalability and reusability:
    - Internal endpoint: `http://loki01.incus:3100`
    - Resource limits: 2 CPUs, 2GB memory
    - Storage: 50GB persistent volume for `/loki`
-   - Network: Connected to production network (internal only)
+   - Network: Connected to management network (internal only)
 
 9. **Prometheus Module** ([terraform/modules/prometheus/](terraform/modules/prometheus/))
    - Metrics collection and time-series database (internal only)
@@ -259,7 +261,7 @@ The project uses Terraform modules for scalability and reusability:
     - Internal endpoint: `http://prometheus01.incus:9090`
     - Resource limits: 2 CPUs, 2GB memory
     - Storage: 100GB persistent volume for `/prometheus`
-    - Network: Connected to production network (internal only)
+    - Network: Connected to management network (internal only)
 
 ### Dynamic Caddyfile Generation
 
@@ -333,7 +335,7 @@ module "grafana02" {
   instance_name = "grafana02"
   profile_name  = "grafana02"
 
-  monitoring_network = incus_network.production.name
+  network_name = incus_network.management.name
 
   domain           = "grafana-dev.accuser.dev"
   allowed_ip_range = "192.168.68.0/22"
@@ -386,9 +388,11 @@ module "caddy01" {
 - DRY principle: No duplicate configuration
 
 **Network Architecture:**
-- Three environments: development, testing, production
+- Five managed networks: development (10.10.0.1/24), testing (10.20.0.1/24), staging (10.30.0.1/24), production (10.40.0.1/24), management (10.50.0.1/24)
+- Application environments: development, testing, staging, production
+- Management network: hosts internal services (monitoring stack: Grafana, Loki, Prometheus)
 - Services on same network can communicate via internal DNS
-- Public services exposed via Caddy reverse proxy
+- Public services exposed via Caddy reverse proxy with triple NICs (production, management, external)
 - IP-based access control for security
 - Automatic HTTPS via Let's Encrypt with Cloudflare DNS validation
 
