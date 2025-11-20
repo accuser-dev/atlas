@@ -91,10 +91,10 @@ atlas/
 
 All services use custom images automatically built and published by GitHub Actions:
 
-- **Caddy**: `ghcr.io/accuser/atlas/atlas-caddy:latest`
-- **Grafana**: `ghcr.io/accuser/atlas/atlas-grafana:latest`
-- **Loki**: `ghcr.io/accuser/atlas/atlas-loki:latest`
-- **Prometheus**: `ghcr.io/accuser/atlas/atlas-prometheus:latest`
+- **Caddy**: `ghcr.io/accuser/atlas/caddy:latest`
+- **Grafana**: `ghcr.io/accuser/atlas/grafana:latest`
+- **Loki**: `ghcr.io/accuser/atlas/loki:latest`
+- **Prometheus**: `ghcr.io/accuser/atlas/prometheus:latest`
 
 Images are:
 - Built on every push to `main` or `develop`
@@ -261,7 +261,7 @@ The project includes GitHub Actions workflows for continuous integration:
 Images are published to GitHub Container Registry:
 - **Registry**: `ghcr.io`
 - **Organization**: `accuser/atlas`
-- **Format**: `ghcr.io/accuser/atlas/atlas-<service>:<tag>`
+- **Format**: `ghcr.io/accuser/atlas/<service>:<tag>`
 - **Tags**: `latest` (main branch), `develop` (develop branch), commit SHA
 
 **Making images public:**
@@ -334,7 +334,7 @@ incus exec caddy01 -- cat /var/log/caddy.log
 If Incus can't pull images from ghcr.io:
 1. Verify images are public in GitHub packages settings
 2. Check image names match expected format
-3. Test pull manually: `incus launch docker:ghcr.io/accuser/atlas/atlas-grafana:latest test`
+3. Test pull manually: `incus launch docker:ghcr.io/accuser/atlas/grafana:latest test`
 
 ## Contributing
 

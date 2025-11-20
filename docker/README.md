@@ -14,10 +14,10 @@ The Atlas project uses custom Docker images that are:
 
 All production images are published to GitHub Container Registry:
 
-- **Caddy**: `ghcr.io/accuser/atlas/atlas-caddy:latest`
-- **Grafana**: `ghcr.io/accuser/atlas/atlas-grafana:latest`
-- **Loki**: `ghcr.io/accuser/atlas/atlas-loki:latest`
-- **Prometheus**: `ghcr.io/accuser/atlas/atlas-prometheus:latest`
+- **Caddy**: `ghcr.io/accuser/atlas/caddy:latest`
+- **Grafana**: `ghcr.io/accuser/atlas/grafana:latest`
+- **Loki**: `ghcr.io/accuser/atlas/loki:latest`
+- **Prometheus**: `ghcr.io/accuser/atlas/prometheus:latest`
 
 These images are used by default in all Terraform modules.
 
@@ -90,7 +90,7 @@ module "grafana01" {
   source = "./modules/grafana"
 
   # Default image (no override needed)
-  # image = "docker:ghcr.io/accuser/atlas/atlas-grafana:latest"
+  # image = "docker:ghcr.io/accuser/atlas/grafana:latest"
 
   # ... other configuration
 }
@@ -105,10 +105,10 @@ module "grafana01" {
   source = "./modules/grafana"
 
   # Use develop branch image
-  image = "docker:ghcr.io/accuser/atlas/atlas-grafana:develop"
+  image = "docker:ghcr.io/accuser/atlas/grafana:develop"
 
   # Or use specific commit
-  # image = "docker:ghcr.io/accuser/atlas/atlas-grafana:main-abc1234"
+  # image = "docker:ghcr.io/accuser/atlas/grafana:main-abc1234"
 
   # ... other configuration
 }
@@ -190,7 +190,7 @@ terraform apply -replace='module.grafana01.incus_instance.grafana'
 incus restart grafana01
 
 # Option 3: Rebuild container with new image
-incus rebuild grafana01 docker:ghcr.io/accuser/atlas/atlas-grafana:latest
+incus rebuild grafana01 docker:ghcr.io/accuser/atlas/grafana:latest
 ```
 
 ## How It Works
@@ -239,7 +239,7 @@ Error: Failed to create instance: Image not found
 
 3. **Test pull manually**:
    ```bash
-   incus launch docker:ghcr.io/accuser/atlas/atlas-grafana:latest test
+   incus launch docker:ghcr.io/accuser/atlas/grafana:latest test
    ```
 
 4. **Check image name** in Terraform module:
@@ -341,7 +341,7 @@ If you prefer Docker Hub over ghcr.io:
 
 2. **Update image metadata**:
    ```yaml
-   images: docker.io/yourusername/atlas-${{ matrix.service }}
+   images: docker.io/yourusername/${{ matrix.service }}
    ```
 
 3. **Update Terraform modules** to use Docker Hub images
