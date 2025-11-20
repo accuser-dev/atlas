@@ -7,7 +7,9 @@
       "Bash(terraform validate:*)",
       "Bash(terraform state show:*)",
       "Bash(terraform plan:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
