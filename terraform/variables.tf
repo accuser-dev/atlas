@@ -4,6 +4,18 @@ variable "cloudflare_api_token" {
   sensitive   = true
 }
 
+# Grafana Configuration
+variable "grafana_admin_password" {
+  description = "Grafana admin password (should be strong and unique)"
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(var.grafana_admin_password) >= 12
+    error_message = "Grafana admin password must be at least 12 characters long for security"
+  }
+}
+
 # Development Network Configuration
 variable "development_network_ipv4" {
   description = "IPv4 address for development network"

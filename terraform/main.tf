@@ -48,7 +48,7 @@ module "grafana01" {
   # Environment variables for Grafana configuration
   environment_variables = {
     GF_SECURITY_ADMIN_USER     = "admin"
-    GF_SECURITY_ADMIN_PASSWORD = "changeme"
+    GF_SECURITY_ADMIN_PASSWORD = var.grafana_admin_password
     GF_SERVER_HTTP_PORT        = "3000"
   }
 
