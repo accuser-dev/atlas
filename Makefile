@@ -19,7 +19,7 @@ help:
 	@echo "  make list-images       - List Docker images"
 	@echo ""
 	@echo "Note: Production images are built and published via GitHub Actions"
-	@echo "      Images are published to ghcr.io/accuser/atlas/atlas-*:latest"
+	@echo "      Images are published to ghcr.io/accuser/atlas/*:latest"
 	@echo ""
 	@echo "Terraform Commands:"
 	@echo "  make terraform-init    - Initialize Terraform"
