@@ -22,10 +22,11 @@ make build-caddy
 
 ### Security Enhancements
 
-**Non-root User**
-- Container runs as the `caddy` user (not root)
-- Defense-in-depth security posture
-- Caddy retains capability to bind to ports 80/443 via Linux capabilities
+**Container User**
+- The `caddybuilds/caddy-cloudflare` base image runs as root
+- Caddy internally manages privileges appropriately
+- When deployed via Incus, the container runs with restricted capabilities
+- Production deployments benefit from Incus container isolation
 
 **Health Check**
 - Built-in Docker/Incus health check
