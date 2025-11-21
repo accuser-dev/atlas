@@ -1,5 +1,6 @@
 # Custom Prometheus with pre-configured settings
-FROM prom/prometheus:latest
+# Pinned to v3.7.3 for reproducibility and security
+FROM prom/prometheus:v3.7.3
 
 # Add custom prometheus.yml if you want a default configuration
 # Note: Terraform can also inject this configuration at runtime

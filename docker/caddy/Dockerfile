@@ -1,5 +1,6 @@
 # Custom Caddy with Cloudflare DNS plugin
-FROM caddybuilds/caddy-cloudflare:latest
+# Pinned to v2.10.2 for reproducibility and security
+FROM caddybuilds/caddy-cloudflare:2.10.2
 
 # Add any custom Caddy modules or configuration here
 # Example: COPY custom-plugins /usr/local/bin/

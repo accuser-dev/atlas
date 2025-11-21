@@ -1,5 +1,6 @@
 # Custom Grafana with pre-installed plugins
-FROM grafana/grafana:latest
+# Pinned to v12.3.0 for reproducibility and security
+FROM grafana/grafana:12.3.0
 
 # Switch to root to install plugins
 USER root
