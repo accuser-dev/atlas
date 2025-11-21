@@ -1,5 +1,5 @@
 {
-	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
+	acme_dns cloudflare {file./etc/caddy/cloudflare_token} {
 		resolvers 1.1.1.1
 	}
 }

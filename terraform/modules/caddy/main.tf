@@ -46,8 +46,14 @@ resource "incus_instance" "caddy" {
   type     = "container"
   profiles = ["default", incus_profile.caddy.name]
 
-  config = {
-    "environment.CLOUDFLARE_API_TOKEN" = var.cloudflare_api_token
+  # Cloudflare API token injected as file for security
+  # File-based injection prevents token exposure via `incus info`
+  file {
+    content     = var.cloudflare_api_token
+    target_path = "/etc/caddy/cloudflare_token"
+    mode        = "0400" # Read-only for root
+    uid         = 0
+    gid         = 0
   }
 
   file {
