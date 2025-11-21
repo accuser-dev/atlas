@@ -144,19 +144,21 @@ resource "null_resource" "generate_credentials" {
 # Parse credentials and create backend.hcl
 locals {
   # Parse credentials from the .credentials file
-  # Format is:
+  # Format from incus storage bucket key create:
+  #   Storage bucket key "name" added
   #   Access key: XXXXX
   #   Secret key: YYYYY
   credentials_raw   = try(file(var.credentials_output_file), "")
   credentials_lines = split("\n", local.credentials_raw)
 
+  # Find lines containing "Access key:" and "Secret key:"
   access_key = try(
-    trimspace(split(":", local.credentials_lines[0])[1]),
+    trimspace(split(":", [for line in local.credentials_lines : line if can(regex("Access key:", line))][0])[1]),
     ""
   )
 
   secret_key = try(
-    trimspace(split(":", local.credentials_lines[1])[1]),
+    trimspace(split(":", [for line in local.credentials_lines : line if can(regex("Secret key:", line))][0])[1]),
     ""
   )
 }
