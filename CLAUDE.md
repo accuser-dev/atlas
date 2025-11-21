@@ -28,6 +28,12 @@ atlas/
 │       ├── Dockerfile
 │       └── README.md
 ├── terraform/                 # Terraform infrastructure
+│   ├── bootstrap/            # Bootstrap Terraform project
+│   │   ├── main.tf           # Creates storage bucket and credentials
+│   │   ├── variables.tf      # Bootstrap variables
+│   │   ├── outputs.tf        # Bootstrap outputs
+│   │   ├── versions.tf       # Version constraints (local state)
+│   │   └── README.md         # Bootstrap documentation
 │   ├── modules/              # Reusable Terraform modules
 │   │   ├── caddy/
 │   │   ├── grafana/
@@ -38,8 +44,11 @@ atlas/
 │   ├── networks.tf           # Network configuration
 │   ├── outputs.tf            # Output values
 │   ├── providers.tf          # Provider configuration
-│   ├── versions.tf           # Version constraints
-│   └── terraform.tfvars      # Variable values (gitignored)
+│   ├── versions.tf           # Version constraints and backend config
+│   ├── terraform.tfvars      # Variable values (gitignored)
+│   ├── backend.hcl           # Backend credentials (gitignored)
+│   ├── backend.hcl.example   # Backend config template
+│   └── BACKEND_SETUP.md      # Remote state setup guide
 ├── Makefile                  # Build and deployment automation
 ├── CONTRIBUTING.md           # Contribution guidelines and GitHub Flow workflow
 └── CLAUDE.md                 # This file
@@ -47,8 +56,29 @@ atlas/
 
 ## Common Commands
 
+### First-Time Setup (Fresh Incus Installation)
+
+For a vanilla Incus installation (after `incus admin init`):
+
+```bash
+# 1. Bootstrap (creates storage bucket for Terraform state)
+make bootstrap
+
+# 2. Initialize Terraform with remote backend
+make terraform-init
+
+# 3. Deploy infrastructure
+make deploy
+```
+
 ### Build and Deployment (Makefile)
 ```bash
+# Bootstrap commands (run once for fresh setup)
+make bootstrap           # Complete bootstrap process
+make bootstrap-init      # Initialize bootstrap Terraform
+make bootstrap-plan      # Plan bootstrap changes
+make bootstrap-apply     # Apply bootstrap
+
 # Build Docker images locally (for testing only)
 make build-all
 make build-caddy
@@ -56,8 +86,8 @@ make build-grafana
 make build-loki
 make build-prometheus
 
-# Terraform operations
-make terraform-init      # Initialize Terraform
+# Terraform operations (after bootstrap)
+make terraform-init      # Initialize Terraform with remote backend
 make terraform-plan      # Plan changes
 make terraform-apply     # Apply changes
 make terraform-destroy   # Destroy infrastructure
@@ -69,6 +99,7 @@ make deploy
 make clean               # Clean all build artifacts
 make clean-docker        # Clean Docker build cache
 make clean-terraform     # Clean Terraform cache
+make clean-bootstrap     # Clean bootstrap Terraform cache
 
 # Format Terraform files
 make format
@@ -105,6 +136,59 @@ terraform show
 # View outputs (endpoints, configurations)
 terraform output
 ```
+
+### Terraform State Management
+
+**Remote State Backend:**
+
+This project uses Incus S3-compatible storage buckets for encrypted remote state storage. This provides:
+- Encrypted state at rest
+- Self-hosted (no external dependencies)
+- S3-compatible API
+- Secure credential-based access
+
+**Bootstrap Process:**
+
+The project uses a **two-project structure**:
+1. **Bootstrap project** (`terraform/bootstrap/`) - Uses local state, creates storage bucket
+2. **Main project** (`terraform/`) - Uses remote state in the storage bucket
+
+**Initial Setup (Automated):**
+
+```bash
+# Run bootstrap to set up storage bucket
+make bootstrap
+
+# Bootstrap creates:
+# - Incus storage buckets configuration
+# - Storage pool (terraform-state)
+# - Storage bucket (atlas-terraform-state)
+# - S3 credentials
+# - Backend config file (terraform/backend.hcl)
+```
+
+See [terraform/BACKEND_SETUP.md](terraform/BACKEND_SETUP.md) for detailed instructions and [terraform/bootstrap/README.md](terraform/bootstrap/README.md) for bootstrap documentation.
+
+**Working with Remote State:**
+
+```bash
+# Normal operations work the same
+cd terraform
+terraform plan
+terraform apply
+
+# State is automatically stored remotely
+terraform state list
+
+# Migrate existing local state (if needed)
+terraform init -migrate-state
+```
+
+**Important Notes:**
+- Never commit `backend.hcl` (gitignored)
+- Store S3 credentials securely (environment variables recommended)
+- For CI/CD, use GitHub Secrets for credentials
+- Backup storage bucket regularly for disaster recovery
 
 ### Docker Image Management
 
