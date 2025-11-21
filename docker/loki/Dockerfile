@@ -18,10 +18,10 @@ LABEL org.opencontainers.image.vendor="accuser"
 # Set working directory
 WORKDIR /loki
 
-# Health check to verify Loki is running and responding
-# Checks the ready endpoint which returns 200 when Loki is operational
-HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1
+# Note: The official Loki image is scratch-based with no shell or tools
+# HEALTHCHECK cannot be used as wget/curl are not available
+# For orchestration, use external health checks (e.g., Docker Compose, Kubernetes probes)
+# Health endpoint: GET http://localhost:3100/ready (returns "ready" when operational)
 
 # Note: Official Loki image already runs as non-root user (UID 10001)
 # No need to explicitly set USER directive

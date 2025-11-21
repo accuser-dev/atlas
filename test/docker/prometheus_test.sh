@@ -82,9 +82,18 @@ echo "✅ Working directory is /prometheus"
 # Test 7: Metrics endpoint is accessible (with retry)
 echo ""
 echo "Test 7: Metrics endpoint..."
-sleep 2  # Give Prometheus a moment to fully initialize metrics
-if ! docker exec "${CONTAINER_NAME}" wget -qO- http://localhost:9090/metrics 2>/dev/null | grep -q "prometheus"; then
-  echo "❌ Metrics endpoint not accessible"
+METRICS_RETRIES=3
+METRICS_SUCCESS=false
+for i in $(seq 1 $METRICS_RETRIES); do
+  sleep 2
+  if docker exec "${CONTAINER_NAME}" wget -qO- http://localhost:9090/metrics 2>/dev/null | grep -q "prometheus"; then
+    METRICS_SUCCESS=true
+    break
+  fi
+  echo "  Retry $i/$METRICS_RETRIES..."
+done
+if [ "$METRICS_SUCCESS" != "true" ]; then
+  echo "❌ Metrics endpoint not accessible after $METRICS_RETRIES retries"
   exit 1
 fi
 echo "✅ Metrics endpoint accessible"
