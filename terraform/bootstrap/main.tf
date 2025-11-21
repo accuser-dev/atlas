@@ -19,37 +19,35 @@ terraform {
 }
 
 # Incus provider configuration
-# Configure via environment variables or terraform.tfvars:
-#   INCUS_REMOTE="myremote"
-#   INCUS_CONFIG_DIR="~/.config/incus"
-# Or for remote with TLS:
-#   incus_remote_address = "https://192.168.1.100:8443"
-#   incus_remote_password = "password"  # For first-time auth
+# The provider uses the Incus client configuration automatically
+# Configure remote via:
+#   1. Environment variable: export INCUS_REMOTE=myremote
+#   2. Incus client default: incus remote switch myremote
+#   3. Incus client config: ~/.config/incus/config.yml
 provider "incus" {
   generate_client_certificates = true
   accept_remote_certificate     = var.accept_remote_certificate
-
-  # Optional: specify remote address directly
-  # remote {
-  #   name     = var.incus_remote_name
-  #   address  = var.incus_remote_address
-  #   password = var.incus_remote_password  # Only needed for initial auth
-  # }
 }
 
 # Configure Incus storage buckets address via local-exec
 # Note: The Incus provider doesn't yet support server config resources
+# The incus command will use INCUS_REMOTE env var or default remote
 resource "null_resource" "configure_storage_buckets" {
   provisioner "local-exec" {
     command = <<-EOT
-      ${var.incus_command} config get core.storage_buckets_address || \
-      ${var.incus_command} config set core.storage_buckets_address ${var.storage_buckets_address}
+      incus config get core.storage_buckets_address || \
+      incus config set core.storage_buckets_address ${var.storage_buckets_address}
       echo "Storage buckets address configured: ${var.storage_buckets_address}"
     EOT
+
+    environment = var.incus_remote != "" ? {
+      INCUS_REMOTE = var.incus_remote
+    } : {}
   }
 
   triggers = {
     address = var.storage_buckets_address
+    remote  = var.incus_remote
   }
 }
 
@@ -60,19 +58,24 @@ resource "null_resource" "create_storage_pool" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      if ${var.incus_command} storage list --format csv | grep -q "^${var.storage_pool_name},"; then
+      if incus storage list --format csv | grep -q "^${var.storage_pool_name},"; then
         echo "Storage pool '${var.storage_pool_name}' already exists"
       else
         echo "Creating storage pool '${var.storage_pool_name}'..."
-        ${var.incus_command} storage create ${var.storage_pool_name} ${var.storage_pool_driver}
+        incus storage create ${var.storage_pool_name} ${var.storage_pool_driver}
         echo "Storage pool created"
       fi
     EOT
+
+    environment = var.incus_remote != "" ? {
+      INCUS_REMOTE = var.incus_remote
+    } : {}
   }
 
   triggers = {
     pool_name = var.storage_pool_name
     driver    = var.storage_pool_driver
+    remote    = var.incus_remote
   }
 }
 
@@ -83,19 +86,24 @@ resource "null_resource" "create_storage_bucket" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      if ${var.incus_command} storage bucket list ${var.storage_pool_name} --format csv | grep -q "^${var.bucket_name},"; then
+      if incus storage bucket list ${var.storage_pool_name} --format csv | grep -q "^${var.bucket_name},"; then
         echo "Storage bucket '${var.bucket_name}' already exists"
       else
         echo "Creating storage bucket '${var.bucket_name}'..."
-        ${var.incus_command} storage bucket create ${var.storage_pool_name} ${var.bucket_name}
+        incus storage bucket create ${var.storage_pool_name} ${var.bucket_name}
         echo "Storage bucket created"
       fi
     EOT
+
+    environment = var.incus_remote != "" ? {
+      INCUS_REMOTE = var.incus_remote
+    } : {}
   }
 
   triggers = {
-    pool_name  = var.storage_pool_name
+    pool_name   = var.storage_pool_name
     bucket_name = var.bucket_name
+    remote      = var.incus_remote
   }
 }
 
@@ -106,25 +114,30 @@ resource "null_resource" "generate_credentials" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      if ${var.incus_command} storage bucket key list ${var.storage_pool_name} ${var.bucket_name} --format csv | grep -q "^${var.bucket_key_name},"; then
+      if incus storage bucket key list ${var.storage_pool_name} ${var.bucket_name} --format csv | grep -q "^${var.bucket_key_name},"; then
         echo "Credentials '${var.bucket_key_name}' already exist"
         echo ""
         echo "To regenerate credentials:"
-        echo "  ${var.incus_command} storage bucket key delete ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name}"
+        echo "  incus storage bucket key delete ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name}"
         echo "  terraform taint null_resource.generate_credentials"
         echo "  terraform apply"
       else
         echo "Generating S3 credentials..."
-        ${var.incus_command} storage bucket key create ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name} > ${var.credentials_output_file}
+        incus storage bucket key create ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name} > ${var.credentials_output_file}
         echo ""
         echo "Credentials saved to: ${var.credentials_output_file}"
         cat ${var.credentials_output_file}
       fi
     EOT
+
+    environment = var.incus_remote != "" ? {
+      INCUS_REMOTE = var.incus_remote
+    } : {}
   }
 
   triggers = {
     bucket_key_name = var.bucket_key_name
+    remote          = var.incus_remote
   }
 }
 

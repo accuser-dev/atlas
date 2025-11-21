@@ -63,36 +63,65 @@ make deploy
 
 ### Remote Incus Setup
 
-To bootstrap a remote Incus server, you need to configure the connection first.
+To bootstrap a remote Incus server, the Incus client must be configured to connect to that remote.
 
 **Step 1: Add the remote (one-time)**
 
 ```bash
 # Add remote Incus server (interactive - sets up TLS cert)
-incus remote add myremote https://192.168.1.100:8443
+incus remote add production https://192.168.1.100:8443
 
-# You'll be prompted to accept the certificate and provide trust password
+# You'll be prompted to:
+# 1. Accept the server's certificate
+# 2. Provide the trust password (set during incus admin init)
+
+# Verify the remote was added
+incus remote list
 ```
 
-**Step 2: Configure bootstrap for remote**
+**Step 2: Configure which remote to use**
 
-Create `terraform.tfvars`:
+You have three options:
+
+**Option A: Set as default remote (simplest)**
+```bash
+incus remote switch production
+# Now all incus commands and Terraform use this remote by default
+```
+
+**Option B: Use environment variable (recommended for multiple remotes)**
+```bash
+export INCUS_REMOTE=production
+# Run bootstrap
+cd terraform/bootstrap
+terraform apply
+```
+
+**Option C: Set in terraform.tfvars (persists with project)**
+```hcl
+# terraform/bootstrap/terraform.tfvars
+incus_remote = "production"
+```
+
+**Step 3: Configure S3 endpoint for remote**
+
+Create or update `terraform.tfvars`:
 
 ```hcl
 # terraform/bootstrap/terraform.tfvars
 
-# Use the remote you just added
-incus_command = "incus --remote myremote"
-
-# S3 endpoint must point to the remote server
+# Required: S3 endpoint must point to the remote server
 storage_buckets_endpoint = "http://192.168.1.100:8555"
 
+# Required: Server must listen on accessible interface
+storage_buckets_address = "0.0.0.0:8555"
+
 # Optional: customize storage settings
-storage_buckets_address = "0.0.0.0:8555"  # Listen on all interfaces
-storage_pool_driver = "zfs"               # Use ZFS if available
+incus_remote = "production"  # If not using default or env var
+storage_pool_driver = "zfs"  # Use ZFS if available
 ```
 
-**Step 3: Run bootstrap**
+**Step 4: Run bootstrap**
 
 ```bash
 cd terraform/bootstrap
@@ -103,30 +132,32 @@ terraform apply
 make bootstrap
 ```
 
-**Alternative: Bootstrap without pre-adding remote**
-
-If you haven't added the remote yet, you can do it via Terraform:
-
-```hcl
-# terraform/bootstrap/terraform.tfvars
-
-incus_remote_name = "myremote"
-incus_remote_address = "https://192.168.1.100:8443"
-incus_remote_password = "your-trust-password"
-accept_remote_certificate = true  # Use with caution
-
-incus_command = "incus --remote myremote"
-storage_buckets_endpoint = "http://192.168.1.100:8555"
-```
-
-Then run `terraform init && terraform apply`.
-
 **Important Notes for Remote Setup:**
 
-- The S3 endpoint (`storage_buckets_endpoint`) must use the remote server's IP address
-- The storage buckets address (`storage_buckets_address`) should listen on all interfaces (`0.0.0.0:8555`) or the server's network interface
-- Ensure port 8555 is accessible from your workstation for S3 API access
-- Consider using SSH tunneling for secure access: `ssh -L 8555:localhost:8555 user@remote-server`
+- **Port 8443**: Required for Incus API (already configured if `incus remote add` worked)
+- **Port 8555**: Required for S3 API access to storage buckets
+  - Must be accessible from your workstation
+  - Firewall rules may be needed
+- **S3 endpoint**: Must use the remote server's IP or hostname
+- **Storage buckets address**: Must listen on `0.0.0.0:8555` or the server's network interface (not `127.0.0.1`)
+
+**Security: SSH Tunneling**
+
+For secure access over untrusted networks, use SSH tunneling:
+
+```bash
+# Create SSH tunnel for S3 API
+ssh -L 8555:localhost:8555 user@192.168.1.100
+
+# In another terminal, use localhost endpoint
+cd terraform/bootstrap
+cat > terraform.tfvars <<EOF
+incus_remote = "production"
+storage_buckets_endpoint = "http://localhost:8555"
+storage_buckets_address = "0.0.0.0:8555"  # On remote server
+EOF
+terraform apply
+```
 
 ## What It Creates
 

@@ -1,35 +1,19 @@
 # Bootstrap Terraform Variables
 
 # Incus connection settings
-variable "incus_command" {
-  description = "Incus command to use (e.g., 'incus' for local or 'incus --remote myremote' for remote)"
+# The Incus provider and CLI use the INCUS_REMOTE environment variable
+# or the default remote configured in ~/.config/incus/config.yml
+
+variable "incus_remote" {
+  description = "Incus remote to use (set via INCUS_REMOTE env var or leave empty for default). Example: 'production' or 'staging'"
   type        = string
-  default     = "incus"
+  default     = ""
 }
 
 variable "accept_remote_certificate" {
-  description = "Automatically accept remote server certificate (use with caution)"
+  description = "Automatically accept remote server certificate (use with caution in production)"
   type        = bool
   default     = false
-}
-
-variable "incus_remote_name" {
-  description = "Name of the Incus remote to use"
-  type        = string
-  default     = ""
-}
-
-variable "incus_remote_address" {
-  description = "Address of remote Incus server (e.g., 'https://192.168.1.100:8443')"
-  type        = string
-  default     = ""
-}
-
-variable "incus_remote_password" {
-  description = "Password for initial authentication with remote Incus server"
-  type        = string
-  default     = ""
-  sensitive   = true
 }
 
 # Storage configuration
