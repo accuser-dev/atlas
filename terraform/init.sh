@@ -21,12 +21,12 @@ if [ ! -f "${BACKEND_CONFIG}" ]; then
   echo "  1. Run 'make bootstrap' to create the storage bucket and credentials"
   echo "  2. This will generate terraform/backend.hcl automatically"
   echo ""
-  echo "Or manually create terraform/backend.hcl with:"
+  echo "Or manually create terraform/backend.hcl with (Terraform 1.6+ syntax):"
   echo ""
   echo '  bucket     = "atlas-terraform-state"'
-  echo '  endpoint   = "http://<incus-host>:8555"'
   echo '  access_key = "<your-access-key>"'
   echo '  secret_key = "<your-secret-key>"'
+  echo '  endpoints  = { s3 = "http://<incus-host>:8555" }'
   echo ""
   echo "See terraform/BACKEND_SETUP.md for detailed instructions."
   echo ""

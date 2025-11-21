@@ -122,12 +122,16 @@ cloudflare_api_token = "your-token"
 
 ### backend.hcl (gitignored)
 
-Contains S3 backend credentials:
+Contains S3 backend credentials (Terraform 1.6+ syntax):
 ```hcl
 bucket     = "atlas-terraform-state"
-endpoint   = "http://localhost:8555"
 access_key = "your-access-key"
 secret_key = "your-secret-key"
+
+# Terraform 1.6+ requires endpoints block
+endpoints = {
+  s3 = "http://localhost:8555"
+}
 ```
 
 ## Troubleshooting
