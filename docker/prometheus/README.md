@@ -4,8 +4,10 @@ This directory contains the Dockerfile for building a custom Prometheus image wi
 
 ## Base Image
 
-- **Base**: `prom/prometheus:latest`
+- **Base**: `prom/prometheus:v3.7.3`
 - **Official**: Yes, from the Prometheus project
+- **Version**: Pinned to v3.7.3 for reproducibility and security (Dependabot tracks updates)
+- **User**: Runs as non-root user (`nobody`) by default
 
 ## Building
 
@@ -16,6 +18,34 @@ docker build -t atlas/prometheus:latest .
 # Or from the project root using the Makefile
 make build-prometheus
 ```
+
+## Image Features
+
+### Security
+
+**Non-root User**
+- Official Prometheus image runs as `nobody` user (non-root)
+- Secure by default, no additional configuration needed
+- Follows container security best practices
+
+**Health Check**
+- Built-in Docker/Incus health check using Prometheus's `/-/ready` endpoint
+- Interval: 30 seconds
+- Timeout: 3 seconds
+- Start period: 15 seconds (Prometheus needs time to initialize)
+- Retries: 3 attempts before marking unhealthy
+- Enables automatic restart policies and monitoring integration
+
+### Operations
+
+**Working Directory**
+- Set to `/prometheus` to match data storage location
+- Consistent with Prometheus's default configuration
+
+**OCI Labels**
+- Standard Open Container Initiative metadata labels
+- Enables better container registry integration
+- Includes source repository, version, and description
 
 ## Customization Options
 
@@ -90,3 +120,37 @@ module "prometheus01" {
 Choose between:
 - **Baked-in**: Copy config files in Dockerfile (faster startup, immutable)
 - **Runtime**: Inject via Terraform (flexible, easier to modify)
+
+## Usage
+
+Prometheus is designed for internal use only (no public exposure). It will be accessed by:
+- Grafana (for metrics visualization)
+- Alertmanager (for alert routing)
+
+## Production Deployment
+
+Images are automatically built and published to `ghcr.io/accuser/atlas/prometheus:latest` by GitHub Actions when code is pushed to `main` or `develop` branches.
+
+For local development:
+```bash
+# Build locally
+make build-prometheus
+
+# Test with Terraform
+cd terraform
+terraform plan
+```
+
+## Health Monitoring
+
+The health check uses Prometheus's built-in `/-/ready` endpoint:
+
+```bash
+# Check Prometheus health directly
+curl http://localhost:9090/-/ready
+
+# Or via Incus
+incus exec prometheus01 -- wget -qO- http://localhost:9090/-/ready
+```
+
+Expected response when healthy: `Prometheus Server is Ready.`
