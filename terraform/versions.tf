@@ -18,7 +18,6 @@ terraform {
     skip_metadata_api_check     = true
     skip_region_validation      = true
     use_path_style              = true
-    force_path_style            = true
 
     # The following must be provided via:
     # - Environment variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
