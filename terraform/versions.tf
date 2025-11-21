@@ -18,16 +18,16 @@ terraform {
     skip_metadata_api_check     = true
     skip_region_validation      = true
     use_path_style              = true
+    skip_requesting_account_id  = true
 
     # The following must be provided via:
-    # - Environment variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+    # - Environment variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ENDPOINT_URL_S3
     # - Backend config file: terraform init -backend-config=backend.hcl
-    # - CLI flags: terraform init -backend-config="bucket=..." -backend-config="endpoint=..."
     #
-    # Required values:
-    #   bucket   = "atlas-terraform-state"  # Incus storage bucket name
-    #   endpoint = "http://localhost:8555"  # Incus storage buckets endpoint
-    #   access_key = "<ACCESS_KEY>"         # Incus bucket access key
-    #   secret_key = "<SECRET_KEY>"         # Incus bucket secret key
+    # Required values in backend.hcl (Terraform 1.6+ syntax):
+    #   bucket     = "atlas-terraform-state"
+    #   access_key = "<ACCESS_KEY>"
+    #   secret_key = "<SECRET_KEY>"
+    #   endpoints  = { s3 = "http://localhost:8555" }
   }
 }

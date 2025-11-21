@@ -39,12 +39,14 @@ atlas/
 │   │   ├── grafana/
 │   │   ├── loki/
 │   │   └── prometheus/
+│   ├── init.sh               # Initialization wrapper script
 │   ├── main.tf               # Module instantiations
 │   ├── variables.tf          # Variable definitions
 │   ├── networks.tf           # Network configuration
 │   ├── outputs.tf            # Output values
 │   ├── providers.tf          # Provider configuration
 │   ├── versions.tf           # Version constraints and backend config
+│   ├── README.md             # Terraform usage documentation
 │   ├── terraform.tfvars      # Variable values (gitignored)
 │   ├── backend.hcl           # Backend credentials (gitignored)
 │   ├── backend.hcl.example   # Backend config template
@@ -108,12 +110,23 @@ make format
 **Note:** Production images are built and published automatically via GitHub Actions to `ghcr.io/accuser/atlas/*:latest`. Local builds are only needed for development/testing.
 
 ### Direct Terraform Operations
-```bash
-# Navigate to terraform directory
-cd terraform
 
-# Initialize Terraform (required first time or after provider changes)
-terraform init
+**Important:** Do not run `terraform init` directly - it requires backend configuration. Use one of these methods:
+
+```bash
+# Option 1: Use the Makefile (recommended)
+make terraform-init
+
+# Option 2: Use the init wrapper script
+cd terraform && ./init.sh
+
+# Option 3: Manual with backend config
+cd terraform && terraform init -backend-config=backend.hcl
+```
+
+After initialization, you can run other commands directly:
+```bash
+cd terraform
 
 # Validate configuration
 terraform validate

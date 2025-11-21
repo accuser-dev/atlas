@@ -3,6 +3,10 @@
 # DO NOT COMMIT THIS FILE - IT CONTAINS SECRETS
 
 bucket     = "${bucket}"
-endpoint   = "${endpoint}"
 access_key = "${access_key}"
 secret_key = "${secret_key}"
+
+# Terraform 1.6+ requires endpoints block instead of endpoint parameter
+endpoints = {
+  s3 = "${endpoint}"
+}

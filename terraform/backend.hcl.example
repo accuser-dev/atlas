@@ -9,13 +9,17 @@
 # Incus storage bucket name
 bucket = "atlas-terraform-state"
 
-# Incus storage buckets endpoint
-# Use localhost if Terraform runs on the same host as Incus
-endpoint = "http://localhost:8555"
-
-# Or use the Incus host IP if running remotely
-# endpoint = "http://192.168.1.100:8555"
-
 # S3 credentials generated from Incus
 access_key = "<YOUR_ACCESS_KEY>"
 secret_key = "<YOUR_SECRET_KEY>"
+
+# Incus storage buckets endpoint (Terraform 1.6+ syntax)
+# Use localhost if Terraform runs on the same host as Incus
+endpoints = {
+  s3 = "http://localhost:8555"
+}
+
+# Or use the Incus host IP if running remotely:
+# endpoints = {
+#   s3 = "http://192.168.1.100:8555"
+# }

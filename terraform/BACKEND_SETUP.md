@@ -90,7 +90,7 @@ For customization options, see [bootstrap/README.md](bootstrap/README.md).
 - Incus installed and running (`incus admin init` completed)
 - Admin access to configure Incus
 - Network connectivity to Incus host
-- Terraform >= 1.13.5
+- Terraform >= 1.6.0 (uses `endpoints.s3` syntax instead of deprecated `endpoint`)
 
 ## Manual Setup Instructions
 
@@ -178,10 +178,14 @@ Create a `backend.hcl` file (gitignored):
 
 ```hcl
 # terraform/backend.hcl
+# Terraform 1.6+ requires endpoints block instead of endpoint parameter
+bucket     = "atlas-terraform-state"
 access_key = "<ACCESS_KEY>"
 secret_key = "<SECRET_KEY>"
-bucket     = "atlas-terraform-state"
-endpoint   = "http://your-incus-host:8555"
+
+endpoints = {
+  s3 = "http://your-incus-host:8555"
+}
 ```
 
 Then initialize:
