@@ -63,48 +63,31 @@ atlas/
 For a vanilla Incus installation (after `incus admin init`):
 
 ```bash
-# 1. Bootstrap (creates storage bucket for Terraform state)
-make bootstrap
+# Complete setup in one command
+make setup     # bootstrap + plan (review plan, then apply)
 
-# 2. Initialize Terraform with remote backend
-make terraform-init
-
-# 3. Deploy infrastructure
-make deploy
+# Or step by step:
+make bootstrap # One-time: creates state bucket + initializes terraform
+make plan      # Review changes
+make apply     # Deploy infrastructure
 ```
 
-### Build and Deployment (Makefile)
+### Standard Workflow (Makefile)
+
 ```bash
-# Bootstrap commands (run once for fresh setup)
-make bootstrap           # Complete bootstrap process
-make bootstrap-init      # Initialize bootstrap Terraform
-make bootstrap-plan      # Plan bootstrap changes
-make bootstrap-apply     # Apply bootstrap
+# Primary commands (Atlantis-compatible)
+make plan              # Plan infrastructure changes
+make apply             # Apply infrastructure changes
+make destroy           # Destroy all infrastructure
+
+# Utility commands
+make init              # Re-initialize Terraform (after provider changes)
+make format            # Format Terraform files
+make clean             # Clean build artifacts
 
 # Build Docker images locally (for testing only)
-make build-all
-make build-caddy
-make build-grafana
-make build-loki
-make build-prometheus
-
-# Terraform operations (after bootstrap)
-make terraform-init      # Initialize Terraform with remote backend
-make terraform-plan      # Plan changes
-make terraform-apply     # Apply changes
-make terraform-destroy   # Destroy infrastructure
-
-# Complete deployment (applies Terraform, pulls images from ghcr.io)
-make deploy
-
-# Cleanup
-make clean               # Clean all build artifacts
-make clean-docker        # Clean Docker build cache
-make clean-terraform     # Clean Terraform cache
-make clean-bootstrap     # Clean bootstrap Terraform cache
-
-# Format Terraform files
-make format
+make build-all         # Build all images
+make build-<service>   # Build specific image (caddy/grafana/loki/prometheus)
 ```
 
 **Note:** Production images are built and published automatically via GitHub Actions to `ghcr.io/accuser/atlas/*:latest`. Local builds are only needed for development/testing.

@@ -1,177 +1,188 @@
 # Atlas Infrastructure Makefile
 # Manages Docker image builds and Terraform deployments
 
-.PHONY: help build-all build-caddy build-grafana build-loki build-prometheus \
-        list-images \
-        bootstrap bootstrap-init bootstrap-plan bootstrap-apply \
+.PHONY: help \
+        setup bootstrap init plan apply destroy \
+        bootstrap-init bootstrap-plan bootstrap-apply \
         terraform-init terraform-plan terraform-apply terraform-destroy \
-        deploy clean clean-docker clean-terraform clean-bootstrap format
+        build-all build-caddy build-grafana build-loki build-prometheus \
+        list-images format clean clean-docker clean-terraform clean-bootstrap
 
 # Default target
 help:
 	@echo "Atlas Infrastructure Management"
 	@echo ""
-	@echo "Bootstrap Commands (run once for fresh Incus installation):"
-	@echo "  make bootstrap         - Complete bootstrap process (init + apply)"
-	@echo "  make bootstrap-init    - Initialize bootstrap Terraform"
-	@echo "  make bootstrap-plan    - Plan bootstrap changes"
-	@echo "  make bootstrap-apply   - Apply bootstrap (creates storage bucket)"
+	@echo "Quick Start (fresh installation):"
+	@echo "  make setup             - Complete setup: bootstrap + init + plan"
+	@echo ""
+	@echo "Standard Workflow:"
+	@echo "  make bootstrap         - One-time setup (creates state bucket + init)"
+	@echo "  make plan              - Plan infrastructure changes"
+	@echo "  make apply             - Apply infrastructure changes"
+	@echo "  make destroy           - Destroy all infrastructure"
 	@echo ""
 	@echo "Docker Commands:"
-	@echo "  make build-all         - Build all Docker images locally (for testing)"
-	@echo "  make build-caddy       - Build Caddy image"
-	@echo "  make build-grafana     - Build Grafana image"
-	@echo "  make build-loki        - Build Loki image"
-	@echo "  make build-prometheus  - Build Prometheus image"
-	@echo "  make list-images       - List Docker images"
-	@echo ""
-	@echo "Note: Production images are built and published via GitHub Actions"
-	@echo "      Images are published to ghcr.io/accuser/atlas/*:latest"
-	@echo ""
-	@echo "Terraform Commands:"
-	@echo "  make terraform-init    - Initialize Terraform with remote backend"
-	@echo "  make terraform-plan    - Plan Terraform changes"
-	@echo "  make terraform-apply   - Apply Terraform changes"
-	@echo "  make terraform-destroy - Destroy infrastructure"
-	@echo ""
-	@echo "Deployment Commands:"
-	@echo "  make deploy            - Apply Terraform (pulls images from ghcr.io)"
+	@echo "  make build-all         - Build all Docker images locally"
+	@echo "  make build-<service>   - Build specific image (caddy/grafana/loki/prometheus)"
 	@echo ""
 	@echo "Utility Commands:"
+	@echo "  make init              - Re-initialize Terraform (after provider changes)"
 	@echo "  make format            - Format Terraform files"
 	@echo "  make clean             - Clean all build artifacts"
-	@echo "  make clean-docker      - Clean Docker build cache"
-	@echo "  make clean-terraform   - Clean Terraform state and cache"
-	@echo "  make clean-bootstrap   - Clean bootstrap Terraform state"
+	@echo ""
+	@echo "Note: Production images are published via GitHub Actions to ghcr.io"
 
-# Docker image configuration
-IMAGE_TAG ?= latest
+#==============================================================================
+# Primary Workflow Commands
+#==============================================================================
 
-# Docker image names (local builds for testing)
-CADDY_IMAGE := atlas/caddy:$(IMAGE_TAG)
-GRAFANA_IMAGE := atlas/grafana:$(IMAGE_TAG)
-LOKI_IMAGE := atlas/loki:$(IMAGE_TAG)
-PROMETHEUS_IMAGE := atlas/prometheus:$(IMAGE_TAG)
+# Complete setup from scratch
+setup: bootstrap plan
+	@echo ""
+	@echo "========================================"
+	@echo "Setup complete!"
+	@echo "========================================"
+	@echo ""
+	@echo "Review the plan above, then run:"
+	@echo "  make apply"
 
-# Build all Docker images
-build-all: build-caddy build-grafana build-loki build-prometheus
-	@echo "All images built successfully"
-
-# Build individual Docker images
-build-caddy:
-	@echo "Building Caddy image..."
-	docker build -t $(CADDY_IMAGE) docker/caddy/
-	@echo "Caddy image built: $(CADDY_IMAGE)"
-
-build-grafana:
-	@echo "Building Grafana image..."
-	docker build -t $(GRAFANA_IMAGE) docker/grafana/
-	@echo "Grafana image built: $(GRAFANA_IMAGE)"
-
-build-loki:
-	@echo "Building Loki image..."
-	docker build -t $(LOKI_IMAGE) docker/loki/
-	@echo "Loki image built: $(LOKI_IMAGE)"
-
-build-prometheus:
-	@echo "Building Prometheus image..."
-	docker build -t $(PROMETHEUS_IMAGE) docker/prometheus/
-	@echo "Prometheus image built: $(PROMETHEUS_IMAGE)"
-
-# List Docker images
-list-images:
-	@echo "Atlas Docker images:"
-	@docker images | grep -E "(REPOSITORY|atlas)" || echo "No atlas images found"
-
-# Bootstrap commands
-bootstrap: bootstrap-init bootstrap-apply
+# One-time bootstrap (creates storage bucket and initializes terraform)
+bootstrap: _check_incus bootstrap-init bootstrap-apply init
 	@echo ""
 	@echo "========================================"
 	@echo "Bootstrap complete!"
 	@echo "========================================"
 	@echo ""
-	@echo "Next steps:"
-	@echo "1. Initialize main Terraform project:"
-	@echo "   make terraform-init"
+	@echo "Next: Run 'make plan' to see infrastructure changes"
+
+# Initialize terraform (with auto-bootstrap check)
+init:
+	@if [ ! -f terraform/backend.hcl ]; then \
+		echo "ERROR: backend.hcl not found. Run 'make bootstrap' first."; \
+		exit 1; \
+	fi
+	@echo "Initializing Terraform..."
+	@cd terraform && terraform init -backend-config=backend.hcl
+
+# Plan changes (Atlantis-compatible)
+plan: _ensure_init
+	@echo "Planning infrastructure changes..."
+	@cd terraform && terraform plan
+
+# Apply changes (Atlantis-compatible)
+apply: _ensure_init
+	@echo "Applying infrastructure changes..."
+	@cd terraform && terraform apply
 	@echo ""
-	@echo "2. Deploy infrastructure:"
-	@echo "   make deploy"
+	@echo "Deployment complete! Run 'cd terraform && terraform output' for endpoints."
+
+# Destroy infrastructure
+destroy: _ensure_init
+	@echo "Destroying infrastructure..."
+	@cd terraform && terraform destroy
+
+#==============================================================================
+# Bootstrap Sub-commands (for debugging/advanced use)
+#==============================================================================
 
 bootstrap-init:
 	@echo "Initializing bootstrap Terraform..."
-	cd terraform/bootstrap && terraform init
+	@cd terraform/bootstrap && terraform init
 
 bootstrap-plan:
 	@echo "Planning bootstrap changes..."
-	cd terraform/bootstrap && terraform plan
+	@cd terraform/bootstrap && terraform plan
 
 bootstrap-apply:
-	@echo "Applying bootstrap configuration..."
-	@echo "This will create:"
-	@echo "  - Incus storage buckets configuration"
-	@echo "  - Storage pool for Terraform state"
-	@echo "  - Storage bucket for Terraform state"
-	@echo "  - S3 access credentials"
-	@echo ""
-	cd terraform/bootstrap && terraform apply
-	@echo ""
-	@echo "Bootstrap applied successfully!"
+	@echo "Creating state storage bucket..."
+	@cd terraform/bootstrap && terraform apply -auto-approve
 	@echo "Backend configuration saved to: terraform/backend.hcl"
 
-# Terraform commands
-terraform-init:
-	@echo "Initializing Terraform with remote backend..."
-	@if [ -f terraform/backend.hcl ]; then \
-		cd terraform && terraform init -backend-config=backend.hcl; \
-	else \
-		echo "ERROR: backend.hcl not found!"; \
-		echo ""; \
-		echo "You must run bootstrap first:"; \
-		echo "  make bootstrap"; \
-		echo ""; \
-		exit 1; \
-	fi
+#==============================================================================
+# Terraform Aliases (backwards compatibility)
+#==============================================================================
 
-terraform-plan:
-	@echo "Planning Terraform changes..."
-	cd terraform && terraform plan
+terraform-init: init
+terraform-plan: plan
+terraform-apply: apply
+terraform-destroy: destroy
+deploy: apply
 
-terraform-apply:
-	@echo "Applying Terraform changes..."
-	cd terraform && terraform apply
+#==============================================================================
+# Docker Commands
+#==============================================================================
 
-terraform-destroy:
-	@echo "Destroying infrastructure..."
-	cd terraform && terraform destroy
+IMAGE_TAG ?= latest
+CADDY_IMAGE := atlas/caddy:$(IMAGE_TAG)
+GRAFANA_IMAGE := atlas/grafana:$(IMAGE_TAG)
+LOKI_IMAGE := atlas/loki:$(IMAGE_TAG)
+PROMETHEUS_IMAGE := atlas/prometheus:$(IMAGE_TAG)
 
-# Combined deployment
-deploy: terraform-apply
-	@echo "Deployment complete!"
-	@echo ""
-	@echo "Run 'cd terraform && terraform output' to see endpoints"
+build-all: build-caddy build-grafana build-loki build-prometheus
+	@echo "All images built successfully"
 
-# Cleanup targets
+build-caddy:
+	@echo "Building Caddy image..."
+	@docker build -t $(CADDY_IMAGE) docker/caddy/
+
+build-grafana:
+	@echo "Building Grafana image..."
+	@docker build -t $(GRAFANA_IMAGE) docker/grafana/
+
+build-loki:
+	@echo "Building Loki image..."
+	@docker build -t $(LOKI_IMAGE) docker/loki/
+
+build-prometheus:
+	@echo "Building Prometheus image..."
+	@docker build -t $(PROMETHEUS_IMAGE) docker/prometheus/
+
+list-images:
+	@docker images | grep -E "(REPOSITORY|atlas)" || echo "No atlas images found"
+
+#==============================================================================
+# Utility Commands
+#==============================================================================
+
+format:
+	@echo "Formatting Terraform files..."
+	@cd terraform && terraform fmt -recursive
+
 clean: clean-docker clean-terraform
 	@echo "Cleanup complete"
 
 clean-docker:
 	@echo "Cleaning Docker build cache..."
-	docker builder prune -f
+	@docker builder prune -f 2>/dev/null || true
 
 clean-terraform:
 	@echo "Cleaning Terraform cache..."
-	rm -rf terraform/.terraform
-	rm -f terraform/.terraform.lock.hcl
-	@echo "Note: Terraform state files preserved"
+	@rm -rf terraform/.terraform
+	@rm -f terraform/.terraform.lock.hcl
 
 clean-bootstrap:
 	@echo "Cleaning bootstrap Terraform..."
-	rm -rf terraform/bootstrap/.terraform
-	rm -f terraform/bootstrap/.terraform.lock.hcl
-	rm -f terraform/bootstrap/.credentials
-	@echo "Note: Bootstrap state files preserved"
+	@rm -rf terraform/bootstrap/.terraform
+	@rm -f terraform/bootstrap/.terraform.lock.hcl
+	@rm -f terraform/bootstrap/.credentials
 
-# Development helpers
-format:
-	@echo "Formatting Terraform files..."
-	cd terraform && terraform fmt -recursive
+#==============================================================================
+# Internal Helpers
+#==============================================================================
+
+_check_incus:
+	@command -v incus >/dev/null 2>&1 || { \
+		echo "ERROR: incus command not found."; \
+		echo "Please install Incus first: https://linuxcontainers.org/incus/"; \
+		exit 1; \
+	}
+
+_ensure_init:
+	@if [ ! -f terraform/backend.hcl ]; then \
+		echo "ERROR: backend.hcl not found. Run 'make bootstrap' first."; \
+		exit 1; \
+	fi
+	@if [ ! -d terraform/.terraform ] || [ ! -f terraform/.terraform/terraform.tfstate ]; then \
+		echo "Terraform not initialized. Running init..."; \
+		cd terraform && terraform init -backend-config=backend.hcl; \
+	fi
