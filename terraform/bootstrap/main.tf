@@ -26,7 +26,7 @@ terraform {
 #   3. Incus client config: ~/.config/incus/config.yml
 provider "incus" {
   generate_client_certificates = true
-  accept_remote_certificate     = var.accept_remote_certificate
+  accept_remote_certificate    = var.accept_remote_certificate
 }
 
 # Configure Incus storage buckets address via local-exec
@@ -147,7 +147,7 @@ locals {
   # Format is:
   #   Access key: XXXXX
   #   Secret key: YYYYY
-  credentials_raw = try(file(var.credentials_output_file), "")
+  credentials_raw   = try(file(var.credentials_output_file), "")
   credentials_lines = split("\n", local.credentials_raw)
 
   access_key = try(
