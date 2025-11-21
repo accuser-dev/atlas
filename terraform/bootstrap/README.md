@@ -61,6 +61,73 @@ make bootstrap
 make deploy
 ```
 
+### Remote Incus Setup
+
+To bootstrap a remote Incus server, you need to configure the connection first.
+
+**Step 1: Add the remote (one-time)**
+
+```bash
+# Add remote Incus server (interactive - sets up TLS cert)
+incus remote add myremote https://192.168.1.100:8443
+
+# You'll be prompted to accept the certificate and provide trust password
+```
+
+**Step 2: Configure bootstrap for remote**
+
+Create `terraform.tfvars`:
+
+```hcl
+# terraform/bootstrap/terraform.tfvars
+
+# Use the remote you just added
+incus_command = "incus --remote myremote"
+
+# S3 endpoint must point to the remote server
+storage_buckets_endpoint = "http://192.168.1.100:8555"
+
+# Optional: customize storage settings
+storage_buckets_address = "0.0.0.0:8555"  # Listen on all interfaces
+storage_pool_driver = "zfs"               # Use ZFS if available
+```
+
+**Step 3: Run bootstrap**
+
+```bash
+cd terraform/bootstrap
+terraform init
+terraform apply
+
+# Or from project root:
+make bootstrap
+```
+
+**Alternative: Bootstrap without pre-adding remote**
+
+If you haven't added the remote yet, you can do it via Terraform:
+
+```hcl
+# terraform/bootstrap/terraform.tfvars
+
+incus_remote_name = "myremote"
+incus_remote_address = "https://192.168.1.100:8443"
+incus_remote_password = "your-trust-password"
+accept_remote_certificate = true  # Use with caution
+
+incus_command = "incus --remote myremote"
+storage_buckets_endpoint = "http://192.168.1.100:8555"
+```
+
+Then run `terraform init && terraform apply`.
+
+**Important Notes for Remote Setup:**
+
+- The S3 endpoint (`storage_buckets_endpoint`) must use the remote server's IP address
+- The storage buckets address (`storage_buckets_address`) should listen on all interfaces (`0.0.0.0:8555`) or the server's network interface
+- Ensure port 8555 is accessible from your workstation for S3 API access
+- Consider using SSH tunneling for secure access: `ssh -L 8555:localhost:8555 user@remote-server`
+
 ## What It Creates
 
 ### 1. Storage Buckets Configuration

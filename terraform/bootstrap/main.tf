@@ -4,121 +4,169 @@
 # - Storage pool for Terraform state
 # - Storage bucket for Terraform state
 # - S3 access credentials
+#
+# Supports both local and remote Incus instances via the Incus provider
 
-# Configure Incus storage buckets address
-resource "null_resource" "configure_storage_buckets" {
-  provisioner "local-exec" {
-    command = <<-EOT
-      # Check if already configured
-      CURRENT_ADDR=$(incus config get core.storage_buckets_address 2>/dev/null || echo "")
+terraform {
+  required_version = ">=1.13.5"
 
-      if [ -z "$CURRENT_ADDR" ]; then
-        echo "Configuring Incus storage buckets address..."
-        incus config set core.storage_buckets_address ${var.storage_buckets_address}
-        echo "Storage buckets address set to: ${var.storage_buckets_address}"
-      else
-        echo "Storage buckets address already configured: $CURRENT_ADDR"
-      fi
-    EOT
+  required_providers {
+    incus = {
+      source  = "lxc/incus"
+      version = ">=1.0.0"
+    }
   }
 }
 
-# Create storage pool for Terraform state (if it doesn't exist)
+# Incus provider configuration
+# Configure via environment variables or terraform.tfvars:
+#   INCUS_REMOTE="myremote"
+#   INCUS_CONFIG_DIR="~/.config/incus"
+# Or for remote with TLS:
+#   incus_remote_address = "https://192.168.1.100:8443"
+#   incus_remote_password = "password"  # For first-time auth
+provider "incus" {
+  generate_client_certificates = true
+  accept_remote_certificate     = var.accept_remote_certificate
+
+  # Optional: specify remote address directly
+  # remote {
+  #   name     = var.incus_remote_name
+  #   address  = var.incus_remote_address
+  #   password = var.incus_remote_password  # Only needed for initial auth
+  # }
+}
+
+# Configure Incus storage buckets address via local-exec
+# Note: The Incus provider doesn't yet support server config resources
+resource "null_resource" "configure_storage_buckets" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      ${var.incus_command} config get core.storage_buckets_address || \
+      ${var.incus_command} config set core.storage_buckets_address ${var.storage_buckets_address}
+      echo "Storage buckets address configured: ${var.storage_buckets_address}"
+    EOT
+  }
+
+  triggers = {
+    address = var.storage_buckets_address
+  }
+}
+
+# Create storage pool via local-exec
+# Note: The Incus provider doesn't yet support storage pool creation for buckets
 resource "null_resource" "create_storage_pool" {
   depends_on = [null_resource.configure_storage_buckets]
 
   provisioner "local-exec" {
     command = <<-EOT
-      # Check if pool exists
-      if incus storage list --format csv | grep -q "^${var.storage_pool_name},"; then
+      if ${var.incus_command} storage list --format csv | grep -q "^${var.storage_pool_name},"; then
         echo "Storage pool '${var.storage_pool_name}' already exists"
       else
         echo "Creating storage pool '${var.storage_pool_name}'..."
-        incus storage create ${var.storage_pool_name} ${var.storage_pool_driver}
-        echo "Storage pool created successfully"
+        ${var.incus_command} storage create ${var.storage_pool_name} ${var.storage_pool_driver}
+        echo "Storage pool created"
       fi
     EOT
   }
+
+  triggers = {
+    pool_name = var.storage_pool_name
+    driver    = var.storage_pool_driver
+  }
 }
 
-# Create storage bucket for Terraform state
+# Create storage bucket via local-exec
+# Note: The Incus provider doesn't yet support storage bucket resources
 resource "null_resource" "create_storage_bucket" {
   depends_on = [null_resource.create_storage_pool]
 
   provisioner "local-exec" {
     command = <<-EOT
-      # Check if bucket exists
-      if incus storage bucket list ${var.storage_pool_name} --format csv | grep -q "^${var.bucket_name},"; then
+      if ${var.incus_command} storage bucket list ${var.storage_pool_name} --format csv | grep -q "^${var.bucket_name},"; then
         echo "Storage bucket '${var.bucket_name}' already exists"
       else
         echo "Creating storage bucket '${var.bucket_name}'..."
-        incus storage bucket create ${var.storage_pool_name} ${var.bucket_name}
-        echo "Storage bucket created successfully"
+        ${var.incus_command} storage bucket create ${var.storage_pool_name} ${var.bucket_name}
+        echo "Storage bucket created"
       fi
     EOT
   }
+
+  triggers = {
+    pool_name  = var.storage_pool_name
+    bucket_name = var.bucket_name
+  }
 }
 
-# Generate S3 credentials for the bucket
+# Generate S3 credentials via local-exec
+# Note: The Incus provider doesn't yet support storage bucket key resources
 resource "null_resource" "generate_credentials" {
   depends_on = [null_resource.create_storage_bucket]
 
   provisioner "local-exec" {
     command = <<-EOT
-      # Check if credentials already exist
-      if incus storage bucket key list ${var.storage_pool_name} ${var.bucket_name} --format csv | grep -q "^${var.bucket_key_name},"; then
+      if ${var.incus_command} storage bucket key list ${var.storage_pool_name} ${var.bucket_name} --format csv | grep -q "^${var.bucket_key_name},"; then
         echo "Credentials '${var.bucket_key_name}' already exist"
-        echo "To regenerate, delete the key first:"
-        echo "  incus storage bucket key delete ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name}"
+        echo ""
+        echo "To regenerate credentials:"
+        echo "  ${var.incus_command} storage bucket key delete ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name}"
+        echo "  terraform taint null_resource.generate_credentials"
+        echo "  terraform apply"
       else
         echo "Generating S3 credentials..."
-        incus storage bucket key create ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name} > ${var.credentials_output_file}
+        ${var.incus_command} storage bucket key create ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name} > ${var.credentials_output_file}
         echo ""
         echo "Credentials saved to: ${var.credentials_output_file}"
-        echo ""
-        echo "IMPORTANT: Save these credentials securely!"
-        echo "You will need them to configure the Terraform backend."
-        echo ""
         cat ${var.credentials_output_file}
       fi
     EOT
   }
+
+  triggers = {
+    bucket_key_name = var.bucket_key_name
+  }
+}
+
+# Parse credentials and create backend.hcl
+locals {
+  # Parse credentials from the .credentials file
+  # Format is:
+  #   Access key: XXXXX
+  #   Secret key: YYYYY
+  credentials_raw = try(file(var.credentials_output_file), "")
+  credentials_lines = split("\n", local.credentials_raw)
+
+  access_key = try(
+    trimspace(split(":", local.credentials_lines[0])[1]),
+    ""
+  )
+
+  secret_key = try(
+    trimspace(split(":", local.credentials_lines[1])[1]),
+    ""
+  )
 }
 
 # Create backend.hcl file for main Terraform project
-resource "null_resource" "create_backend_config" {
+resource "local_file" "backend_config" {
   depends_on = [null_resource.generate_credentials]
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      if [ -f "${var.credentials_output_file}" ]; then
-        # Extract credentials from output file
-        ACCESS_KEY=$(grep "Access key:" ${var.credentials_output_file} | awk '{print $3}')
-        SECRET_KEY=$(grep "Secret key:" ${var.credentials_output_file} | awk '{print $3}')
+  filename = var.backend_config_output
 
-        # Create backend.hcl in the main terraform directory
-        cat > ${var.backend_config_output} <<-EOF
-# Terraform S3 Backend Configuration
-# Auto-generated by bootstrap process
-# DO NOT COMMIT THIS FILE - IT CONTAINS SECRETS
+  content = templatefile("${path.module}/templates/backend.hcl.tftpl", {
+    bucket     = var.bucket_name
+    endpoint   = var.storage_buckets_endpoint
+    access_key = local.access_key
+    secret_key = local.secret_key
+  })
 
-bucket     = "${var.bucket_name}"
-endpoint   = "${var.storage_buckets_endpoint}"
-access_key = "$ACCESS_KEY"
-secret_key = "$SECRET_KEY"
-EOF
+  file_permission = "0600"
 
-        echo ""
-        echo "Backend configuration created: ${var.backend_config_output}"
-        echo ""
-        echo "Next steps:"
-        echo "1. cd ../  # Return to main terraform directory"
-        echo "2. terraform init -backend-config=backend.hcl"
-        echo "3. terraform plan"
-        echo "4. terraform apply"
-      else
-        echo "Credentials file not found. Using existing credentials."
-      fi
-    EOT
+  lifecycle {
+    precondition {
+      condition     = fileexists(var.credentials_output_file) || !fileexists(var.backend_config_output)
+      error_message = "Credentials file not found. Ensure terraform apply completes successfully to generate credentials."
+    }
   }
 }

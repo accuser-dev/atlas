@@ -1,0 +1,61 @@
+# Bootstrap Terraform Variables Example
+# Copy this file to terraform.tfvars and customize for your setup
+
+# ==============================================================================
+# LOCAL INCUS SETUP (default)
+# ==============================================================================
+# For local Incus, use defaults (no changes needed)
+# incus_command = "incus"
+# storage_buckets_endpoint = "http://localhost:8555"
+
+# ==============================================================================
+# REMOTE INCUS SETUP
+# ==============================================================================
+# For remote Incus server, configure the following:
+
+# Method 1: Use incus remote (recommended if you've already added the remote)
+# incus_command = "incus --remote myremote"
+# storage_buckets_endpoint = "http://192.168.1.100:8555"
+
+# Method 2: Use incus with server address directly
+# incus_remote_name = "production"
+# incus_remote_address = "https://192.168.1.100:8443"
+# incus_remote_password = "your-trust-password"  # Only needed for first-time auth
+# accept_remote_certificate = true  # Use with caution in production
+# incus_command = "incus --remote production"
+# storage_buckets_endpoint = "http://192.168.1.100:8555"
+
+# ==============================================================================
+# STORAGE CONFIGURATION
+# ==============================================================================
+# Customize storage settings if needed
+
+# Storage buckets S3 API address on the Incus server
+# storage_buckets_address = ":8555"  # Listen on all interfaces
+# storage_buckets_address = "0.0.0.0:8555"  # Explicit all interfaces
+# storage_buckets_address = "192.168.1.100:8555"  # Specific interface
+
+# Storage pool configuration
+# storage_pool_name = "terraform-state"
+# storage_pool_driver = "dir"  # Options: dir, zfs, btrfs, lvm
+
+# Storage bucket configuration
+# bucket_name = "atlas-terraform-state"
+# bucket_key_name = "terraform-access"
+
+# ==============================================================================
+# EXAMPLE: Complete Remote Setup
+# ==============================================================================
+# Uncomment and customize for a remote Incus server at 192.168.1.100:
+
+# # Remote connection
+# incus_command = "incus --remote prod"
+# incus_remote_name = "prod"
+# incus_remote_address = "https://192.168.1.100:8443"
+# incus_remote_password = "secure-password-here"
+# accept_remote_certificate = true
+#
+# # Storage configuration
+# storage_buckets_address = "0.0.0.0:8555"
+# storage_buckets_endpoint = "http://192.168.1.100:8555"
+# storage_pool_driver = "zfs"
