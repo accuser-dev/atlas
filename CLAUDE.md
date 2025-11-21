@@ -28,6 +28,12 @@ atlas/
 │       ├── Dockerfile
 │       └── README.md
 ├── terraform/                 # Terraform infrastructure
+│   ├── bootstrap/            # Bootstrap Terraform project
+│   │   ├── main.tf           # Creates storage bucket and credentials
+│   │   ├── variables.tf      # Bootstrap variables
+│   │   ├── outputs.tf        # Bootstrap outputs
+│   │   ├── versions.tf       # Version constraints (local state)
+│   │   └── README.md         # Bootstrap documentation
 │   ├── modules/              # Reusable Terraform modules
 │   │   ├── caddy/
 │   │   ├── grafana/
@@ -50,8 +56,29 @@ atlas/
 
 ## Common Commands
 
+### First-Time Setup (Fresh Incus Installation)
+
+For a vanilla Incus installation (after `incus admin init`):
+
+```bash
+# 1. Bootstrap (creates storage bucket for Terraform state)
+make bootstrap
+
+# 2. Initialize Terraform with remote backend
+make terraform-init
+
+# 3. Deploy infrastructure
+make deploy
+```
+
 ### Build and Deployment (Makefile)
 ```bash
+# Bootstrap commands (run once for fresh setup)
+make bootstrap           # Complete bootstrap process
+make bootstrap-init      # Initialize bootstrap Terraform
+make bootstrap-plan      # Plan bootstrap changes
+make bootstrap-apply     # Apply bootstrap
+
 # Build Docker images locally (for testing only)
 make build-all
 make build-caddy
@@ -59,8 +86,8 @@ make build-grafana
 make build-loki
 make build-prometheus
 
-# Terraform operations
-make terraform-init      # Initialize Terraform
+# Terraform operations (after bootstrap)
+make terraform-init      # Initialize Terraform with remote backend
 make terraform-plan      # Plan changes
 make terraform-apply     # Apply changes
 make terraform-destroy   # Destroy infrastructure
@@ -72,6 +99,7 @@ make deploy
 make clean               # Clean all build artifacts
 make clean-docker        # Clean Docker build cache
 make clean-terraform     # Clean Terraform cache
+make clean-bootstrap     # Clean bootstrap Terraform cache
 
 # Format Terraform files
 make format
@@ -119,28 +147,27 @@ This project uses Incus S3-compatible storage buckets for encrypted remote state
 - S3-compatible API
 - Secure credential-based access
 
-**Initial Setup (One-time):**
+**Bootstrap Process:**
 
-See [terraform/BACKEND_SETUP.md](terraform/BACKEND_SETUP.md) for detailed instructions. Quick summary:
+The project uses a **two-project structure**:
+1. **Bootstrap project** (`terraform/bootstrap/`) - Uses local state, creates storage bucket
+2. **Main project** (`terraform/`) - Uses remote state in the storage bucket
+
+**Initial Setup (Automated):**
 
 ```bash
-# 1. Configure Incus storage buckets
-incus config set core.storage_buckets_address :8555
+# Run bootstrap to set up storage bucket
+make bootstrap
 
-# 2. Create storage bucket
-incus storage bucket create terraform-state atlas-terraform-state
-
-# 3. Generate credentials
-incus storage bucket key create terraform-state atlas-terraform-state terraform-access
-
-# 4. Initialize Terraform with backend
-cd terraform
-export AWS_ACCESS_KEY_ID="<access-key>"
-export AWS_SECRET_ACCESS_KEY="<secret-key>"
-terraform init \
-  -backend-config="bucket=atlas-terraform-state" \
-  -backend-config="endpoint=http://localhost:8555"
+# Bootstrap creates:
+# - Incus storage buckets configuration
+# - Storage pool (terraform-state)
+# - Storage bucket (atlas-terraform-state)
+# - S3 credentials
+# - Backend config file (terraform/backend.hcl)
 ```
+
+See [terraform/BACKEND_SETUP.md](terraform/BACKEND_SETUP.md) for detailed instructions and [terraform/bootstrap/README.md](terraform/bootstrap/README.md) for bootstrap documentation.
 
 **Working with Remote State:**
 

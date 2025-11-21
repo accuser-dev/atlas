@@ -12,13 +12,87 @@ Instead of storing Terraform state locally, we use Incus's built-in S3-compatibl
 - **Integrated**: Uses existing Incus infrastructure
 - **Secure**: Access controlled via S3 credentials
 
+## Two Setup Methods
+
+Choose the method that fits your situation:
+
+### Method 1: Automated Bootstrap (Recommended)
+
+**Use this for**: Fresh Incus installations, first-time setup
+
+The bootstrap Terraform project automates all setup steps:
+
+```bash
+# From project root
+make bootstrap
+
+# Or manually:
+cd terraform/bootstrap
+terraform init
+terraform apply
+cd ..
+terraform init -backend-config=backend.hcl
+```
+
+See [bootstrap/README.md](bootstrap/README.md) for details.
+
+### Method 2: Manual Setup
+
+**Use this for**: Custom configurations, understanding the process, troubleshooting
+
+Follow the detailed manual steps below.
+
+---
+
+## Method 1: Automated Bootstrap (Recommended)
+
+The bootstrap process creates everything needed for remote state:
+
+1. **Navigate to bootstrap directory**:
+   ```bash
+   cd terraform/bootstrap
+   ```
+
+2. **Initialize and apply**:
+   ```bash
+   terraform init
+   terraform apply
+   ```
+
+3. **Review the output** - Bootstrap creates:
+   - Storage buckets configuration
+   - Storage pool (`terraform-state`)
+   - Storage bucket (`atlas-terraform-state`)
+   - S3 credentials
+   - Backend config file (`../backend.hcl`)
+
+4. **Initialize main project**:
+   ```bash
+   cd ..
+   terraform init -backend-config=backend.hcl
+   ```
+
+5. **Deploy infrastructure**:
+   ```bash
+   terraform apply
+   ```
+
+**That's it!** The bootstrap handles all the setup automatically.
+
+For customization options, see [bootstrap/README.md](bootstrap/README.md).
+
+---
+
+## Method 2: Manual Setup
+
 ## Prerequisites
 
-- Incus installed and running
+- Incus installed and running (`incus admin init` completed)
 - Admin access to configure Incus
 - Network connectivity to Incus host
+- Terraform >= 1.13.5
 
-## Setup Instructions
+## Manual Setup Instructions
 
 ### 1. Configure Incus Storage Buckets Address
 
