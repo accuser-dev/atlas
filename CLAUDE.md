@@ -38,8 +38,11 @@ atlas/
 │   ├── networks.tf           # Network configuration
 │   ├── outputs.tf            # Output values
 │   ├── providers.tf          # Provider configuration
-│   ├── versions.tf           # Version constraints
-│   └── terraform.tfvars      # Variable values (gitignored)
+│   ├── versions.tf           # Version constraints and backend config
+│   ├── terraform.tfvars      # Variable values (gitignored)
+│   ├── backend.hcl           # Backend credentials (gitignored)
+│   ├── backend.hcl.example   # Backend config template
+│   └── BACKEND_SETUP.md      # Remote state setup guide
 ├── Makefile                  # Build and deployment automation
 ├── CONTRIBUTING.md           # Contribution guidelines and GitHub Flow workflow
 └── CLAUDE.md                 # This file
@@ -105,6 +108,60 @@ terraform show
 # View outputs (endpoints, configurations)
 terraform output
 ```
+
+### Terraform State Management
+
+**Remote State Backend:**
+
+This project uses Incus S3-compatible storage buckets for encrypted remote state storage. This provides:
+- Encrypted state at rest
+- Self-hosted (no external dependencies)
+- S3-compatible API
+- Secure credential-based access
+
+**Initial Setup (One-time):**
+
+See [terraform/BACKEND_SETUP.md](terraform/BACKEND_SETUP.md) for detailed instructions. Quick summary:
+
+```bash
+# 1. Configure Incus storage buckets
+incus config set core.storage_buckets_address :8555
+
+# 2. Create storage bucket
+incus storage bucket create terraform-state atlas-terraform-state
+
+# 3. Generate credentials
+incus storage bucket key create terraform-state atlas-terraform-state terraform-access
+
+# 4. Initialize Terraform with backend
+cd terraform
+export AWS_ACCESS_KEY_ID="<access-key>"
+export AWS_SECRET_ACCESS_KEY="<secret-key>"
+terraform init \
+  -backend-config="bucket=atlas-terraform-state" \
+  -backend-config="endpoint=http://localhost:8555"
+```
+
+**Working with Remote State:**
+
+```bash
+# Normal operations work the same
+cd terraform
+terraform plan
+terraform apply
+
+# State is automatically stored remotely
+terraform state list
+
+# Migrate existing local state (if needed)
+terraform init -migrate-state
+```
+
+**Important Notes:**
+- Never commit `backend.hcl` (gitignored)
+- Store S3 credentials securely (environment variables recommended)
+- For CI/CD, use GitHub Secrets for credentials
+- Backup storage bucket regularly for disaster recovery
 
 ### Docker Image Management
 

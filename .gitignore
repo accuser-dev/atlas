@@ -2,12 +2,14 @@
 terraform/**/.terraform/
 terraform/**/*.tfstate
 terraform/**/*.tfstate.*
+terraform/**/*.tfstate.backup
 terraform/**/crash.log
 terraform/**/override.tf
 terraform/**/override.tf.json
 terraform/**/*.tfvars
 terraform/**/.terraform.lock.hcl
 terraform/**/tfplan
+terraform/**/backend.hcl
 
 # Docker build artifacts
 docker/**/.dockerignore
