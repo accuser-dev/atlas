@@ -197,6 +197,41 @@ When creating a PR, please include:
 - Keep PRs focused and reasonably sized
 - Be respectful and constructive in reviews
 
+### Reviewing Dependabot PRs
+
+Dependabot automatically creates PRs for Docker base image updates. When reviewing these:
+
+**1. Check the changelog:**
+- Review the upstream release notes for the new version
+- Look for breaking changes or security fixes
+- Verify compatibility with our configuration
+
+**2. Verify CI passes:**
+- Ensure all CI checks pass (build, terraform validate)
+- Review any test failures carefully
+
+**3. Test locally (for major updates):**
+```bash
+# Pull the PR branch
+gh pr checkout <pr-number>
+
+# Build the updated image locally
+make build-<service>
+
+# Test with Terraform
+make terraform-plan
+```
+
+**4. Merge strategy:**
+- **Patch updates (x.x.N)**: Usually safe to merge after CI passes
+- **Minor updates (x.N.x)**: Review changelog, merge if no breaking changes
+- **Major updates (N.x.x)**: Test thoroughly, may require configuration changes
+
+**5. Post-merge:**
+- Monitor deployed services for issues
+- Roll back if problems are detected
+- Update documentation if configuration changed
+
 ## Release Process
 
 1. **Develop** - Continuous integration, all features merged here
