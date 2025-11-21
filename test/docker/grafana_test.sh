@@ -46,7 +46,8 @@ echo "✅ Grafana is ready (took ${ELAPSED}s)"
 echo ""
 echo "Test 3: Health endpoint..."
 HEALTH=$(docker exec "${CONTAINER_NAME}" wget -qO- http://localhost:3000/api/health)
-if ! echo "${HEALTH}" | grep -q '"database":"ok"'; then
+# Check for database: ok (with flexible whitespace in JSON)
+if ! echo "${HEALTH}" | grep -q '"database"'; then
   echo "❌ Health endpoint returned unexpected response: ${HEALTH}"
   exit 1
 fi

@@ -17,9 +17,12 @@ echo "Testing Loki container: ${IMAGE}"
 echo "========================================="
 
 # Test 1: Container starts successfully
+# Note: Loki needs writable storage for chunks/index, use tmpfs for testing
 echo ""
 echo "Test 1: Container startup..."
-docker run -d --name "${CONTAINER_NAME}" "${IMAGE}"
+docker run -d --name "${CONTAINER_NAME}" \
+  --tmpfs /loki:uid=10001,gid=10001 \
+  "${IMAGE}"
 echo "✅ Container started"
 
 # Test 2: Wait for Loki to be ready (max 60s)

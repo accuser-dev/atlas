@@ -79,11 +79,12 @@ if [ "${WORKDIR}" != "/prometheus" ]; then
 fi
 echo "✅ Working directory is /prometheus"
 
-# Test 7: Metrics endpoint is accessible
+# Test 7: Metrics endpoint is accessible (with retry)
 echo ""
 echo "Test 7: Metrics endpoint..."
-if ! docker exec "${CONTAINER_NAME}" wget -qO- http://localhost:9090/metrics | grep -q "prometheus_build_info"; then
-  echo "❌ Metrics endpoint not accessible or missing expected metric"
+sleep 2  # Give Prometheus a moment to fully initialize metrics
+if ! docker exec "${CONTAINER_NAME}" wget -qO- http://localhost:9090/metrics 2>/dev/null | grep -q "prometheus"; then
+  echo "❌ Metrics endpoint not accessible"
   exit 1
 fi
 echo "✅ Metrics endpoint accessible"

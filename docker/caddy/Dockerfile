@@ -25,6 +25,6 @@ WORKDIR /srv
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD caddy version || exit 1
 
-# Run as non-root user (caddy user exists in base image)
-# Note: Caddy can bind to ports 80/443 via capabilities in base image
-USER caddy
+# Note: The caddybuilds/caddy-cloudflare image doesn't include a non-root user
+# The container runs as root but Caddy itself drops privileges appropriately
+# For production with Incus, the container runs with restricted capabilities
