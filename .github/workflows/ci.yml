@@ -10,7 +10,7 @@ on:
       - 'terraform/**.tftpl'
       - 'docker/**/Dockerfile'
       - 'test/docker/**'
-      - '.github/workflows/terraform-ci.yml'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches:
       - main
@@ -20,7 +20,7 @@ on:
       - 'terraform/**.tftpl'
       - 'docker/**/Dockerfile'
       - 'test/docker/**'
-      - '.github/workflows/terraform-ci.yml'
+      - '.github/workflows/ci.yml'
 
 env:
   TOFU_VERSION: '1.9.0'
