@@ -10,11 +10,11 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"gamunu.opentofu",
 				"Anthropic.claude-code",
 				"GitHub.vscode-github-actions",
 				"docker.docker",
-				"GitHub.copilot-chat"
+				"GitHub.copilot-chat",
+				"OpenTofu.vscode-opentofu"
 			]
 		}
 	},
