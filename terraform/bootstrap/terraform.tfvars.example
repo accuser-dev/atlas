@@ -1,0 +1,97 @@
+# Bootstrap Terraform Variables Example
+# Copy this file to terraform.tfvars and customize for your setup
+
+# ==============================================================================
+# LOCAL INCUS SETUP (default)
+# ==============================================================================
+# For local Incus, no configuration needed - just run:
+#   terraform init
+#   terraform apply
+
+# ==============================================================================
+# REMOTE INCUS SETUP
+# ==============================================================================
+# The Incus provider and CLI respect the Incus client configuration.
+# Remote must be pre-configured using the incus client.
+
+# Step 1: Add remote to Incus client (one-time setup)
+# ---------------------------------------------------------------------------
+#   incus remote add production https://192.168.1.100:8443
+#   # You'll be prompted to accept certificate and provide trust password
+#
+#   # Verify remote is added:
+#   incus remote list
+
+# Step 2: Configure bootstrap to use the remote
+# ---------------------------------------------------------------------------
+
+# Method A: Set as default remote (recommended for single remote)
+#   incus remote switch production
+#   # Then run terraform with no extra config needed
+
+# Method B: Use INCUS_REMOTE environment variable (recommended for multiple remotes)
+#   export INCUS_REMOTE=production
+#   terraform apply
+
+# Method C: Set in terraform.tfvars (persists in project)
+# incus_remote = "production"
+
+# ==============================================================================
+# STORAGE CONFIGURATION FOR REMOTE SETUP
+# ==============================================================================
+# When using a remote Incus server, you MUST configure these:
+
+# S3 endpoint must point to the remote server's IP/hostname
+# storage_buckets_endpoint = "http://192.168.1.100:8555"
+
+# Storage buckets address on the remote server (listen on all interfaces)
+# storage_buckets_address = "0.0.0.0:8555"
+
+# Optional: Use ZFS if available on remote server
+# storage_pool_driver = "zfs"
+
+# ==============================================================================
+# COMPLETE EXAMPLE: Remote Incus at 192.168.1.100
+# ==============================================================================
+# Prerequisites:
+#   incus remote add prod https://192.168.1.100:8443
+
+# Uncomment and customize:
+# incus_remote = "prod"
+# storage_buckets_address = "0.0.0.0:8555"
+# storage_buckets_endpoint = "http://192.168.1.100:8555"
+# storage_pool_driver = "zfs"
+
+# ==============================================================================
+# SECURITY NOTES
+# ==============================================================================
+# 1. Port 8555 must be accessible from your workstation for S3 API access
+# 2. Consider using SSH tunneling for secure remote access:
+#    ssh -L 8555:localhost:8555 user@192.168.1.100
+#    # Then use: storage_buckets_endpoint = "http://localhost:8555"
+#
+# 3. For first-time remote setup, you may need:
+#    accept_remote_certificate = true
+#    # Only use in trusted environments!
+
+# ==============================================================================
+# ALL AVAILABLE VARIABLES
+# ==============================================================================
+
+# Remote configuration
+# incus_remote = "production"  # Name of pre-configured remote
+# accept_remote_certificate = false  # Auto-accept cert (use with caution)
+
+# Storage configuration
+# storage_buckets_address = ":8555"  # S3 API listen address on Incus server
+# storage_pool_name = "terraform-state"  # Storage pool name
+# storage_pool_driver = "dir"  # Storage driver (dir, zfs, btrfs, lvm)
+# bucket_name = "atlas-terraform-state"  # Bucket name
+# bucket_key_name = "terraform-access"  # S3 access key name
+
+# Endpoint configuration
+# storage_buckets_endpoint = "http://localhost:8555"  # S3 endpoint URL
+
+# Output paths (usually don't need to change)
+# credentials_output_file = ".credentials"  # Credentials file location
+# backend_config_output = "../backend.hcl"  # Backend config location

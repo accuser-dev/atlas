@@ -2,5 +2,6 @@
     "terraform.languageServer.enable": true,
     "files.associations": {
         "*.tf": "terraform"
-    }
+    },
+    "makefile.configureOnOpen": false
 }
