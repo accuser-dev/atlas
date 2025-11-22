@@ -86,7 +86,7 @@ Test 5: Working directory...
 
 Tests run automatically in GitHub Actions:
 
-1. `terraform-validate` - Validates Terraform configuration
+1. `tofu-validate` - Validates OpenTofu configuration
 2. `docker-build` - Builds all Docker images
 3. `docker-test` - Runs smoke tests for each image
 
