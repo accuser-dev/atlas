@@ -122,8 +122,8 @@ resource "null_resource" "generate_credentials" {
         echo "  terraform taint null_resource.generate_credentials"
         echo "  terraform apply"
       else
-        echo "Generating S3 credentials..."
-        incus storage bucket key create ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name} > ${var.credentials_output_file}
+        echo "Generating S3 credentials with admin role..."
+        incus storage bucket key create ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name} --role=admin > ${var.credentials_output_file}
         echo ""
         echo "Credentials saved to: ${var.credentials_output_file}"
         cat ${var.credentials_output_file}

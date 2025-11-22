@@ -135,18 +135,20 @@ incus storage bucket list terraform-state
 
 ### 4. Generate S3 Credentials
 
-Create access credentials for Terraform to use:
+Create access credentials for Terraform to use. **Important**: Use `--role=admin` to grant write access for state management:
 
 ```bash
-# Create credentials (replace with your own names)
-incus storage bucket key create terraform-state atlas-terraform-state terraform-access
+# Create credentials with admin role (required for Terraform to write state)
+incus storage bucket key create terraform-state atlas-terraform-state terraform-access --role=admin
 
 # This will output:
 # Access key: <ACCESS_KEY>
 # Secret key: <SECRET_KEY>
 ```
 
-**Important**: Save these credentials securely. You'll need them for Terraform configuration.
+**Important**:
+- Save these credentials securely. You'll need them for Terraform configuration.
+- The `--role=admin` flag is required. Without it, the key has read-only access and Terraform cannot save state.
 
 ### 5. Configure Terraform Backend
 
@@ -184,8 +186,11 @@ access_key = "<ACCESS_KEY>"
 secret_key = "<SECRET_KEY>"
 
 endpoints = {
-  s3 = "http://your-incus-host:8555"
+  s3 = "https://your-incus-host:8555"
 }
+
+# Skip TLS verification for self-signed Incus certificate
+insecure = true
 ```
 
 Then initialize:
@@ -238,8 +243,8 @@ incus storage bucket export terraform-state atlas-terraform-state --list-only
    # Delete old key
    incus storage bucket key delete terraform-state atlas-terraform-state terraform-access
 
-   # Create new key
-   incus storage bucket key create terraform-state atlas-terraform-state terraform-access
+   # Create new key with admin role
+   incus storage bucket key create terraform-state atlas-terraform-state terraform-access --role=admin
    ```
 
 ### Credential Storage
@@ -286,11 +291,24 @@ sudo netstat -tlnp | grep 8555
 ### Authentication Errors
 
 ```bash
-# List existing keys
+# List existing keys and check their roles
 incus storage bucket key list terraform-state atlas-terraform-state
 
-# Regenerate keys if needed
-incus storage bucket key create terraform-state atlas-terraform-state terraform-access --force
+# If the key is read-only, delete and recreate with admin role
+incus storage bucket key delete terraform-state atlas-terraform-state terraform-access
+incus storage bucket key create terraform-state atlas-terraform-state terraform-access --role=admin
+```
+
+### TLS Certificate Errors
+
+If you see "tls: failed to verify certificate" errors with HTTPS endpoints:
+
+```hcl
+# Add insecure = true to backend.hcl for self-signed certificates
+endpoints = {
+  s3 = "https://your-incus-host:8555"
+}
+insecure = true
 ```
 
 ### State Locking
