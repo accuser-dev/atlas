@@ -173,6 +173,9 @@ setup_opentofu_repository() {
         exit 1
     fi
 
+    # Remove any existing key files to avoid conflicts
+    rm -f "$keyring_path" "$repo_keyring_path"
+
     # Download the first GPG key (OpenTofu signing key)
     log_info "Downloading OpenTofu GPG keys..."
     if ! curl -fsSL https://get.opentofu.org/opentofu.gpg -o "$keyring_path"; then
@@ -180,8 +183,8 @@ setup_opentofu_repository() {
         exit 1
     fi
 
-    # Download the second GPG key (repository key)
-    if ! curl -fsSL https://packages.opentofu.org/opentofu/tofu/gpgkey | gpg --no-tty --batch --dearmor -o "$repo_keyring_path"; then
+    # Download the second GPG key (repository key) - must dearmor it
+    if ! curl -fsSL https://packages.opentofu.org/opentofu/tofu/gpgkey | gpg --no-tty --batch --dearmor > "$repo_keyring_path"; then
         log_error "Failed to download OpenTofu repository GPG key"
         exit 1
     fi
