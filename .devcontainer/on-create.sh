@@ -159,11 +159,12 @@ EOF'; then
     log_info "GitHub CLI repository configured successfully"
 }
 
-# Download and verify OpenTofu repository key
+# Download and verify OpenTofu repository keys
 setup_opentofu_repository() {
     log_info "Setting up OpenTofu repository..."
 
     local keyring_path="/etc/apt/keyrings/opentofu.gpg"
+    local repo_keyring_path="/etc/apt/keyrings/opentofu-repo.gpg"
     local repo_path="/etc/apt/sources.list.d/opentofu.list"
 
     # Install prerequisites for adding the repository
@@ -172,34 +173,40 @@ setup_opentofu_repository() {
         exit 1
     fi
 
-    # Download the GPG key
-    if ! curl -fsSL https://get.opentofu.org/opentofu.gpg | gpg --dearmor -o "$keyring_path"; then
+    # Download the first GPG key (OpenTofu signing key)
+    log_info "Downloading OpenTofu GPG keys..."
+    if ! curl -fsSL https://get.opentofu.org/opentofu.gpg -o "$keyring_path"; then
         log_error "Failed to download OpenTofu GPG key"
         exit 1
     fi
 
-    # Set proper permissions on the keyring
-    chmod 644 "$keyring_path"
-
-    # Verify the key was downloaded
-    if [[ ! -f "$keyring_path" ]]; then
-        log_error "OpenTofu GPG key file not found after download"
+    # Download the second GPG key (repository key)
+    if ! curl -fsSL https://packages.opentofu.org/opentofu/tofu/gpgkey | gpg --no-tty --batch --dearmor -o "$repo_keyring_path"; then
+        log_error "Failed to download OpenTofu repository GPG key"
         exit 1
     fi
 
-    # Verify the key file has content
-    if [[ ! -s "$keyring_path" ]]; then
-        log_error "OpenTofu GPG key file is empty"
+    # Set proper permissions on both keyrings
+    chmod 644 "$keyring_path" "$repo_keyring_path"
+
+    # Verify the keys were downloaded
+    if [[ ! -f "$keyring_path" ]] || [[ ! -s "$keyring_path" ]]; then
+        log_error "OpenTofu GPG key file not found or empty"
         exit 1
     fi
 
-    log_info "OpenTofu GPG key downloaded successfully"
+    if [[ ! -f "$repo_keyring_path" ]] || [[ ! -s "$repo_keyring_path" ]]; then
+        log_error "OpenTofu repository GPG key file not found or empty"
+        exit 1
+    fi
 
-    # Create OpenTofu repository configuration
-    if ! sh -c "cat <<EOF > $repo_path
-deb [signed-by=$keyring_path] https://packages.opentofu.org/opentofu/tofu/any/ any main
-deb-src [signed-by=$keyring_path] https://packages.opentofu.org/opentofu/tofu/any/ any main
-EOF"; then
+    log_info "OpenTofu GPG keys downloaded successfully"
+
+    # Create OpenTofu repository configuration with both keys
+    echo "deb [signed-by=${keyring_path},${repo_keyring_path}] https://packages.opentofu.org/opentofu/tofu/any/ any main" > "$repo_path"
+    chmod 644 "$repo_path"
+
+    if [[ ! -f "$repo_path" ]]; then
         log_error "Failed to create OpenTofu repository configuration"
         exit 1
     fi
