@@ -25,8 +25,8 @@ variable "development_network_ipv4" {
 
 variable "development_network_nat" {
   description = "Enable NAT for development network IPv4"
-  type        = string
-  default     = "true"
+  type        = bool
+  default     = true
 }
 
 
@@ -39,8 +39,8 @@ variable "testing_network_ipv4" {
 
 variable "testing_network_nat" {
   description = "Enable NAT for testing network IPv4"
-  type        = string
-  default     = "true"
+  type        = bool
+  default     = true
 }
 
 # Staging Network Configuration
@@ -52,8 +52,8 @@ variable "staging_network_ipv4" {
 
 variable "staging_network_nat" {
   description = "Enable NAT for staging network IPv4"
-  type        = string
-  default     = "true"
+  type        = bool
+  default     = true
 }
 
 # Production Network Configuration
@@ -65,8 +65,8 @@ variable "production_network_ipv4" {
 
 variable "production_network_nat" {
   description = "Enable NAT for production network IPv4"
-  type        = string
-  default     = "true"
+  type        = bool
+  default     = true
 }
 
 # Management Network Configuration
@@ -78,6 +78,6 @@ variable "management_network_ipv4" {
 
 variable "management_network_nat" {
   description = "Enable NAT for management network IPv4"
-  type        = string
-  default     = "true"
+  type        = bool
+  default     = true
 }
