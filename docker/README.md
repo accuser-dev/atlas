@@ -330,7 +330,7 @@ incus exec grafana01 -- grafana-cli plugins list
 
 If you prefer Docker Hub over ghcr.io:
 
-1. **Update GitHub Actions workflow** (`.github/workflows/terraform-ci.yml`):
+1. **Update GitHub Actions workflow** (`.github/workflows/ci.yml`):
    ```yaml
    - name: Log in to Docker Hub
      uses: docker/login-action@v3
@@ -348,7 +348,7 @@ If you prefer Docker Hub over ghcr.io:
 
 ## See Also
 
-- [GitHub Actions Workflow](../.github/workflows/terraform-ci.yml) - CI/CD configuration
+- [GitHub Actions Workflow](../.github/workflows/ci.yml) - CI/CD configuration
 - [Makefile](../Makefile) - Build automation
 - [CLAUDE.md](../CLAUDE.md) - Project architecture and documentation
 - Individual service READMEs:

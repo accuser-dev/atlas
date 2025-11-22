@@ -1,4 +1,4 @@
-# Bootstrap Terraform Outputs
+# Bootstrap OpenTofu Outputs
 
 output "storage_pool_name" {
   description = "Name of the created storage pool"
@@ -28,12 +28,12 @@ output "next_steps" {
     1. Return to main terraform directory:
        cd ..
 
-    2. Initialize Terraform with remote backend:
-       terraform init -backend-config=backend.hcl
+    2. Initialize OpenTofu with remote backend:
+       tofu init -backend-config=backend.hcl
 
     3. Plan and apply infrastructure:
-       terraform plan
-       terraform apply
+       tofu plan
+       tofu apply
 
     Note: The backend.hcl file contains credentials and is gitignored.
   EOT

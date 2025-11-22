@@ -4,29 +4,29 @@ This directory contains CI/CD workflows for the Atlas infrastructure project.
 
 ## Workflows
 
-### Terraform CI (`terraform-ci.yml`)
+### OpenTofu CI (`tofu-ci.yml`)
 
-Validates Terraform configuration and builds Docker images on every push or pull request.
+Validates OpenTofu configuration and builds Docker images on every push or pull request.
 
 **Triggers:**
 - Push to `main` or `develop` branches
 - Pull requests to `main` or `develop` branches
 - Only when relevant files change:
-  - `terraform/**.tf` - Terraform configuration files
-  - `terraform/**.tftpl` - Terraform template files
+  - `terraform/**.tf` - OpenTofu configuration files
+  - `terraform/**.tftpl` - OpenTofu template files
   - `docker/**/Dockerfile` - Docker image definitions
-  - `.github/workflows/terraform-ci.yml` - This workflow
+  - `.github/workflows/tofu-ci.yml` - This workflow
 
 **Jobs:**
 
 Jobs run in this order to optimize cost and performance:
 
-1. **terraform-validate** - Quick validation checks (runs first, ~30 seconds)
-   - Format check: `terraform fmt -check -recursive`
-   - Initialization: `terraform init -backend=false`
-   - Validation: `terraform validate`
-   - **Fails fast** if Terraform config is invalid
-   - Prevents expensive Docker builds if Terraform has issues
+1. **tofu-validate** - Quick validation checks (runs first, ~30 seconds)
+   - Format check: `tofu fmt -check -recursive`
+   - Initialization: `tofu init -backend=false`
+   - Validation: `tofu validate`
+   - **Fails fast** if OpenTofu config is invalid
+   - Prevents expensive Docker builds if OpenTofu has issues
 
 2. **docker-build** - Validates Docker images (runs only after validation passes)
    - Uses **matrix strategy** to build all 4 images in parallel
@@ -38,29 +38,29 @@ Jobs run in this order to optimize cost and performance:
 
 **Job Dependencies:**
 ```
-terraform-validate (fast, fails fast)
+tofu-validate (fast, fails fast)
          ↓
 docker-build (expensive, runs in parallel via matrix)
 ```
 
-**Note:** `terraform plan` is not run in CI because:
+**Note:** `tofu plan` is not run in CI because:
 - Requires actual Incus infrastructure (not available in GitHub Actions)
 - Cannot connect to provider with test credentials
-- Validation is already covered by `terraform validate`
-- Developers should run `terraform plan` locally before creating PRs
+- Validation is already covered by `tofu validate`
+- Developers should run `tofu plan` locally before creating PRs
 
 **Performance Optimizations:**
 
-1. **Fail fast validation** - Cheap Terraform checks run first
+1. **Fail fast validation** - Cheap OpenTofu checks run first
 2. **Matrix builds** - Docker images build in parallel (4 concurrent jobs)
 3. **Per-service cache** - Each Docker image has its own cache scope
 4. **fail-fast: false** - One failed Docker build doesn't cancel others
 
 **Working Directory:**
-All Terraform commands run in the `terraform/` directory.
+All OpenTofu commands run in the `terraform/` directory.
 
 **Test Variables:**
-The terraform-plan job creates a minimal `terraform.tfvars` file with placeholder values.
+The tofu-plan job creates a minimal `terraform.tfvars` file with placeholder values.
 
 ## Local Testing
 
@@ -75,7 +75,7 @@ act push
 
 # Run specific job
 act -j docker-build
-act -j terraform-checks
+act -j tofu-checks
 ```
 
 ## Adding New Workflows

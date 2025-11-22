@@ -41,7 +41,7 @@ git checkout -b fix/issue-4-shell-script-security
 - Make focused, logical commits
 - Write clear commit messages
 - Test your changes locally
-- Run Terraform validation: `make terraform-plan`
+- Run OpenTofu validation: `make plan`
 - Format your code: `make format`
 
 **Commit Message Format:**
@@ -121,9 +121,9 @@ Periodically, when `develop` is stable and ready for release:
 
 ### Code Standards
 
-**Terraform:**
-- Run `terraform fmt` before committing
-- Run `terraform validate` to ensure valid configuration
+**OpenTofu:**
+- Run `tofu fmt` before committing
+- Run `tofu validate` to ensure valid configuration
 - Use meaningful variable names and descriptions
 - Add comments for complex logic
 - Follow module structure conventions
@@ -146,14 +146,14 @@ Periodically, when `develop` is stable and ready for release:
 Before submitting a PR:
 
 ```bash
-# Format Terraform files
+# Format OpenTofu files
 make format
 
-# Validate Terraform configuration
-cd terraform && terraform validate
+# Validate OpenTofu configuration
+cd terraform && tofu validate
 
-# Run Terraform plan (requires valid terraform.tfvars)
-make terraform-plan
+# Run OpenTofu plan (requires valid terraform.tfvars)
+make plan
 
 # Build Docker images locally (optional)
 make build-all
@@ -162,7 +162,7 @@ make build-all
 ### Security Considerations
 
 - Never commit secrets or sensitive data
-- Use Terraform sensitive variables for credentials
+- Use OpenTofu sensitive variables for credentials
 - Follow principle of least privilege
 - Review security implications of network/firewall changes
 - Run security scans on Docker images
@@ -207,7 +207,7 @@ Dependabot automatically creates PRs for Docker base image updates. When reviewi
 - Verify compatibility with our configuration
 
 **2. Verify CI passes:**
-- Ensure all CI checks pass (build, terraform validate)
+- Ensure all CI checks pass (build, tofu validate)
 - Review any test failures carefully
 
 **3. Test locally (for major updates):**
@@ -218,8 +218,8 @@ gh pr checkout <pr-number>
 # Build the updated image locally
 make build-<service>
 
-# Test with Terraform
-make terraform-plan
+# Test with OpenTofu
+make plan
 ```
 
 **4. Merge strategy:**

@@ -1,14 +1,16 @@
-# Bootstrap Terraform Project
+# Bootstrap OpenTofu Project
 # This project sets up the prerequisites for the main infrastructure:
 # - Incus storage buckets configuration
-# - Storage pool for Terraform state
-# - Storage bucket for Terraform state
+# - Storage pool for OpenTofu state
+# - Storage bucket for OpenTofu state
 # - S3 access credentials
 #
 # Supports both local and remote Incus instances via the Incus provider
 
+# OpenTofu configuration
+# Note: The 'terraform' block name is retained for compatibility
 terraform {
-  required_version = ">=1.13.5"
+  required_version = ">=1.6.0"
 
   required_providers {
     incus = {
@@ -119,8 +121,8 @@ resource "null_resource" "generate_credentials" {
         echo ""
         echo "To regenerate credentials:"
         echo "  incus storage bucket key delete ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name}"
-        echo "  terraform taint null_resource.generate_credentials"
-        echo "  terraform apply"
+        echo "  tofu taint null_resource.generate_credentials"
+        echo "  tofu apply"
       else
         echo "Generating S3 credentials with admin role..."
         incus storage bucket key create ${var.storage_pool_name} ${var.bucket_name} ${var.bucket_key_name} --role=admin > ${var.credentials_output_file}
@@ -163,7 +165,7 @@ locals {
   )
 }
 
-# Create backend.hcl file for main Terraform project
+# Create backend.hcl file for main OpenTofu project
 resource "local_file" "backend_config" {
   depends_on = [null_resource.generate_credentials]
 

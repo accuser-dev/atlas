@@ -37,7 +37,17 @@
       "Bash(gh repo view:*)",
       "Bash(gh issue create --title \"CRITICAL: Remove hardcoded default admin password from Grafana configuration\" --body \"$(cat <<''EOF''\n## Security Severity: CRITICAL\n\n### Location\n- File: `terraform/main.tf:51`\n\n### Issue\nDefault password \"changeme\" is hardcoded and publicly accessible in version control:\n\n```hcl\nenvironment_variables = {\n  GF_SECURITY_ADMIN_USER     = \"admin\"\n  GF_SECURITY_ADMIN_PASSWORD = \"changeme\"  # CRITICAL\n}\n```\n\n### Impact\nAnyone can access Grafana with admin/changeme credentials, potentially exposing all monitoring data and configuration.\n\n### Recommendations\n1. Move credentials to `terraform.tfvars` (gitignored)\n2. Use Terraform sensitive variables\n3. Consider using random password generation:\n   ```hcl\n   resource \"random_password\" \"grafana_admin\" {\n     length  = 16\n     special = true\n   }\n   ```\n\n### Action Items\n- [ ] Remove hardcoded password from `main.tf`\n- [ ] Add password variable to `variables.tf` with `sensitive = true`\n- [ ] Update `terraform.tfvars.example` with placeholder\n- [ ] Document secure password management in README\n- [ ] Rotate existing Grafana admin password if deployed\n\n### Priority\n**CRITICAL** - Must fix before any production deployment\nEOF\n)\" --label \"security,critical,secrets\")",
       "Bash(gh issue create --title \"CRITICAL: Remove hardcoded default admin password from Grafana configuration\" --body \"$(cat <<''EOF''\n## Security Severity: CRITICAL\n\n### Location\n- File: `terraform/main.tf:51`\n\n### Issue\nDefault password \"changeme\" is hardcoded and publicly accessible in version control:\n\n```hcl\nenvironment_variables = {\n  GF_SECURITY_ADMIN_USER     = \"admin\"\n  GF_SECURITY_ADMIN_PASSWORD = \"changeme\"\n}\n```\n\n### Impact\nAnyone can access Grafana with admin/changeme credentials, potentially exposing all monitoring data and configuration.\n\n### Recommendations\n1. Move credentials to `terraform.tfvars` (gitignored)\n2. Use Terraform sensitive variables\n3. Consider using random password generation:\n   ```hcl\n   resource \"random_password\" \"grafana_admin\" {\n     length  = 16\n     special = true\n   }\n   ```\n\n### Action Items\n- [ ] Remove hardcoded password from `main.tf`\n- [ ] Add password variable to `variables.tf` with `sensitive = true`\n- [ ] Update `terraform.tfvars.example` with placeholder\n- [ ] Document secure password management in README\n- [ ] Rotate existing Grafana admin password if deployed\n\n### Priority\n**CRITICAL** - Must fix before any production deployment\nEOF\n)\")",
-      "Bash(gh issue create:*)"
+      "Bash(gh issue create:*)",
+      "Bash(gh pr close:*)",
+      "Bash(sudo rm:*)",
+      "Bash(sudo curl:*)",
+      "Bash(sudo gpg:*)",
+      "Bash(sudo chmod:*)",
+      "Bash(sudo tee:*)",
+      "Bash(sudo apt-get update:*)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(tofu version:*)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []
