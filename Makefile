@@ -108,11 +108,6 @@ tofu-apply: apply
 tofu-destroy: destroy
 deploy: apply
 
-# Legacy terraform aliases for migration period
-terraform-init: init
-terraform-plan: plan
-terraform-apply: apply
-terraform-destroy: destroy
 
 #==============================================================================
 # Docker Commands
@@ -172,8 +167,6 @@ clean-bootstrap:
 	@rm -f terraform/bootstrap/.terraform.lock.hcl
 	@rm -f terraform/bootstrap/.credentials
 
-# Legacy alias
-clean-terraform: clean-tofu
 
 #==============================================================================
 # Internal Helpers
