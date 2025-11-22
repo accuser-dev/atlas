@@ -8,7 +8,7 @@
 # Supports both local and remote Incus instances via the Incus provider
 
 terraform {
-  required_version = ">=1.13.5"
+  required_version = ">=1.6.0"
 
   required_providers {
     incus = {
