@@ -1,5 +1,8 @@
+# OpenTofu configuration
+# Note: The 'terraform' block name is retained for compatibility
+# OpenTofu uses the same block syntax as Terraform
 terraform {
-  required_version = ">=1.13.5"
+  required_version = ">=1.6.0"
 
   required_providers {
     incus = {
@@ -22,9 +25,9 @@ terraform {
 
     # The following must be provided via:
     # - Environment variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ENDPOINT_URL_S3
-    # - Backend config file: terraform init -backend-config=backend.hcl
+    # - Backend config file: tofu init -backend-config=backend.hcl
     #
-    # Required values in backend.hcl (Terraform 1.6+ syntax):
+    # Required values in backend.hcl (OpenTofu 1.6+ syntax):
     #   bucket     = "atlas-terraform-state"
     #   access_key = "<ACCESS_KEY>"
     #   secret_key = "<SECRET_KEY>"
