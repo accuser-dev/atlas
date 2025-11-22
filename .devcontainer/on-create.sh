@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # DevContainer on-create script
-# Installs Incus client and GitHub CLI in the development container
+# Installs OpenTofu, Incus client, and GitHub CLI in the development container
 #
 set -euo pipefail
 
@@ -159,6 +159,54 @@ EOF'; then
     log_info "GitHub CLI repository configured successfully"
 }
 
+# Download and verify OpenTofu repository key
+setup_opentofu_repository() {
+    log_info "Setting up OpenTofu repository..."
+
+    local keyring_path="/etc/apt/keyrings/opentofu.gpg"
+    local repo_path="/etc/apt/sources.list.d/opentofu.list"
+
+    # Install prerequisites for adding the repository
+    if ! apt-get install -y apt-transport-https ca-certificates curl gnupg; then
+        log_error "Failed to install prerequisites for OpenTofu repository"
+        exit 1
+    fi
+
+    # Download the GPG key
+    if ! curl -fsSL https://get.opentofu.org/opentofu.gpg | gpg --dearmor -o "$keyring_path"; then
+        log_error "Failed to download OpenTofu GPG key"
+        exit 1
+    fi
+
+    # Set proper permissions on the keyring
+    chmod 644 "$keyring_path"
+
+    # Verify the key was downloaded
+    if [[ ! -f "$keyring_path" ]]; then
+        log_error "OpenTofu GPG key file not found after download"
+        exit 1
+    fi
+
+    # Verify the key file has content
+    if [[ ! -s "$keyring_path" ]]; then
+        log_error "OpenTofu GPG key file is empty"
+        exit 1
+    fi
+
+    log_info "OpenTofu GPG key downloaded successfully"
+
+    # Create OpenTofu repository configuration
+    if ! sh -c "cat <<EOF > $repo_path
+deb [signed-by=$keyring_path] https://packages.opentofu.org/opentofu/tofu/any/ any main
+deb-src [signed-by=$keyring_path] https://packages.opentofu.org/opentofu/tofu/any/ any main
+EOF"; then
+        log_error "Failed to create OpenTofu repository configuration"
+        exit 1
+    fi
+
+    log_info "OpenTofu repository configured successfully"
+}
+
 # Install target packages
 install_packages() {
     log_info "Updating package lists with new repositories..."
@@ -167,8 +215,8 @@ install_packages() {
         exit 1
     fi
 
-    log_info "Installing gh and incus-client..."
-    if ! apt-get install -y gh incus-client; then
+    log_info "Installing tofu, gh, and incus-client..."
+    if ! apt-get install -y tofu gh incus-client; then
         log_error "Failed to install packages"
         exit 1
     fi
@@ -181,6 +229,15 @@ verify_installations() {
     log_info "Verifying installations..."
 
     local verification_failed=0
+
+    if command -v tofu >/dev/null 2>&1; then
+        local tofu_version
+        tofu_version=$(tofu version | head -n1)
+        log_info "OpenTofu installed: $tofu_version"
+    else
+        log_error "OpenTofu (tofu) not found after installation"
+        verification_failed=1
+    fi
 
     if command -v gh >/dev/null 2>&1; then
         local gh_version
@@ -217,6 +274,7 @@ main() {
     setup_keyrings_directory
     setup_zabbly_repository
     setup_github_cli_repository
+    setup_opentofu_repository
     install_packages
     verify_installations
 

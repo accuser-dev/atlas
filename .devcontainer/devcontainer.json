@@ -5,20 +5,12 @@
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
 		"ghcr.io/devcontainers/features/node:1": {
 			"version": "lts"
-		},
-		"ghcr.io/devcontainers/features/terraform:1": {
-			"installSentinel": true,
-			"installTFsec": true,
-			"installTerraformDocs": true,
-			"version": "latest",
-			"tflint": "latest",
-			"terragrunt": "latest"
 		}
 	},
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"HashiCorp.terraform",
+				"gamunu.opentofu",
 				"Anthropic.claude-code",
 				"GitHub.vscode-github-actions",
 				"docker.docker",
