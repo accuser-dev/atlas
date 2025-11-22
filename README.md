@@ -35,7 +35,7 @@ atlas/
 │   └── terraform.tfvars      # Secrets (gitignored)
 │
 ├── .github/workflows/        # CI/CD workflows
-│   └── terraform-ci.yml      # Terraform validation and Docker builds
+│   └── ci.yml      # Infrastructure validation and Docker builds
 ├── Makefile                  # Build and deployment automation
 ├── CLAUDE.md                 # Detailed architecture documentation
 └── README.md                 # This file
@@ -254,7 +254,7 @@ The project includes GitHub Actions workflows for continuous integration:
 - GitHub Actions cache for faster rebuilds
 - Only publishes on push to main/develop (not on PRs)
 
-**Workflow file:** [.github/workflows/terraform-ci.yml](.github/workflows/terraform-ci.yml)
+**Workflow file:** [.github/workflows/ci.yml](.github/workflows/ci.yml)
 
 ### Image Publishing
 

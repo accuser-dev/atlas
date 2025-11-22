@@ -98,7 +98,7 @@ The workflow uses a matrix strategy to test all services in parallel.
 
 1. Create `test/docker/<service>_test.sh`
 2. Follow the existing test structure
-3. Add the service to the matrix in `.github/workflows/terraform-ci.yml`
+3. Add the service to the matrix in `.github/workflows/ci.yml`
 
 ### Test Script Template
 
