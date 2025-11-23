@@ -65,6 +65,9 @@ jobs:
   detect-changes:
     name: Detect Changed Images
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       caddy: ${{ steps.filter.outputs.caddy }}
       grafana: ${{ steps.filter.outputs.grafana }}
