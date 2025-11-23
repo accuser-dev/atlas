@@ -6,6 +6,8 @@ resource "incus_storage_volume" "grafana_data" {
 
   config = {
     size = var.data_volume_size
+    # Enable ID shifting to allow non-root container users (UID 472) to write
+    "security.shifted" = "true"
   }
 
   content_type = "filesystem"
