@@ -29,6 +29,43 @@ provider "incus" {
   accept_remote_certificate    = var.accept_remote_certificate
 }
 
+# Get the current Incus remote URL for S3 endpoint configuration
+data "external" "incus_remote" {
+  program = ["bash", "-c", <<-EOT
+    # Get current remote info from incus remote list
+    REMOTE_LINE=$(incus remote list --format csv | grep "(current)")
+    if [ -z "$REMOTE_LINE" ]; then
+      # Fallback to localhost if no current remote found
+      echo '{"url": "https://localhost", "name": "local", "protocol": "https"}'
+      exit 0
+    fi
+
+    # Parse the CSV: name,url,protocol,auth_type,public,static,global
+    NAME=$(echo "$REMOTE_LINE" | cut -d',' -f1 | sed 's/ (current)//')
+    URL=$(echo "$REMOTE_LINE" | cut -d',' -f2)
+
+    # Extract protocol and host from URL (e.g., https://192.168.68.76:8443)
+    if [[ "$URL" == unix://* ]]; then
+      # Local unix socket - use localhost
+      PROTOCOL="http"
+      HOST="localhost"
+    else
+      PROTOCOL=$(echo "$URL" | grep -oP '^\w+')
+      HOST=$(echo "$URL" | sed -E 's|^\w+://||' | sed -E 's|:[0-9]+$||')
+    fi
+
+    # Output as JSON
+    echo "{\"url\": \"$URL\", \"name\": \"$NAME\", \"protocol\": \"$PROTOCOL\", \"host\": \"$HOST\"}"
+  EOT
+  ]
+}
+
+locals {
+  # Construct the S3 endpoint URL from the current remote
+  # Use the provided endpoint if set, otherwise construct from remote
+  detected_endpoint = var.storage_buckets_endpoint != "http://localhost:8555" ? var.storage_buckets_endpoint : "${data.external.incus_remote.result.protocol}://${data.external.incus_remote.result.host}:8555"
+}
+
 # Configure Incus storage buckets address via local-exec
 # Note: The Incus provider doesn't yet support server config resources
 # The incus command will use INCUS_REMOTE env var or default remote
@@ -145,18 +182,20 @@ resource "null_resource" "generate_credentials" {
 locals {
   # Parse credentials from the .credentials file
   # Format is:
+  #   Storage bucket key "terraform-access" added
   #   Access key: XXXXX
   #   Secret key: YYYYY
   credentials_raw   = try(file(var.credentials_output_file), "")
   credentials_lines = split("\n", local.credentials_raw)
 
+  # Find lines containing "Access key:" and "Secret key:" to handle varying formats
   access_key = try(
-    trimspace(split(":", local.credentials_lines[0])[1]),
+    trimspace(split(":", [for line in local.credentials_lines : line if can(regex("Access key:", line))][0])[1]),
     ""
   )
 
   secret_key = try(
-    trimspace(split(":", local.credentials_lines[1])[1]),
+    trimspace(split(":", [for line in local.credentials_lines : line if can(regex("Secret key:", line))][0])[1]),
     ""
   )
 }
@@ -169,7 +208,7 @@ resource "local_file" "backend_config" {
 
   content = templatefile("${path.module}/templates/backend.hcl.tftpl", {
     bucket     = var.bucket_name
-    endpoint   = var.storage_buckets_endpoint
+    endpoint   = local.detected_endpoint
     access_key = local.access_key
     secret_key = local.secret_key
   })
