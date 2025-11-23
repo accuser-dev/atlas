@@ -6,8 +6,6 @@ resource "incus_storage_volume" "prometheus_data" {
 
   config = {
     size = var.data_volume_size
-    # Enable ID shifting to allow non-root container users (UID 65534/nobody) to write
-    "security.shifted" = "true"
   }
 
   content_type = "filesystem"
@@ -19,6 +17,9 @@ resource "incus_profile" "prometheus" {
   config = {
     "limits.cpu"    = var.cpu_limit
     "limits.memory" = var.memory_limit
+    # OCI containers running as non-root need privileged mode to write to mounted volumes
+    # because security.shifted doesn't work for OCI/application containers on ZFS
+    "security.privileged" = "true"
   }
 
   device {
