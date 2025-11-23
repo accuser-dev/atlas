@@ -61,16 +61,75 @@ jobs:
           echo "- Init: ${{ steps.init.outcome }}"
           echo "- Validate: ${{ steps.validate.outcome }}"
 
+  # Detect which Docker images have changed (for push events)
+  detect-changes:
+    name: Detect Changed Images
+    runs-on: ubuntu-latest
+    outputs:
+      caddy: ${{ steps.filter.outputs.caddy }}
+      grafana: ${{ steps.filter.outputs.grafana }}
+      loki: ${{ steps.filter.outputs.loki }}
+      prometheus: ${{ steps.filter.outputs.prometheus }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            caddy:
+              - 'docker/caddy/**'
+              - 'test/docker/caddy_test.sh'
+            grafana:
+              - 'docker/grafana/**'
+              - 'test/docker/grafana_test.sh'
+            loki:
+              - 'docker/loki/**'
+              - 'test/docker/loki_test.sh'
+            prometheus:
+              - 'docker/prometheus/**'
+              - 'test/docker/prometheus_test.sh'
+
+      - name: Set matrix for changed services
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            # For PRs, always build all images
+            echo 'matrix=["caddy","grafana","loki","prometheus"]' >> $GITHUB_OUTPUT
+          else
+            # For push, only build changed images
+            SERVICES=()
+            if [ "${{ steps.filter.outputs.caddy }}" == "true" ]; then SERVICES+=("caddy"); fi
+            if [ "${{ steps.filter.outputs.grafana }}" == "true" ]; then SERVICES+=("grafana"); fi
+            if [ "${{ steps.filter.outputs.loki }}" == "true" ]; then SERVICES+=("loki"); fi
+            if [ "${{ steps.filter.outputs.prometheus }}" == "true" ]; then SERVICES+=("prometheus"); fi
+
+            if [ ${#SERVICES[@]} -eq 0 ]; then
+              echo 'matrix=[]' >> $GITHUB_OUTPUT
+            else
+              # Convert bash array to JSON array
+              JSON_ARRAY=$(printf '%s\n' "${SERVICES[@]}" | jq -R . | jq -s -c .)
+              echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
+            fi
+          fi
+          echo "Generated matrix: $(cat $GITHUB_OUTPUT | grep matrix)"
+
+  # Build Docker images
   docker-build:
     name: Build Docker Image (${{ matrix.service }})
     runs-on: ubuntu-latest
-    needs: tofu-validate
+    needs: [tofu-validate, detect-changes]
+    if: needs.detect-changes.outputs.matrix != '[]'
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
-        service: [caddy, grafana, loki, prometheus]
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
       fail-fast: false
 
     steps:
@@ -81,7 +140,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -94,33 +153,42 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.service }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha
-            type=raw,value=latest,enable={{is_default_branch}}
+            # For main branch: latest tag (production)
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            # For develop branch: develop tag
+            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
+            # SHA tag for traceability
+            type=sha,prefix=
 
       - name: Build and Push ${{ matrix.service }} Image
         uses: docker/build-push-action@v5
         with:
           context: ./docker/${{ matrix.service }}
-          push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
-          tags: ${{ steps.meta.outputs.tags }}
+          push: ${{ github.event_name == 'push' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ github.event_name == 'push' && steps.meta.outputs.tags || format('test-{0}:latest', matrix.service) }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
       - name: Verify Image
         run: |
-          echo "✅ ${{ matrix.service }} image built successfully!"
-          echo "Tags: ${{ steps.meta.outputs.tags }}"
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "✅ ${{ matrix.service }} image built and pushed!"
+            echo "Tags: ${{ steps.meta.outputs.tags }}"
+          else
+            echo "✅ ${{ matrix.service }} image built successfully!"
+          fi
 
+  # Test Docker images
   docker-test:
     name: Test Docker Image (${{ matrix.service }})
     runs-on: ubuntu-latest
-    needs: docker-build
+    needs: [docker-build, detect-changes]
+    if: needs.detect-changes.outputs.matrix != '[]'
     strategy:
       matrix:
-        service: [caddy, grafana, loki, prometheus]
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
       fail-fast: false
 
     steps:
@@ -149,3 +217,12 @@ jobs:
         if: always()
         run: |
           echo "🧪 ${{ matrix.service }} smoke tests completed"
+
+# NOTE: GitHub packages are private by default. To allow Incus to pull images
+# without authentication, you must manually set each package to public:
+#   1. Go to https://github.com/orgs/accuser/packages or your user packages page
+#   2. Click on each package (caddy, grafana, loki, prometheus)
+#   3. Go to Package settings
+#   4. Under "Danger Zone", change visibility to "Public"
+#
+# This only needs to be done once per package after first publish.
