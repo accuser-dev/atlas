@@ -736,28 +736,64 @@ module "caddy01" {
 
 ### Monitoring Stack Integration
 
-The complete observability stack is designed to work together:
+The complete observability stack is designed to work together with automatic configuration:
 
 1. **Grafana** (public) - Visualization frontend
    - Access: `https://grafana.accuser.dev`
-   - Connects to Prometheus and Loki as data sources
+   - Auto-configured datasources for Prometheus and Loki
+   - Datasources provisioned via Terraform on deployment
 
-2. **Prometheus** (internal) - Metrics storage
+2. **Prometheus** (internal) - Metrics storage and health monitoring
    - Endpoint: `http://prometheus01.incus:9090`
-   - Scrapes metrics from applications
+   - Scrapes metrics from all services (Grafana, Loki, Caddy, step-ca, self)
+   - Health check monitoring for infrastructure components
    - Queried by Grafana for metric visualization
+   - Scrape interval: 15 seconds
 
 3. **Loki** (internal) - Log aggregation
    - Endpoint: `http://loki01.incus:3100`
    - Receives logs from applications
    - Queried by Grafana for log exploration
 
-**Configuring Grafana data sources:**
-```yaml
-# Add in Grafana UI or via provisioning:
-# Prometheus: http://prometheus01.incus:9090
-# Loki: http://loki01.incus:3100
+**Automatic Configuration:**
+
+Datasources are automatically provisioned in Grafana via Terraform:
+```hcl
+datasources = [
+  {
+    name            = "Prometheus"
+    type            = "prometheus"
+    url             = "http://prometheus01.incus:9090"
+    is_default      = true
+    tls_skip_verify = false
+  },
+  {
+    name            = "Loki"
+    type            = "loki"
+    url             = "http://loki01.incus:3100"
+    is_default      = false
+    tls_skip_verify = false
+  }
+]
 ```
+
+**Health Check Monitoring:**
+
+Prometheus is configured to scrape health and metrics endpoints from all services:
+- `grafana01.incus:3000` - Grafana metrics
+- `loki01.incus:3100` - Loki metrics
+- `caddy01.incus:2019` - Caddy admin API metrics
+- `step-ca01.incus:9000` - step-ca health endpoint
+- `localhost:9090` - Prometheus self-monitoring
+
+All Docker containers include built-in health checks that run every 30 seconds:
+- Caddy: `caddy version` command
+- Grafana: HTTP check on `/api/health`
+- Loki: HTTP check on `/ready`
+- Prometheus: HTTP check on `/-/ready`
+- step-ca: `step ca health` command
+
+These health checks are monitored by Docker and can be viewed with `incus exec <container> -- docker ps`.
 
 ## Workflow
 
