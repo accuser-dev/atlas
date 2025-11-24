@@ -231,9 +231,17 @@ terraform apply \
 Bootstrap is safe to re-run:
 - Checks if resources exist before creating
 - Skips already-configured settings
-- Won't overwrite existing credentials
+- Won't overwrite existing credentials unless role upgrade is needed
+- Automatically upgrades existing credentials from read-only to admin role
 
-To regenerate credentials:
+### Credential Role Management
+
+Bootstrap creates credentials with the `admin` role, which is required for Terraform state operations (read and write). If existing credentials have a read-only role, bootstrap will automatically:
+1. Delete the existing credentials
+2. Recreate them with the `admin` role
+3. Update the `backend.hcl` file with the new credentials
+
+To manually regenerate credentials:
 ```bash
 incus storage bucket key delete terraform-state atlas-terraform-state terraform-access
 terraform apply
