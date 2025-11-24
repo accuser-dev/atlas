@@ -139,11 +139,33 @@ plan:
 	cd terraform && tofu plan
 
 apply:
-	@echo "Applying OpenTofu changes..."
+	@echo "=========================================="
+	@echo "WARNING: Applying infrastructure changes"
+	@echo "=========================================="
+	@echo ""
+	@echo "This will modify your infrastructure based on the current configuration."
+	@echo ""
+	@echo "Recommended: Review the plan first with 'make plan'"
+	@echo ""
+	@echo "OpenTofu will prompt for confirmation before applying."
+	@echo ""
 	cd terraform && tofu apply
 
 destroy:
-	@echo "Destroying infrastructure..."
+	@echo "=========================================="
+	@echo "⚠️  WARNING: DESTRUCTIVE OPERATION"
+	@echo "=========================================="
+	@echo ""
+	@echo "This will DESTROY all infrastructure managed by OpenTofu:"
+	@echo "  - All containers (caddy01, grafana01, loki01, prometheus01, step-ca01)"
+	@echo "  - All storage volumes (data will be DELETED)"
+	@echo "  - All profiles"
+	@echo "  - All networks"
+	@echo ""
+	@echo "This action is IRREVERSIBLE!"
+	@echo ""
+	@echo "OpenTofu will prompt for confirmation before destroying."
+	@echo ""
 	cd terraform && tofu destroy
 
 # Import existing resources into state
