@@ -18,12 +18,22 @@ variable "cpu_limit" {
   description = "CPU limit for the container"
   type        = string
   default     = "2"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.cpu_limit)) && tonumber(var.cpu_limit) >= 1 && tonumber(var.cpu_limit) <= 64
+    error_message = "CPU limit must be a number between 1 and 64"
+  }
 }
 
 variable "memory_limit" {
   description = "Memory limit for the container"
   type        = string
   default     = "2GB"
+
+  validation {
+    condition     = can(regex("^[0-9]+(MB|GB)$", var.memory_limit))
+    error_message = "Memory limit must be in format like '512MB' or '2GB'"
+  }
 }
 
 variable "storage_pool" {
@@ -60,12 +70,22 @@ variable "data_volume_size" {
   description = "Size of the storage volume (e.g., 100GB)"
   type        = string
   default     = "100GB"
+
+  validation {
+    condition     = can(regex("^[0-9]+(MB|GB|TB)$", var.data_volume_size))
+    error_message = "Volume size must be in format like '100GB' or '1TB'"
+  }
 }
 
 variable "prometheus_port" {
   description = "Port that Prometheus listens on"
   type        = string
   default     = "9090"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.prometheus_port)) && tonumber(var.prometheus_port) >= 1 && tonumber(var.prometheus_port) <= 65535
+    error_message = "Port must be a number between 1 and 65535"
+  }
 }
 
 variable "prometheus_config" {

@@ -18,12 +18,22 @@ variable "cpu_limit" {
   description = "CPU limit for the container"
   type        = string
   default     = "2"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.cpu_limit)) && tonumber(var.cpu_limit) >= 1 && tonumber(var.cpu_limit) <= 64
+    error_message = "CPU limit must be a number between 1 and 64"
+  }
 }
 
 variable "memory_limit" {
   description = "Memory limit for the container"
   type        = string
   default     = "1GB"
+
+  validation {
+    condition     = can(regex("^[0-9]+(MB|GB)$", var.memory_limit))
+    error_message = "Memory limit must be in format like '512MB' or '2GB'"
+  }
 }
 
 variable "storage_pool" {
@@ -60,6 +70,11 @@ variable "data_volume_size" {
   description = "Size of the storage volume (e.g., 10GB)"
   type        = string
   default     = "10GB"
+
+  validation {
+    condition     = can(regex("^[0-9]+(MB|GB|TB)$", var.data_volume_size))
+    error_message = "Volume size must be in format like '10GB' or '100MB'"
+  }
 }
 
 variable "domain" {
@@ -72,11 +87,21 @@ variable "allowed_ip_range" {
   description = "IP range allowed to access Grafana (CIDR notation)"
   type        = string
   default     = "192.168.68.0/22"
+
+  validation {
+    condition     = can(cidrhost(var.allowed_ip_range, 0))
+    error_message = "Must be valid CIDR notation (e.g., 192.168.68.0/22)"
+  }
 }
 
 variable "grafana_port" {
   description = "Port that Grafana listens on"
   type        = string
   default     = "3000"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.grafana_port)) && tonumber(var.grafana_port) >= 1 && tonumber(var.grafana_port) <= 65535
+    error_message = "Port must be a number between 1 and 65535"
+  }
 }
 
