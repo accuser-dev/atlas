@@ -135,3 +135,16 @@ variable "cert_duration" {
     error_message = "Certificate duration must be in hours format (e.g., '24h', '168h')"
   }
 }
+
+# Datasource Provisioning
+variable "datasources" {
+  description = "List of datasources to provision in Grafana"
+  type = list(object({
+    name            = string
+    type            = string
+    url             = string
+    is_default      = optional(bool, false)
+    tls_skip_verify = optional(bool, false)
+  }))
+  default = []
+}
