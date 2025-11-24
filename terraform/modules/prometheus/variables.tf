@@ -94,6 +94,12 @@ variable "prometheus_config" {
   default     = ""
 }
 
+variable "alert_rules" {
+  description = "Prometheus alert rules file content (alerts.yml)"
+  type        = string
+  default     = ""
+}
+
 # TLS Configuration
 variable "enable_tls" {
   description = "Enable TLS for Prometheus using step-ca"

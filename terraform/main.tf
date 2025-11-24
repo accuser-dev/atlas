@@ -203,6 +203,9 @@ module "prometheus01" {
             - targets: []  # Configure Alertmanager if needed
   EOT
 
+  # Alert rules for OOM and container restart detection
+  alert_rules = file("${path.module}/prometheus-alerts.yml")
+
   # Enable persistent storage for metrics data
   enable_data_persistence = true
   data_volume_name        = "prometheus01-data"
