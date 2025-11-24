@@ -16,6 +16,11 @@ resource "incus_storage_volume" "step_ca_data" {
 
   config = {
     size = var.data_volume_size
+    # Set initial ownership for step user (UID 1000) to allow writes from non-root container
+    # Requires Incus 6.8+ (https://linuxcontainers.org/incus/news/2024_12_13_07_12.html)
+    "initial.uid"  = "1000"
+    "initial.gid"  = "1000"
+    "initial.mode" = "0755"
   }
 
   content_type = "filesystem"
@@ -56,12 +61,16 @@ resource "incus_profile" "step_ca" {
       name = "step-ca-data"
       type = "disk"
       properties = {
-        source = var.data_volume_name
+        source = incus_storage_volume.step_ca_data[0].name
         pool   = var.storage_pool
         path   = "/home/step"
       }
     }
   }
+
+  depends_on = [
+    incus_storage_volume.step_ca_data
+  ]
 }
 
 # step-ca container
