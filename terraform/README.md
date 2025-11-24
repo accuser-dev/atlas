@@ -1,6 +1,6 @@
-# Terraform Infrastructure
+# OpenTofu Infrastructure
 
-This directory contains the Terraform configuration for the Atlas monitoring stack infrastructure.
+This directory contains the OpenTofu configuration for the Atlas monitoring stack infrastructure.
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ make terraform-apply   # Apply changes
 
 ## Important: Initialization
 
-**Do not run `terraform init` directly** - it will fail because the S3 backend requires configuration that must be provided via `-backend-config`.
+**Do not run `tofu init` directly** - it will fail because the S3 backend requires configuration that must be provided via `-backend-config`.
 
 ### Correct Ways to Initialize
 
@@ -34,7 +34,7 @@ make terraform-apply   # Apply changes
 3. **Manual initialization with backend config**:
    ```bash
    cd terraform
-   terraform init -backend-config=backend.hcl
+   tofu init -backend-config=backend.hcl
    ```
 
 ### Why This Is Required
@@ -46,7 +46,7 @@ If you see this error:
 Error: Error asking for input to configure backend "s3": bucket: EOF
 ```
 
-It means you're running `terraform init` without the required backend configuration.
+It means you're running `tofu init` without the required backend configuration.
 
 ## First-Time Setup
 
@@ -57,7 +57,7 @@ For a fresh installation:
    make bootstrap
    ```
 
-2. **Initialize Terraform**:
+2. **Initialize OpenTofu**:
    ```bash
    make terraform-init
    ```
@@ -85,11 +85,12 @@ terraform/
 ├── terraform.tfvars     # Variable values (gitignored)
 ├── BACKEND_SETUP.md     # Backend setup guide
 ├── bootstrap/           # Bootstrap project (local state)
-└── modules/             # Reusable Terraform modules
+└── modules/             # Reusable OpenTofu modules
     ├── caddy/
     ├── grafana/
     ├── loki/
-    └── prometheus/
+    ├── prometheus/
+    └── step-ca/
 ```
 
 ## Common Commands
@@ -102,12 +103,12 @@ make terraform-apply     # Apply changes
 make terraform-destroy   # Destroy infrastructure
 make format              # Format Terraform files
 
-# Direct Terraform commands (after initialization)
+# Direct OpenTofu commands (after initialization)
 cd terraform
-terraform plan
-terraform apply
-terraform output
-terraform state list
+tofu plan
+tofu apply
+tofu output
+tofu state list
 ```
 
 ## Configuration Files
@@ -122,13 +123,13 @@ cloudflare_api_token = "your-token"
 
 ### backend.hcl (gitignored)
 
-Contains S3 backend credentials (Terraform 1.6+ syntax):
+Contains S3 backend credentials (OpenTofu 1.6+ syntax):
 ```hcl
 bucket     = "atlas-terraform-state"
 access_key = "your-access-key"
 secret_key = "your-secret-key"
 
-# Terraform 1.6+ requires endpoints block
+# OpenTofu 1.6+ requires endpoints block
 endpoints = {
   s3 = "http://localhost:8555"
 }
@@ -138,7 +139,7 @@ endpoints = {
 
 ### "Error asking for input to configure backend"
 
-Run `make terraform-init` or `./init.sh` instead of `terraform init`.
+Run `make terraform-init` or `./init.sh` instead of `tofu init`.
 
 ### "backend.hcl not found"
 

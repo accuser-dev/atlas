@@ -1,6 +1,6 @@
 # Atlas Infrastructure
 
-A Terraform-based infrastructure project for managing Incus containers running a complete observability and monitoring stack.
+An OpenTofu-based infrastructure project for managing Incus containers running a complete observability and monitoring stack.
 
 ## Overview
 
@@ -9,6 +9,7 @@ This project provides a declarative infrastructure setup for:
 - **Grafana** - Visualization and dashboarding
 - **Prometheus** - Metrics collection and storage
 - **Loki** - Log aggregation
+- **step-ca** - Internal PKI for service TLS certificates
 
 All services run in Incus containers with persistent storage, network isolation, and automatic configuration management.
 
@@ -20,14 +21,16 @@ atlas/
 │   ├── caddy/                # Reverse proxy with Cloudflare DNS plugin
 │   ├── grafana/              # Grafana with optional plugins
 │   ├── loki/                 # Log aggregation
-│   └── prometheus/           # Metrics collection with optional rules
+│   ├── prometheus/           # Metrics collection with optional rules
+│   └── step-ca/              # Internal PKI certificate authority
 │
-├── terraform/                 # Infrastructure as Code
+├── terraform/                 # Infrastructure as Code (OpenTofu)
 │   ├── modules/              # Reusable service modules
 │   │   ├── caddy/
 │   │   ├── grafana/
 │   │   ├── loki/
-│   │   └── prometheus/
+│   │   ├── prometheus/
+│   │   └── step-ca/
 │   ├── main.tf               # Service instantiations
 │   ├── networks.tf           # Network configuration
 │   ├── variables.tf          # Variable definitions
@@ -46,7 +49,7 @@ atlas/
 ### Prerequisites
 
 - [Incus](https://linuxcontainers.org/incus/) installed and running
-- [Terraform](https://www.terraform.io/) >= 1.0
+- [OpenTofu](https://opentofu.org/) >= 1.6 (or Terraform >= 1.6)
 - Cloudflare API token (for DNS-01 ACME challenges)
 - GitHub account (images published to ghcr.io)
 
@@ -82,7 +85,7 @@ atlas/
 4. **View outputs**:
    ```bash
    cd terraform
-   terraform output
+   tofu output
    ```
 
 ## Docker Images
@@ -95,6 +98,7 @@ All services use custom images automatically built and published by GitHub Actio
 - **Grafana**: `ghcr.io/accuser/atlas/grafana:latest`
 - **Loki**: `ghcr.io/accuser/atlas/loki:latest`
 - **Prometheus**: `ghcr.io/accuser/atlas/prometheus:latest`
+- **step-ca**: `ghcr.io/accuser/atlas/step-ca:latest`
 
 Images are:
 - Built on every push to `main` or `develop`
@@ -182,10 +186,12 @@ module "grafana01" {
 
 ### Network Configuration
 
-Three networks are defined in `terraform/networks.tf`:
-- **development** - For dev/staging services
-- **testing** - For test environments
-- **production** - For production services (default)
+Five networks are defined in `terraform/networks.tf`:
+- **development** (10.10.0.0/24) - For development services
+- **testing** (10.20.0.0/24) - For test environments
+- **staging** (10.30.0.0/24) - For staging services
+- **production** (10.40.0.0/24) - For production services
+- **management** (10.50.0.0/24) - For internal services (monitoring, PKI)
 
 Configure IP addresses in `terraform/terraform.tfvars`.
 
@@ -197,7 +203,7 @@ See [CLAUDE.md](CLAUDE.md#adding-new-service-modules) for detailed instructions 
 
 ### Key Features
 
-- **Declarative Infrastructure** - Everything defined in Terraform
+- **Declarative Infrastructure** - Everything defined in OpenTofu
 - **Modular Design** - Reusable service modules
 - **CI/CD Integration** - Automated image builds via GitHub Actions
 - **Custom Images** - Published to GitHub Container Registry
@@ -215,6 +221,8 @@ Internet
     ↓
 [Grafana] → [Prometheus] → Metrics
           ↘ [Loki]       → Logs
+
+[step-ca] → Internal TLS certificates for all services
 ```
 
 **Public Services** (via Caddy):
@@ -223,6 +231,7 @@ Internet
 **Internal Services** (Incus network only):
 - Prometheus: `http://prometheus01.incus:9090`
 - Loki: `http://loki01.incus:3100`
+- step-ca: `https://stepca01.incus:9000` (ACME server)
 
 ### Storage Volumes
 
@@ -230,6 +239,7 @@ Persistent storage for each service:
 - `grafana01-data` (10GB) - Dashboards and settings
 - `loki01-data` (50GB) - Log storage
 - `prometheus01-data` (100GB) - Metrics storage
+- `stepca01-data` (1GB) - CA keys and database
 
 ## CI/CD
 
@@ -243,14 +253,14 @@ The project includes GitHub Actions workflows for continuous integration:
 - Only when relevant files change (`.tf`, `.tftpl`, `Dockerfile`)
 
 **What it does:**
-1. **Terraform Validation** - Validates format, initialization, and configuration
-2. **Docker Build and Publish** - Builds all four images and publishes to ghcr.io (on push to main/develop)
-3. **Terraform Plan** - Generates a plan preview (dry run)
+1. **OpenTofu Validation** - Validates format, initialization, and configuration
+2. **Docker Build and Publish** - Builds all five images and publishes to ghcr.io (on push to main/develop)
+3. **OpenTofu Plan** - Generates a plan preview (dry run)
 4. **PR Comments** - Posts plan results on pull requests
 
 **Performance optimizations:**
 - Fast validation checks run first to fail fast
-- Docker images build in parallel (4 concurrent jobs)
+- Docker images build in parallel (5 concurrent jobs)
 - GitHub Actions cache for faster rebuilds
 - Only publishes on push to main/develop (not on PRs)
 
@@ -292,9 +302,9 @@ make format            # Format Terraform files
   - Each service has its own directory with Dockerfile and README
   - Images are built by GitHub Actions and published to ghcr.io
 
-- **`terraform/`** - Infrastructure as Code
+- **`terraform/`** - Infrastructure as Code (OpenTofu)
   - `modules/` - Reusable service modules
-  - `*.tf` - Root-level Terraform configuration
+  - `*.tf` - Root-level OpenTofu configuration
   - `terraform.tfvars` - Secrets and variables (gitignored)
 
 ## Troubleshooting
@@ -307,12 +317,12 @@ incus info <container-name>
 incus console <container-name>
 ```
 
-### Terraform state issues
+### OpenTofu state issues
 
 View current state:
 ```bash
 cd terraform
-terraform show
+tofu show
 ```
 
 ### Network connectivity

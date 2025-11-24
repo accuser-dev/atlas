@@ -18,8 +18,9 @@ All production images are published to GitHub Container Registry:
 - **Grafana**: `ghcr.io/accuser/atlas/grafana:latest`
 - **Loki**: `ghcr.io/accuser/atlas/loki:latest`
 - **Prometheus**: `ghcr.io/accuser/atlas/prometheus:latest`
+- **step-ca**: `ghcr.io/accuser/atlas/step-ca:latest`
 
-These images are used by default in all Terraform modules.
+These images are used by default in all OpenTofu modules.
 
 ## Local Development
 
@@ -36,6 +37,7 @@ make build-caddy
 make build-grafana
 make build-loki
 make build-prometheus
+make build-step-ca
 ```
 
 ### Viewing Built Images
@@ -57,7 +59,7 @@ docker images | grep atlas
 When you push code to GitHub:
 
 1. **GitHub Actions triggers** on push to `main` or `develop` branches
-2. **Docker images are built** in parallel (all four services)
+2. **Docker images are built** in parallel (all five services)
 3. **Images are published** to ghcr.io with appropriate tags
 4. **Images are cached** for faster subsequent builds
 
@@ -74,16 +76,16 @@ Published images receive multiple tags:
 After the first push, images default to private. To make them public:
 
 1. Visit: `https://github.com/accuser/atlas/packages`
-2. Click on each package (atlas-caddy, atlas-grafana, atlas-loki, atlas-prometheus)
+2. Click on each package (caddy, grafana, loki, prometheus, step-ca)
 3. Go to "Package settings"
 4. Scroll to "Danger Zone"
 5. Click "Change visibility" → "Public"
 
-## Using Custom Images in Terraform
+## Using Custom Images in OpenTofu
 
 ### Default Configuration
 
-All Terraform modules default to ghcr.io images:
+All OpenTofu modules default to ghcr.io images:
 
 ```hcl
 module "grafana01" {
@@ -344,7 +346,7 @@ If you prefer Docker Hub over ghcr.io:
    images: docker.io/yourusername/${{ matrix.service }}
    ```
 
-3. **Update Terraform modules** to use Docker Hub images
+3. **Update OpenTofu modules** to use Docker Hub images
 
 ## See Also
 
@@ -356,3 +358,4 @@ If you prefer Docker Hub over ghcr.io:
   - [grafana/README.md](grafana/README.md) - Grafana plugins and provisioning
   - [loki/README.md](loki/README.md) - Loki configuration
   - [prometheus/README.md](prometheus/README.md) - Prometheus rules and configuration
+  - [step-ca/README.md](step-ca/README.md) - step-ca internal PKI configuration

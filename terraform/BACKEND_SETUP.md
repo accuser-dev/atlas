@@ -1,14 +1,14 @@
-# Terraform Remote State Backend Setup
+# OpenTofu Remote State Backend Setup
 
-This guide explains how to configure Terraform to use Incus storage buckets as a remote state backend, providing encrypted and secure state management without external dependencies.
+This guide explains how to configure OpenTofu to use Incus storage buckets as a remote state backend, providing encrypted and secure state management without external dependencies.
 
 ## Overview
 
-Instead of storing Terraform state locally, we use Incus's built-in S3-compatible storage buckets. This provides:
+Instead of storing OpenTofu state locally, we use Incus's built-in S3-compatible storage buckets. This provides:
 
 - **Encryption**: State data encrypted at rest
 - **Self-hosted**: No external cloud dependencies
-- **S3-compatible**: Works with Terraform's S3 backend
+- **S3-compatible**: Works with OpenTofu's S3 backend
 - **Integrated**: Uses existing Incus infrastructure
 - **Secure**: Access controlled via S3 credentials
 
@@ -20,7 +20,7 @@ Choose the method that fits your situation:
 
 **Use this for**: Fresh Incus installations, first-time setup
 
-The bootstrap Terraform project automates all setup steps:
+The bootstrap OpenTofu project automates all setup steps:
 
 ```bash
 # From project root
@@ -28,10 +28,10 @@ make bootstrap
 
 # Or manually:
 cd terraform/bootstrap
-terraform init
-terraform apply
+tofu init
+tofu apply
 cd ..
-terraform init -backend-config=backend.hcl
+tofu init -backend-config=backend.hcl
 ```
 
 See [bootstrap/README.md](bootstrap/README.md) for details.
@@ -55,8 +55,8 @@ The bootstrap process creates everything needed for remote state:
 
 2. **Initialize and apply**:
    ```bash
-   terraform init
-   terraform apply
+   tofu init
+   tofu apply
    ```
 
 3. **Review the output** - Bootstrap creates:
@@ -69,12 +69,12 @@ The bootstrap process creates everything needed for remote state:
 4. **Initialize main project**:
    ```bash
    cd ..
-   terraform init -backend-config=backend.hcl
+   tofu init -backend-config=backend.hcl
    ```
 
 5. **Deploy infrastructure**:
    ```bash
-   terraform apply
+   tofu apply
    ```
 
 **That's it!** The bootstrap handles all the setup automatically.
@@ -90,7 +90,7 @@ For customization options, see [bootstrap/README.md](bootstrap/README.md).
 - Incus installed and running (`incus admin init` completed)
 - Admin access to configure Incus
 - Network connectivity to Incus host
-- Terraform >= 1.6.0 (uses `endpoints.s3` syntax instead of deprecated `endpoint`)
+- OpenTofu >= 1.6.0 (uses `endpoints.s3` syntax instead of deprecated `endpoint`)
 
 ## Manual Setup Instructions
 
@@ -135,7 +135,7 @@ incus storage bucket list terraform-state
 
 ### 4. Generate S3 Credentials
 
-Create access credentials for Terraform to use:
+Create access credentials for OpenTofu to use:
 
 ```bash
 # Create credentials (replace with your own names)
@@ -146,9 +146,9 @@ incus storage bucket key create terraform-state atlas-terraform-state terraform-
 # Secret key: <SECRET_KEY>
 ```
 
-**Important**: Save these credentials securely. You'll need them for Terraform configuration.
+**Important**: Save these credentials securely. You'll need them for OpenTofu configuration.
 
-### 5. Configure Terraform Backend
+### 5. Configure OpenTofu Backend
 
 The backend configuration is already included in `versions.tf`. You need to provide the credentials via environment variables or a backend config file.
 
@@ -161,11 +161,11 @@ export TF_BACKEND_BUCKET="atlas-terraform-state"
 export TF_BACKEND_ENDPOINT="http://localhost:8555"  # Or your Incus host IP
 ```
 
-Then initialize Terraform:
+Then initialize OpenTofu:
 
 ```bash
 cd terraform
-terraform init \
+tofu init \
   -backend-config="access_key=$AWS_ACCESS_KEY_ID" \
   -backend-config="secret_key=$AWS_SECRET_ACCESS_KEY" \
   -backend-config="bucket=$TF_BACKEND_BUCKET" \
@@ -178,7 +178,7 @@ Create a `backend.hcl` file (gitignored):
 
 ```hcl
 # terraform/backend.hcl
-# Terraform 1.6+ requires endpoints block instead of endpoint parameter
+# OpenTofu 1.6+ requires endpoints block instead of endpoint parameter
 bucket     = "atlas-terraform-state"
 access_key = "<ACCESS_KEY>"
 secret_key = "<SECRET_KEY>"
@@ -192,7 +192,7 @@ Then initialize:
 
 ```bash
 cd terraform
-terraform init -backend-config=backend.hcl
+tofu init -backend-config=backend.hcl
 ```
 
 ### 6. Migrate Existing State (if applicable)
@@ -203,13 +203,13 @@ If you have existing local state, migrate it:
 cd terraform
 
 # Initialize with new backend
-terraform init -migrate-state
+tofu init -migrate-state
 
 # Verify migration
-terraform state list
+tofu state list
 ```
 
-Terraform will prompt to copy existing state to the new backend. Answer `yes` to proceed.
+OpenTofu will prompt to copy existing state to the new backend. Answer `yes` to proceed.
 
 ### 7. Verify Remote State
 
