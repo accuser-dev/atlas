@@ -35,12 +35,14 @@ COPY --from=step-cli /usr/local/bin/step /usr/local/bin/step
 # Copy TLS entrypoint script
 COPY --chmod=755 entrypoint-tls.sh /usr/local/bin/entrypoint-tls.sh
 
+# Create directories first (before copying config)
+RUN mkdir -p /loki /etc/loki/tls
+
 # Copy default Loki config
 COPY --chmod=644 loki-config.yaml /etc/loki/loki-config.yaml
 
-# Create directories with proper permissions
-RUN mkdir -p /loki /etc/loki/tls && \
-    chown -R loki:loki /loki /etc/loki
+# Set proper permissions for loki user
+RUN chown -R loki:loki /loki /etc/loki
 
 # Environment variables for TLS (disabled by default)
 ENV ENABLE_TLS="false"
