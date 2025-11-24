@@ -6,6 +6,11 @@ resource "incus_storage_volume" "prometheus_data" {
 
   config = {
     size = var.data_volume_size
+    # Set initial ownership for Prometheus user (UID 65534/nobody) to allow writes from non-root container
+    # Requires Incus 6.8+ (https://linuxcontainers.org/incus/news/2024_12_13_07_12.html)
+    "initial.uid"  = "65534"
+    "initial.gid"  = "65534"
+    "initial.mode" = "0755"
   }
 
   content_type = "filesystem"

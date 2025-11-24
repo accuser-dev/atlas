@@ -6,6 +6,11 @@ resource "incus_storage_volume" "grafana_data" {
 
   config = {
     size = var.data_volume_size
+    # Set initial ownership for Grafana user (UID 472) to allow writes from non-root container
+    # Requires Incus 6.8+ (https://linuxcontainers.org/incus/news/2024_12_13_07_12.html)
+    "initial.uid"  = "472"
+    "initial.gid"  = "472"
+    "initial.mode" = "0755"
   }
 
   content_type = "filesystem"
