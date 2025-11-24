@@ -6,6 +6,11 @@ resource "incus_storage_volume" "loki_data" {
 
   config = {
     size = var.data_volume_size
+    # Set initial ownership for Loki user (UID 10001) to allow writes from non-root container
+    # Requires Incus 6.8+ (https://linuxcontainers.org/incus/news/2024_12_13_07_12.html)
+    "initial.uid"  = "10001"
+    "initial.gid"  = "10001"
+    "initial.mode" = "0755"
   }
 
   content_type = "filesystem"
@@ -17,9 +22,6 @@ resource "incus_profile" "loki" {
   config = {
     "limits.cpu"    = var.cpu_limit
     "limits.memory" = var.memory_limit
-    # OCI containers running as non-root need privileged mode to write to mounted volumes
-    # because security.shifted doesn't work for OCI/application containers on ZFS
-    "security.privileged" = "true"
   }
 
   device {
