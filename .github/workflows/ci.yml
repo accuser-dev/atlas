@@ -76,6 +76,7 @@ jobs:
       grafana: ${{ steps.filter.outputs.grafana }}
       loki: ${{ steps.filter.outputs.loki }}
       prometheus: ${{ steps.filter.outputs.prometheus }}
+      step_ca: ${{ steps.filter.outputs.step_ca }}
       matrix: ${{ steps.set-matrix.outputs.matrix }}
 
     steps:
@@ -105,13 +106,16 @@ jobs:
             prometheus:
               - 'docker/prometheus/**'
               - 'test/docker/prometheus_test.sh'
+            step_ca:
+              - 'docker/step-ca/**'
+              - 'test/docker/step-ca_test.sh'
 
       - name: Set matrix for changed services
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             # For PRs, always build all images
-            echo 'matrix=["caddy","grafana","loki","prometheus"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["caddy","grafana","loki","prometheus","step-ca"]' >> $GITHUB_OUTPUT
           else
             # For push, only build changed images
             SERVICES=()
@@ -119,6 +123,7 @@ jobs:
             if [ "${{ steps.filter.outputs.grafana }}" == "true" ]; then SERVICES+=("grafana"); fi
             if [ "${{ steps.filter.outputs.loki }}" == "true" ]; then SERVICES+=("loki"); fi
             if [ "${{ steps.filter.outputs.prometheus }}" == "true" ]; then SERVICES+=("prometheus"); fi
+            if [ "${{ steps.filter.outputs.step_ca }}" == "true" ]; then SERVICES+=("step-ca"); fi
 
             if [ ${#SERVICES[@]} -eq 0 ]; then
               echo 'matrix=[]' >> $GITHUB_OUTPUT
@@ -235,7 +240,7 @@ jobs:
 # NOTE: GitHub packages are private by default. To allow Incus to pull images
 # without authentication, you must manually set each package to public:
 #   1. Go to https://github.com/orgs/accuser/packages or your user packages page
-#   2. Click on each package (caddy, grafana, loki, prometheus)
+#   2. Click on each package (caddy, grafana, loki, prometheus, step-ca)
 #   3. Go to Package settings
 #   4. Under "Danger Zone", change visibility to "Public"
 #
