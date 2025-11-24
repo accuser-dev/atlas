@@ -24,7 +24,10 @@ atlas/
 │   ├── loki/                 # Loki log aggregation
 │   │   ├── Dockerfile
 │   │   └── README.md
-│   └── prometheus/           # Prometheus metrics collection
+│   ├── prometheus/           # Prometheus metrics collection
+│   │   ├── Dockerfile
+│   │   └── README.md
+│   └── step-ca/              # Internal ACME CA for TLS certificates
 │       ├── Dockerfile
 │       └── README.md
 ├── terraform/                 # Terraform infrastructure
@@ -38,7 +41,8 @@ atlas/
 │   │   ├── caddy/
 │   │   ├── grafana/
 │   │   ├── loki/
-│   │   └── prometheus/
+│   │   ├── prometheus/
+│   │   └── step-ca/
 │   ├── init.sh               # Initialization wrapper script
 │   ├── main.tf               # Module instantiations
 │   ├── variables.tf          # Variable definitions
@@ -212,6 +216,7 @@ Images are automatically built and published by GitHub Actions when code is push
 - Grafana: `ghcr.io/accuser/atlas/grafana:latest`
 - Loki: `ghcr.io/accuser/atlas/loki:latest`
 - Prometheus: `ghcr.io/accuser/atlas/prometheus:latest`
+- step-ca: `ghcr.io/accuser/atlas/step-ca:latest`
 
 **Local Development:**
 ```bash
@@ -399,6 +404,24 @@ The project uses Terraform modules for scalability and reusability:
     - Storage: 100GB persistent volume for `/prometheus`
     - Network: Connected to management network (internal only)
 
+11. **step-ca Module** ([terraform/modules/step-ca/](terraform/modules/step-ca/))
+    - Internal ACME Certificate Authority for TLS certificates
+    - Persistent storage for CA data and certificates (1GB)
+    - Configurable CA name and DNS names
+    - ACME endpoint for automated certificate issuance
+    - Internal endpoint for services requesting certificates
+    - Custom Docker image: [docker/step-ca/](docker/step-ca/)
+
+12. **step-ca Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+    - Instance name: `step-ca01`
+    - Image: `ghcr.io/accuser/atlas/step-ca:6af092e` (SHA tag until `:latest` published)
+    - CA name: "Atlas Internal CA"
+    - DNS names: `step-ca01.incus,step-ca01,localhost`
+    - ACME endpoint: `https://step-ca01.incus:9000`
+    - Resource limits: 1 CPU, 512MB memory
+    - Storage: 1GB persistent volume for `/home/step`
+    - Network: Connected to management network (internal only)
+
 ### Dynamic Caddyfile Generation
 
 The project uses a template-based approach for generating Caddyfile configurations:
@@ -431,6 +454,7 @@ Each service with persistent storage uses Incus storage volumes:
 - `grafana01-data` - 10GB - `/var/lib/grafana`
 - `loki01-data` - 50GB - `/loki`
 - `prometheus01-data` - 100GB - `/prometheus`
+- `step-ca01-data` - 1GB - `/home/step`
 
 ### Adding New Service Modules
 
@@ -663,3 +687,5 @@ After applying, use `cd terraform && terraform output` to view:
 - `grafana_caddy_config` - Generated Caddy configuration for Grafana
 - `loki_endpoint` - Internal Loki endpoint URL
 - `prometheus_endpoint` - Internal Prometheus endpoint URL
+- `step_ca_acme_endpoint` - step-ca ACME endpoint URL for certificate requests
+- `step_ca_acme_directory` - step-ca ACME directory URL for ACME clients
