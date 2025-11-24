@@ -1,6 +1,6 @@
 # Custom Loki with pre-configured settings
-# Pinned to v3.6.0 for reproducibility and security
-FROM grafana/loki:3.6.0
+# Pinned to v3.6.1 for reproducibility and security
+FROM grafana/loki:3.6.1
 
 # Add custom loki-config.yaml if you want a default configuration
 # Note: Terraform can also inject this configuration at runtime
@@ -10,7 +10,7 @@ FROM grafana/loki:3.6.0
 LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Loki log aggregation system"
 LABEL org.opencontainers.image.source="https://github.com/accuser/atlas"
-LABEL org.opencontainers.image.version="3.6.0"
+LABEL org.opencontainers.image.version="3.6.1"
 LABEL org.opencontainers.image.title="Atlas Loki"
 LABEL org.opencontainers.image.description="Loki log aggregation for internal monitoring stack"
 LABEL org.opencontainers.image.vendor="accuser"
