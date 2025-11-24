@@ -784,6 +784,7 @@ Prometheus is configured to scrape health and metrics endpoints from all service
 - `loki01.incus:3100` - Loki metrics
 - `caddy01.incus:2019` - Caddy admin API metrics
 - `step-ca01.incus:9000` - step-ca health endpoint
+- `node-exporter01.incus:9100` - Host system metrics (CPU, memory, disk, network)
 - `localhost:9090` - Prometheus self-monitoring
 
 All Docker containers include built-in health checks that run every 30 seconds:
@@ -792,8 +793,36 @@ All Docker containers include built-in health checks that run every 30 seconds:
 - Loki: HTTP check on `/ready`
 - Prometheus: HTTP check on `/-/ready`
 - step-ca: `step ca health` command
+- Node Exporter: HTTP check on `/metrics`
 
 These health checks are monitored by Docker and can be viewed with `incus exec <container> -- docker ps`.
+
+**Infrastructure Monitoring:**
+
+4. **Node Exporter** (internal) - Host-level metrics collection
+   - Endpoint: `http://node-exporter01.incus:9100`
+   - Collects host system metrics:
+     - CPU usage and load averages
+     - Memory usage and swap
+     - Disk I/O and filesystem usage
+     - Network traffic and errors
+     - System uptime
+   - Mounted host paths: `/`, `/proc`, `/sys` (read-only)
+   - Scraped by Prometheus every 15 seconds
+
+**Alerting and Rules:**
+
+Prometheus is configured with alerting capabilities:
+- Rule evaluation interval: 15 seconds
+- Alert rules directory: `/etc/prometheus/alerts/*.yml`
+- Alertmanager integration ready (configure targets as needed)
+
+Example alert rules can include:
+- Service down alerts (target unreachable)
+- High CPU/memory usage (>80%)
+- Disk space warnings (>80%, >90%)
+- Container restart detection
+- Certificate expiration warnings
 
 ## Workflow
 

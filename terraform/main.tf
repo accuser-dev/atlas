@@ -184,6 +184,23 @@ module "prometheus01" {
             labels:
               service: 'step-ca'
               instance: 'step-ca01'
+
+      # Node Exporter for host metrics
+      - job_name: 'node'
+        static_configs:
+          - targets: ['node-exporter01.incus:9100']
+            labels:
+              service: 'node-exporter'
+              instance: 'node-exporter01'
+
+    # Alerting rules for infrastructure monitoring
+    rule_files:
+      - '/etc/prometheus/alerts/*.yml'
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: []  # Configure Alertmanager if needed
   EOT
 
   # Enable persistent storage for metrics data
@@ -235,6 +252,32 @@ module "step_ca01" {
   # Resource limits - step-ca is lightweight
   cpu_limit    = "1"
   memory_limit = "512MB"
+
+  # Ensure networks are created before the container
+  depends_on = [
+    incus_network.development,
+    incus_network.testing,
+    incus_network.staging,
+    incus_network.production,
+    incus_network.management
+  ]
+}
+
+module "node_exporter01" {
+  source = "./modules/node-exporter"
+
+  instance_name = "node-exporter01"
+  profile_name  = "node-exporter"
+
+  # Network configuration - use management network for internal services
+  network_name = incus_network.management.name
+
+  # Node Exporter configuration
+  node_exporter_port = "9100"
+
+  # Resource limits - Node Exporter is very lightweight
+  cpu_limit    = "1"
+  memory_limit = "128MB"
 
   # Ensure networks are created before the container
   depends_on = [
