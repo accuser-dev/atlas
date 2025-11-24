@@ -812,17 +812,33 @@ These health checks are monitored by Docker and can be viewed with `incus exec <
 
 **Alerting and Rules:**
 
-Prometheus is configured with alerting capabilities:
+Prometheus is configured with comprehensive alerting rules for infrastructure monitoring:
 - Rule evaluation interval: 15 seconds
-- Alert rules directory: `/etc/prometheus/alerts/*.yml`
+- Alert rules file: `terraform/prometheus-alerts.yml`
+- Automatically injected into Prometheus on deployment
 - Alertmanager integration ready (configure targets as needed)
 
-Example alert rules can include:
-- Service down alerts (target unreachable)
-- High CPU/memory usage (>80%)
-- Disk space warnings (>80%, >90%)
-- Container restart detection
-- Certificate expiration warnings
+**Active Alert Rules:**
+
+*Service Availability:*
+- `ServiceDown` - Critical alert when a service is unreachable for >2 minutes
+- `ServiceFlapping` - Warning when a service restarts >5 times in 10 minutes
+
+*Memory Alerts:*
+- `HighMemoryUsage` - Warning at >80% container memory usage for >5 minutes
+- `CriticalMemoryUsage` - Critical at >95% container memory (OOM kill imminent)
+- `HostOutOfMemory` - Warning when host has <10% memory available
+- `HostHighMemoryPressure` - Warning on excessive page faults
+
+*Disk Space Alerts:*
+- `DiskSpaceWarning` - Warning at <20% disk space remaining
+- `DiskSpaceCritical` - Critical at <10% disk space remaining
+
+*CPU and Load:*
+- `HighCPUUsage` - Warning at >80% CPU usage for >10 minutes
+- `HighLoadAverage` - Warning when load average exceeds 2x CPU count
+
+All alerts include detailed annotations with current values and context.
 
 ## Workflow
 

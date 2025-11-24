@@ -90,4 +90,13 @@ resource "incus_instance" "prometheus" {
       mode        = "0644"
     }
   }
+
+  dynamic "file" {
+    for_each = var.alert_rules != "" ? [1] : []
+    content {
+      content     = var.alert_rules
+      target_path = "/etc/prometheus/alerts/alerts.yml"
+      mode        = "0644"
+    }
+  }
 }
