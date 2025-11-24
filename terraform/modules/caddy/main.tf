@@ -2,8 +2,10 @@ resource "incus_profile" "caddy" {
   name = var.profile_name
 
   config = {
-    "limits.cpu"    = var.cpu_limit
-    "limits.memory" = var.memory_limit
+    "limits.cpu"            = var.cpu_limit
+    "limits.memory"         = var.memory_limit
+    "limits.memory.enforce" = "hard"
+    "boot.autorestart"      = "true"
   }
 
   device {
