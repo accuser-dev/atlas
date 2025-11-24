@@ -211,7 +211,7 @@ BACKEND_EOF
     bucket_key_name = var.bucket_key_name
     remote          = var.incus_remote
     # Trigger re-run when role requirement changes
-    required_role   = "admin"
+    required_role = "admin"
   }
 }
 
