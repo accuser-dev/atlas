@@ -27,3 +27,8 @@ output "caddy_config_block" {
     port             = var.grafana_port
   }) : ""
 }
+
+output "tls_enabled" {
+  description = "Whether TLS is enabled for this instance"
+  value       = var.enable_tls
+}

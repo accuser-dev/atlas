@@ -61,6 +61,16 @@ resource "incus_profile" "grafana" {
   ]
 }
 
+locals {
+  # TLS environment variables (only set when TLS is enabled)
+  tls_env_vars = var.enable_tls ? {
+    ENABLE_TLS         = "true"
+    STEPCA_URL         = var.stepca_url
+    STEPCA_FINGERPRINT = var.stepca_fingerprint
+    CERT_DURATION      = var.cert_duration
+  } : {}
+}
+
 resource "incus_instance" "grafana" {
   name     = var.instance_name
   image    = var.image
@@ -69,5 +79,6 @@ resource "incus_instance" "grafana" {
 
   config = merge(
     { for k, v in var.environment_variables : "environment.${k}" => v },
+    { for k, v in local.tls_env_vars : "environment.${k}" => v },
   )
 }

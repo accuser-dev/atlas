@@ -20,5 +20,10 @@ output "storage_volume_name" {
 
 output "loki_endpoint" {
   description = "Loki endpoint URL for internal use"
-  value       = "http://${var.instance_name}.incus:${var.loki_port}"
+  value       = "${var.enable_tls ? "https" : "http"}://${var.instance_name}.incus:${var.loki_port}"
+}
+
+output "tls_enabled" {
+  description = "Whether TLS is enabled for this instance"
+  value       = var.enable_tls
 }
