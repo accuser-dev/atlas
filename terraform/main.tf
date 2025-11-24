@@ -35,7 +35,7 @@ module "grafana01" {
   source = "./modules/grafana"
 
   instance_name = "grafana01"
-  profile_name  = "grafana01"
+  profile_name  = "grafana"
 
   # Network configuration - use management network for internal services
   network_name = incus_network.management.name
@@ -75,7 +75,7 @@ module "loki01" {
   source = "./modules/loki"
 
   instance_name = "loki01"
-  profile_name  = "loki01"
+  profile_name  = "loki"
 
   # Network configuration - use management network for internal services
   network_name = incus_network.management.name
@@ -106,7 +106,7 @@ module "prometheus01" {
   source = "./modules/prometheus"
 
   instance_name = "prometheus01"
-  profile_name  = "prometheus01"
+  profile_name  = "prometheus"
 
   # Network configuration - use management network for internal services
   network_name = incus_network.management.name
