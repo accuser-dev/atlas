@@ -157,7 +157,7 @@ destroy:
 	@echo "=========================================="
 	@echo ""
 	@echo "This will DESTROY all infrastructure managed by OpenTofu:"
-	@echo "  - All containers (caddy01, grafana01, loki01, prometheus01, step-ca01)"
+	@echo "  - All containers (caddy01, grafana01, loki01, prometheus01, step-ca01, node-exporter01)"
 	@echo "  - All storage volumes (data will be DELETED)"
 	@echo "  - All profiles"
 	@echo "  - All networks"
@@ -180,7 +180,7 @@ import:
 			tofu import "incus_network.$$net" "$$net" 2>/dev/null || true; \
 		fi; \
 	done; \
-	for svc in caddy grafana loki prometheus step-ca; do \
+	for svc in caddy grafana loki prometheus step-ca node-exporter; do \
 		if incus profile show $$svc >/dev/null 2>&1; then \
 			echo "Importing profile: $$svc"; \
 			case $$svc in \
@@ -189,6 +189,7 @@ import:
 				loki) tofu import "module.loki01.incus_profile.loki" "$$svc" 2>/dev/null || true ;; \
 				prometheus) tofu import "module.prometheus01.incus_profile.prometheus" "$$svc" 2>/dev/null || true ;; \
 				step-ca) tofu import "module.step_ca01.incus_profile.step_ca" "$$svc" 2>/dev/null || true ;; \
+				node-exporter) tofu import "module.node_exporter01.incus_profile.node_exporter" "$$svc" 2>/dev/null || true ;; \
 			esac; \
 		fi; \
 	done; \
@@ -203,7 +204,7 @@ import:
 			esac; \
 		fi; \
 	done; \
-	for inst in caddy01 grafana01 loki01 prometheus01 step-ca01; do \
+	for inst in caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter01; do \
 		if incus info $$inst >/dev/null 2>&1; then \
 			echo "Importing instance: $$inst"; \
 			case $$inst in \
@@ -212,6 +213,7 @@ import:
 				loki01) tofu import "module.loki01.incus_instance.loki" "$$inst" 2>/dev/null || true ;; \
 				prometheus01) tofu import "module.prometheus01.incus_instance.prometheus" "$$inst" 2>/dev/null || true ;; \
 				step-ca01) tofu import "module.step_ca01.incus_instance.step_ca" "$$inst" 2>/dev/null || true ;; \
+				node-exporter01) tofu import "module.node_exporter01.incus_instance.node_exporter" "$$inst" 2>/dev/null || true ;; \
 			esac; \
 		fi; \
 	done
@@ -227,21 +229,21 @@ clean-incus:
 	@sleep 5
 	@echo ""
 	@echo "Stopping and removing instances..."
-	@for inst in caddy01 grafana01 loki01 prometheus01 step-ca01; do \
+	@for inst in caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter01; do \
 		if incus info $$inst >/dev/null 2>&1; then \
 			echo "  Removing instance: $$inst"; \
 			incus delete $$inst --force 2>/dev/null || true; \
 		fi; \
 	done
 	@echo "Removing old-style profiles (instance-specific names)..."
-	@for profile in caddy01 grafana01 loki01 prometheus01 step-ca01; do \
+	@for profile in caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter01; do \
 		if incus profile show $$profile >/dev/null 2>&1; then \
 			echo "  Removing profile: $$profile"; \
 			incus profile delete $$profile 2>/dev/null || true; \
 		fi; \
 	done
 	@echo "Removing new-style profiles (generic names)..."
-	@for profile in caddy grafana loki prometheus step-ca; do \
+	@for profile in caddy grafana loki prometheus step-ca node-exporter; do \
 		if incus profile show $$profile >/dev/null 2>&1; then \
 			echo "  Removing profile: $$profile"; \
 			incus profile delete $$profile 2>/dev/null || true; \
