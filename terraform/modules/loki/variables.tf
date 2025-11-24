@@ -87,3 +87,34 @@ variable "loki_port" {
     error_message = "Port must be a number between 1 and 65535"
   }
 }
+
+# TLS Configuration
+variable "enable_tls" {
+  description = "Enable TLS for Loki using step-ca"
+  type        = bool
+  default     = false
+}
+
+variable "stepca_url" {
+  description = "URL of the step-ca server (required if enable_tls is true)"
+  type        = string
+  default     = ""
+}
+
+variable "stepca_fingerprint" {
+  description = "Fingerprint of the step-ca root certificate (required if enable_tls is true)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "cert_duration" {
+  description = "Duration for TLS certificates (e.g., 24h, 168h)"
+  type        = string
+  default     = "24h"
+
+  validation {
+    condition     = can(regex("^[0-9]+h$", var.cert_duration))
+    error_message = "Certificate duration must be in hours format (e.g., '24h', '168h')"
+  }
+}
