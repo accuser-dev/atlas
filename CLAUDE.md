@@ -456,6 +456,178 @@ Each service with persistent storage uses Incus storage volumes:
 - `prometheus01-data` - 100GB - `/prometheus`
 - `step-ca01-data` - 1GB - `/home/step`
 
+### Profile Architecture
+
+Each service uses Incus profiles to define resource limits, devices, and configuration. The project follows a **standardized profile composition strategy** across all modules.
+
+#### Profile Composition Pattern
+
+All containers use a two-profile composition:
+```hcl
+profiles = ["default", incus_profile.service.name]
+```
+
+**"default" profile**: Incus's built-in profile providing baseline container configuration
+- Root filesystem device
+- Basic network device (eth0)
+- Standard container settings
+
+**Service-specific profile**: Module-defined profile that extends/overrides defaults
+- Resource limits (CPU, memory)
+- Service-specific devices (storage volumes, additional NICs)
+- Boot and restart policies
+
+Profiles are applied in order, so service-specific settings take precedence over defaults.
+
+#### Profile Structure
+
+Every module follows the same pattern for profile definition in `main.tf`:
+
+```hcl
+resource "incus_profile" "service" {
+  name = var.profile_name
+
+  config = {
+    "limits.cpu"            = var.cpu_limit      # Configurable CPU cores
+    "limits.memory"         = var.memory_limit   # Configurable RAM
+    "limits.memory.enforce" = "hard"             # Strict memory enforcement
+    "boot.autorestart"      = "true"             # Auto-restart on host reboot
+  }
+
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool  # Default: "local"
+    }
+  }
+
+  device {
+    name = "eth0"
+    type = "nic"
+    properties = {
+      network = var.network_name
+    }
+  }
+
+  # Optional: Additional devices (storage volumes, extra NICs)
+}
+```
+
+#### Resource Limits
+
+All services enforce hard memory limits and configurable resources:
+
+| Service | CPU (Default) | Memory (Default) | Validation |
+|---------|---------------|-----------------|------------|
+| Caddy   | 2 cores       | 1GB             | 1-64 CPUs, MB/GB format |
+| Grafana | 2 cores       | 1GB             | 1-64 CPUs, MB/GB format |
+| Loki    | 2 cores       | 2GB             | 1-64 CPUs, MB/GB format |
+| Prometheus | 2 cores    | 2GB             | 1-64 CPUs, MB/GB format |
+| step-ca | 1 core        | 512MB           | 1-64 CPUs, MB/GB format |
+
+All limits are validated at the Terraform variable level to ensure correctness before deployment.
+
+#### Profile Naming Convention
+
+Profiles follow a simple, service-specific naming pattern:
+
+| Service | Profile Name | Instance Name |
+|---------|--------------|---------------|
+| Caddy   | `caddy`      | `caddy01`     |
+| Grafana | `grafana`    | `grafana01`   |
+| Loki    | `loki`       | `loki01`      |
+| Prometheus | `prometheus` | `prometheus01` |
+| step-ca | `step-ca`    | `step-ca01`   |
+
+Profile names are independent of instance names, allowing flexibility for multiple instances.
+
+#### Dynamic Device Management
+
+Profiles use Terraform's `dynamic` blocks for conditional device attachment:
+
+```hcl
+dynamic "device" {
+  for_each = var.enable_data_persistence ? [1] : []
+  content {
+    name = "service-data"
+    type = "disk"
+    properties = {
+      source = incus_storage_volume.service_data[0].name
+      pool   = var.storage_pool
+      path   = "/var/lib/service"
+    }
+  }
+}
+```
+
+This enables:
+- Optional persistent storage (enabled/disabled per instance)
+- Clean profiles when persistence is disabled
+- Single definition handling both scenarios
+
+#### Network Device Configuration
+
+**Standard services** (Grafana, Loki, Prometheus, step-ca):
+- Single network interface (`eth0`)
+- Connected to management network by default
+- Internal-only communication
+
+**Caddy** (special case - reverse proxy):
+- Three network interfaces:
+  - `eth0`: Production network (public-facing apps)
+  - `eth1`: Management network (internal services)
+  - `eth2`: External network (incusbr0 bridge for internet access)
+
+#### Profile Dependencies
+
+Profiles have explicit dependencies on storage volumes when persistence is enabled:
+
+```hcl
+resource "incus_profile" "service" {
+  # ... profile config
+
+  depends_on = [
+    incus_storage_volume.service_data
+  ]
+}
+```
+
+This ensures:
+- Storage volumes exist before profiles reference them
+- Proper creation order during `terraform apply`
+- Clean teardown order during `terraform destroy`
+
+#### Why Use the Default Profile?
+
+The "default" profile provides:
+- Standard root filesystem device configuration
+- Basic network device setup
+- Common container settings and limits
+- Proven baseline used by Incus community
+
+By composing with "default" rather than replacing it:
+- Leverage Incus best practices
+- Reduce duplication in module profiles
+- Service profiles focus only on service-specific requirements
+- Easier to maintain as Incus evolves
+
+**Verification**: To see the default profile contents on your Incus server:
+```bash
+incus profile show default
+```
+
+#### Profile Design Principles
+
+1. **Consistency**: All modules follow identical profile patterns
+2. **Modularity**: Profiles are self-contained within modules
+3. **Flexibility**: Variable-driven configuration for all limits
+4. **Composition**: Extend "default" rather than replace
+5. **Separation of Concerns**: Profiles handle resources, instances handle runtime config
+
+This approach enables easy scaling - new instances reuse the proven profile pattern with customized resource limits.
+
 ### Adding New Service Modules
 
 **For public-facing services (with Caddy reverse proxy):**
