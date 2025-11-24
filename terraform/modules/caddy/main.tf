@@ -65,4 +65,14 @@ resource "incus_instance" "caddy" {
     target_path = "/etc/caddy/Caddyfile"
     mode        = "0644"
   }
+
+  # Internal CA certificate for backend TLS connections (optional)
+  dynamic "file" {
+    for_each = var.internal_ca_certificate != "" ? [1] : []
+    content {
+      content     = var.internal_ca_certificate
+      target_path = "/etc/caddy/internal-ca.crt"
+      mode        = "0644"
+    }
+  }
 }

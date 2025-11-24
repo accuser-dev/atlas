@@ -25,6 +25,7 @@ output "caddy_config_block" {
     allowed_ip_range = var.allowed_ip_range
     instance_name    = var.instance_name
     port             = var.grafana_port
+    backend_tls      = var.enable_tls
   }) : ""
 }
 
