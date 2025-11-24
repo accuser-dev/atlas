@@ -76,3 +76,11 @@ variable "service_blocks" {
   type        = list(string)
   default     = []
 }
+
+# Internal TLS Configuration
+variable "internal_ca_certificate" {
+  description = "PEM-encoded internal CA certificate for trusting backend TLS connections"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
