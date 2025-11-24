@@ -132,3 +132,41 @@ module "prometheus01" {
     incus_network.management
   ]
 }
+
+module "step_ca01" {
+  source = "./modules/step-ca"
+
+  instance_name = "step-ca01"
+  profile_name  = "step-ca"
+
+  # Network configuration - use management network for internal services
+  network_name = incus_network.management.name
+
+  # CA configuration
+  ca_name      = "Atlas Internal CA"
+  ca_dns_names = "step-ca01.incus,step-ca01,localhost"
+
+  # ACME endpoint configuration
+  acme_port = "9000"
+
+  # Certificate settings
+  cert_duration = "24h"
+
+  # Enable persistent storage for CA data
+  enable_data_persistence = true
+  data_volume_name        = "step-ca01-data"
+  data_volume_size        = "1GB"
+
+  # Resource limits - step-ca is lightweight
+  cpu_limit    = "1"
+  memory_limit = "512MB"
+
+  # Ensure networks are created before the container
+  depends_on = [
+    incus_network.development,
+    incus_network.testing,
+    incus_network.staging,
+    incus_network.production,
+    incus_network.management
+  ]
+}
