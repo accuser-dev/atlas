@@ -81,4 +81,16 @@ resource "incus_instance" "grafana" {
     { for k, v in var.environment_variables : "environment.${k}" => v },
     { for k, v in local.tls_env_vars : "environment.${k}" => v },
   )
+
+  # Provision datasources if configured
+  dynamic "file" {
+    for_each = length(var.datasources) > 0 ? [1] : []
+    content {
+      content = templatefile("${path.module}/templates/datasources.yaml.tftpl", {
+        datasources = var.datasources
+      })
+      target_path = "/etc/grafana/provisioning/datasources/datasources.yaml"
+      mode        = "0644"
+    }
+  }
 }
