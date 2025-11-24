@@ -9,6 +9,7 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    target-branch: "develop"
     labels:
       - "dependencies"
       - "devcontainer"
@@ -21,6 +22,7 @@ updates:
     directory: "/docker/caddy"
     schedule:
       interval: "weekly"
+    target-branch: "develop"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -31,6 +33,7 @@ updates:
     directory: "/docker/grafana"
     schedule:
       interval: "weekly"
+    target-branch: "develop"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -41,6 +44,7 @@ updates:
     directory: "/docker/loki"
     schedule:
       interval: "weekly"
+    target-branch: "develop"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -51,6 +55,7 @@ updates:
     directory: "/docker/prometheus"
     schedule:
       interval: "weekly"
+    target-branch: "develop"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
