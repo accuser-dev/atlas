@@ -52,6 +52,24 @@ module "grafana01" {
     GF_SERVER_HTTP_PORT        = "3000"
   }
 
+  # Configure datasources for Prometheus and Loki
+  datasources = [
+    {
+      name            = "Prometheus"
+      type            = "prometheus"
+      url             = "http://prometheus01.incus:9090"
+      is_default      = true
+      tls_skip_verify = false
+    },
+    {
+      name            = "Loki"
+      type            = "loki"
+      url             = "http://loki01.incus:3100"
+      is_default      = false
+      tls_skip_verify = false
+    }
+  ]
+
   # Enable persistent storage for dashboards and data
   enable_data_persistence = true
   data_volume_name        = "grafana01-data"
@@ -61,13 +79,15 @@ module "grafana01" {
   cpu_limit    = "2"
   memory_limit = "1GB"
 
-  # Ensure networks are created before the container
+  # Ensure networks and dependencies are created
   depends_on = [
     incus_network.development,
     incus_network.testing,
     incus_network.staging,
     incus_network.production,
-    incus_network.management
+    incus_network.management,
+    module.prometheus01,
+    module.loki01
   ]
 }
 
@@ -113,6 +133,58 @@ module "prometheus01" {
 
   # Prometheus configuration
   prometheus_port = "9090"
+
+  # Prometheus configuration with health check monitoring
+  prometheus_config = <<-EOT
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'atlas'
+        environment: 'production'
+
+    scrape_configs:
+      # Prometheus self-monitoring
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+            labels:
+              service: 'prometheus'
+              instance: 'prometheus01'
+
+      # Grafana metrics
+      - job_name: 'grafana'
+        static_configs:
+          - targets: ['grafana01.incus:3000']
+            labels:
+              service: 'grafana'
+              instance: 'grafana01'
+
+      # Loki metrics
+      - job_name: 'loki'
+        static_configs:
+          - targets: ['loki01.incus:3100']
+            labels:
+              service: 'loki'
+              instance: 'loki01'
+
+      # Caddy metrics (if metrics are enabled)
+      - job_name: 'caddy'
+        static_configs:
+          - targets: ['caddy01.incus:2019']
+            labels:
+              service: 'caddy'
+              instance: 'caddy01'
+
+      # step-ca health monitoring
+      - job_name: 'step-ca'
+        metrics_path: '/health'
+        static_configs:
+          - targets: ['step-ca01.incus:9000']
+            labels:
+              service: 'step-ca'
+              instance: 'step-ca01'
+  EOT
 
   # Enable persistent storage for metrics data
   enable_data_persistence = true
