@@ -61,3 +61,14 @@ updates:
       - "dependencies"
       - "docker"
       - "prometheus"
+
+  - package-ecosystem: "docker"
+    directory: "/docker/step-ca"
+    schedule:
+      interval: "weekly"
+    target-branch: "develop"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+      - "step-ca"
