@@ -4,7 +4,7 @@
 .PHONY: help build-all build-caddy build-grafana build-loki build-prometheus \
         list-images \
         bootstrap bootstrap-init bootstrap-plan bootstrap-apply \
-        init plan apply destroy import clean-incus \
+        init plan apply destroy import clean-incus clean-images \
         deploy clean clean-docker clean-tofu clean-bootstrap format
 
 # Default target
@@ -32,9 +32,10 @@ help:
 	@echo "  make init              - Initialize OpenTofu with remote backend"
 	@echo "  make plan              - Plan OpenTofu changes"
 	@echo "  make apply             - Apply OpenTofu changes"
-	@echo "  make destroy           - Destroy infrastructure"
+	@echo "  make destroy           - Destroy infrastructure and remove cached images"
 	@echo "  make import            - Import existing Incus resources into state"
 	@echo "  make clean-incus       - Remove orphaned Incus resources not in state"
+	@echo "  make clean-images      - Remove Atlas images from Incus cache"
 	@echo ""
 	@echo "Deployment Commands:"
 	@echo "  make deploy            - Apply OpenTofu (pulls images from ghcr.io)"
@@ -161,12 +162,31 @@ destroy:
 	@echo "  - All storage volumes (data will be DELETED)"
 	@echo "  - All profiles"
 	@echo "  - All networks"
+	@echo "  - All cached container images"
 	@echo ""
 	@echo "This action is IRREVERSIBLE!"
 	@echo ""
 	@echo "OpenTofu will prompt for confirmation before destroying."
 	@echo ""
 	cd terraform && tofu destroy
+	@$(MAKE) clean-images
+
+# Clean cached Incus images
+clean-images:
+	@echo "Removing Atlas container images from Incus cache..."
+	@echo ""
+	@images=$$(incus image list --format csv 2>/dev/null | grep -E "ghcr.io/accuser/atlas" | cut -d',' -f2); \
+	if [ -z "$$images" ]; then \
+		echo "No Atlas images found in cache."; \
+	else \
+		for fingerprint in $$images; do \
+			alias=$$(incus image list --format csv 2>/dev/null | grep "$$fingerprint" | cut -d',' -f1); \
+			echo "  Removing: $$alias ($$fingerprint)"; \
+			incus image delete "$$fingerprint" 2>/dev/null || true; \
+		done; \
+		echo ""; \
+		echo "Image cleanup complete."; \
+	fi
 
 # Import existing resources into state
 import:

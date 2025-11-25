@@ -70,8 +70,8 @@ For a vanilla Incus installation (after `incus admin init`):
 # 1. Bootstrap (creates storage bucket for Terraform state)
 make bootstrap
 
-# 2. Initialize Terraform with remote backend
-make terraform-init
+# 2. Initialize OpenTofu with remote backend
+make init
 
 # 3. Deploy infrastructure
 make deploy
@@ -92,34 +92,35 @@ make build-grafana
 make build-loki
 make build-prometheus
 
-# Terraform operations (after bootstrap)
-make terraform-init      # Initialize Terraform with remote backend
-make terraform-plan      # Plan changes
-make terraform-apply     # Apply changes
-make terraform-destroy   # Destroy infrastructure
+# OpenTofu operations (after bootstrap)
+make init                # Initialize OpenTofu with remote backend
+make plan                # Plan changes
+make apply               # Apply changes
+make destroy             # Destroy infrastructure and remove cached images
 
-# Complete deployment (applies Terraform, pulls images from ghcr.io)
+# Complete deployment (applies OpenTofu, pulls images from ghcr.io)
 make deploy
 
 # Cleanup
 make clean               # Clean all build artifacts
 make clean-docker        # Clean Docker build cache
-make clean-terraform     # Clean Terraform cache
-make clean-bootstrap     # Clean bootstrap Terraform cache
+make clean-tofu          # Clean OpenTofu cache
+make clean-bootstrap     # Clean bootstrap OpenTofu cache
+make clean-images        # Remove Atlas images from Incus cache
 
-# Format Terraform files
+# Format OpenTofu files
 make format
 ```
 
 **Note:** Production images are built and published automatically via GitHub Actions to `ghcr.io/accuser/atlas/*:latest`. Local builds are only needed for development/testing.
 
-### Direct Terraform Operations
+### Direct OpenTofu Operations
 
 **Important:** Do not run `tofu init` directly - it requires backend configuration. Use one of these methods:
 
 ```bash
 # Option 1: Use the Makefile (recommended)
-make terraform-init
+make init
 
 # Option 2: Use the init wrapper script
 cd terraform && ./init.sh
@@ -914,9 +915,9 @@ All alerts include detailed annotations with current values and context.
    make deploy
 
    # Or step-by-step
-   make terraform-init
-   make terraform-plan
-   make terraform-apply
+   make init
+   make plan
+   make apply
    ```
 
 4. **Verify**:
