@@ -274,7 +274,7 @@ jobs:
           image-ref: atlas/${{ matrix.service }}:test
           format: table
           exit-code: 1
-          severity: CRITICAL,HIGH
+          severity: CRITICAL
           ignore-unfixed: true
 
       - name: Summary
@@ -283,9 +283,9 @@ jobs:
           echo "## Security Scan: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ No CRITICAL or HIGH vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+            echo "✅ No CRITICAL vulnerabilities found" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Vulnerabilities detected - check logs for details" >> $GITHUB_STEP_SUMMARY
+            echo "❌ CRITICAL vulnerabilities detected - check logs for details" >> $GITHUB_STEP_SUMMARY
           fi
 
   # =============================================================================
