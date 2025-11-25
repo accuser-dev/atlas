@@ -92,7 +92,7 @@ module "grafana01" {
   source = "./modules/grafana"
 
   # Default image (no override needed)
-  # image = "docker:ghcr.io/accuser/atlas/grafana:latest"
+  # image = "ghcr:accuser/atlas/grafana:latest"
 
   # ... other configuration
 }
@@ -107,10 +107,10 @@ module "grafana01" {
   source = "./modules/grafana"
 
   # Use develop branch image
-  image = "docker:ghcr.io/accuser/atlas/grafana:develop"
+  image = "ghcr:accuser/atlas/grafana:develop"
 
   # Or use specific commit
-  # image = "docker:ghcr.io/accuser/atlas/grafana:main-abc1234"
+  # image = "ghcr:accuser/atlas/grafana:main-abc1234"
 
   # ... other configuration
 }
@@ -192,7 +192,7 @@ terraform apply -replace='module.grafana01.incus_instance.grafana'
 incus restart grafana01
 
 # Option 3: Rebuild container with new image
-incus rebuild grafana01 docker:ghcr.io/accuser/atlas/grafana:latest
+incus rebuild grafana01 ghcr:accuser/atlas/grafana:latest
 ```
 
 ## How It Works
@@ -202,7 +202,7 @@ incus rebuild grafana01 docker:ghcr.io/accuser/atlas/grafana:latest
 When Terraform creates a container:
 
 1. **Terraform requests** image from Incus
-2. **Incus uses docker: protocol** to pull from ghcr.io
+2. **Incus uses oci protocol** to pull from ghcr.io
 3. **Image is pulled** (or cached if already present)
 4. **Container is created** from the image
 
@@ -241,7 +241,7 @@ Error: Failed to create instance: Image not found
 
 3. **Test pull manually**:
    ```bash
-   incus launch docker:ghcr.io/accuser/atlas/grafana:latest test
+   incus launch ghcr:accuser/atlas/grafana:latest test
    ```
 
 4. **Check image name** in Terraform module:

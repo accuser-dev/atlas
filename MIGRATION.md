@@ -119,7 +119,7 @@ You can now customize Docker images before deployment:
 make build-grafana
 
 # 3. Update terraform/main.tf to use custom image
-# image = "docker:atlas/grafana:latest"
+# image = "ghcr:atlas/grafana:latest"
 
 # 4. Apply changes
 make terraform-apply

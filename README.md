@@ -344,7 +344,7 @@ incus exec caddy01 -- cat /var/log/caddy.log
 If Incus can't pull images from ghcr.io:
 1. Verify images are public in GitHub packages settings
 2. Check image names match expected format
-3. Test pull manually: `incus launch docker:ghcr.io/accuser/atlas/grafana:latest test`
+3. Test pull manually: `incus launch ghcr:accuser/atlas/grafana:latest test`
 
 ## Contributing
 

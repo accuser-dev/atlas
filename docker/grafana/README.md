@@ -126,7 +126,7 @@ Reference this image in your Terraform configuration:
 module "grafana01" {
   source = "./modules/grafana"
 
-  image = "docker:atlas/grafana:latest"
+  image = "ghcr:atlas/grafana:latest"
   # ... other configuration
 }
 ```

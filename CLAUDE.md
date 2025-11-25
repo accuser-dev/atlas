@@ -636,7 +636,7 @@ This approach enables easy scaling - new instances reuse the proven profile patt
 2. Add service to GitHub Actions matrix in `.github/workflows/terraform-ci.yml`
 3. Create Terraform module in `terraform/modules/yourservice/`
 4. Add `domain`, `allowed_ip_range`, and port variables to module
-5. Set default image to `docker:ghcr.io/accuser/atlas/yourservice:latest`
+5. Set default image to `ghcr:accuser/atlas/yourservice:latest`
 6. Create `templates/caddyfile.tftpl` for reverse proxy config
 7. Add `caddy_config_block` output using templatefile()
 8. Instantiate module in [terraform/main.tf](terraform/main.tf)
@@ -648,7 +648,7 @@ This approach enables easy scaling - new instances reuse the proven profile patt
 1. Create Docker image in `docker/yourservice/` with Dockerfile
 2. Add service to GitHub Actions matrix in `.github/workflows/terraform-ci.yml`
 3. Create Terraform module in `terraform/modules/yourservice/`
-4. Set default image to `docker:ghcr.io/accuser/atlas/yourservice:latest`
+4. Set default image to `ghcr:accuser/atlas/yourservice:latest`
 5. Add storage and network configuration to module
 6. Add endpoint output for internal connectivity
 7. Instantiate module in [terraform/main.tf](terraform/main.tf)
@@ -672,7 +672,7 @@ module "grafana02" {
   domain           = "grafana-dev.accuser.dev"
   allowed_ip_range = "192.168.68.0/22"
 
-  # Uses ghcr.io image by default (docker:ghcr.io/accuser/atlas/grafana:latest)
+  # Uses ghcr.io image by default (ghcr:accuser/atlas/grafana:latest)
   # Optional: Override to use official image
   # image = "docker:grafana/grafana:latest"
 
@@ -876,10 +876,10 @@ All alerts include detailed annotations with current values and context.
 **Default: GitHub Container Registry Images**
 
 All modules are configured to use custom images published to GitHub Container Registry:
-- Caddy: `docker:ghcr.io/accuser/atlas/caddy:latest`
-- Grafana: `docker:ghcr.io/accuser/atlas/grafana:latest`
-- Loki: `docker:ghcr.io/accuser/atlas/loki:latest`
-- Prometheus: `docker:ghcr.io/accuser/atlas/prometheus:latest`
+- Caddy: `ghcr:accuser/atlas/caddy:latest`
+- Grafana: `ghcr:accuser/atlas/grafana:latest`
+- Loki: `ghcr:accuser/atlas/loki:latest`
+- Prometheus: `ghcr:accuser/atlas/prometheus:latest`
 
 These images are:
 - Built automatically by GitHub Actions on push to main/develop
