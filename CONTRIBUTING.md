@@ -41,7 +41,7 @@ git checkout -b fix/issue-4-shell-script-security
 - Make focused, logical commits
 - Write clear commit messages
 - Test your changes locally
-- Run OpenTofu validation: `make plan`
+- Run Terraform validation: `make terraform-plan`
 - Format your code: `make format`
 
 **Commit Message Format:**
@@ -121,7 +121,7 @@ Periodically, when `develop` is stable and ready for release:
 
 ### Code Standards
 
-**OpenTofu:**
+**Terraform:**
 - Run `tofu fmt` before committing
 - Run `tofu validate` to ensure valid configuration
 - Use meaningful variable names and descriptions
@@ -146,14 +146,14 @@ Periodically, when `develop` is stable and ready for release:
 Before submitting a PR:
 
 ```bash
-# Format OpenTofu files
+# Format Terraform files
 make format
 
-# Validate OpenTofu configuration
+# Validate Terraform configuration
 cd terraform && tofu validate
 
 # Run OpenTofu plan (requires valid terraform.tfvars)
-make plan
+make terraform-plan
 
 # Build Docker images locally (optional)
 make build-all
@@ -162,7 +162,7 @@ make build-all
 ### Security Considerations
 
 - Never commit secrets or sensitive data
-- Use OpenTofu sensitive variables for credentials
+- Use Terraform sensitive variables for credentials
 - Follow principle of least privilege
 - Review security implications of network/firewall changes
 - Run security scans on Docker images
@@ -218,8 +218,8 @@ gh pr checkout <pr-number>
 # Build the updated image locally
 make build-<service>
 
-# Test with OpenTofu
-make plan
+# Test with Terraform
+make terraform-plan
 ```
 
 **4. Merge strategy:**

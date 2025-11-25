@@ -1,7 +1,7 @@
 {
     "terraform.languageServer.enable": true,
     "files.associations": {
-        "*.tf": "terraform"
+        "*.tf": "opentofu"
     },
     "makefile.configureOnOpen": false
 }

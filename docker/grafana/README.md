@@ -1,6 +1,6 @@
 # Grafana Custom Image
 
-This directory contains the Dockerfile for building a custom Grafana image with pre-installed plugins and configuration.
+This directory contains the Dockerfile for building a custom Grafana image with TLS support via step-ca.
 
 ## Base Image
 
@@ -21,6 +21,38 @@ make build-grafana
 
 ## Image Features
 
+### TLS Support
+
+This image includes built-in TLS support via step-ca integration:
+
+- **step CLI**: Pre-installed for certificate requests
+- **ACME Protocol**: Automatic certificate provisioning
+- **Backward Compatible**: TLS is opt-in (disabled by default)
+
+**Enable TLS with environment variables:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ENABLE_TLS` | Enable TLS mode | `false` |
+| `STEPCA_URL` | step-ca server URL | (required if TLS enabled) |
+| `STEPCA_FINGERPRINT` | CA root certificate fingerprint | (required if TLS enabled) |
+| `CERT_DURATION` | Certificate validity duration | `24h` |
+| `CERT_RENEW_BEFORE` | Renew certificate before expiry | `1h` |
+
+**Example Terraform configuration with TLS:**
+
+```hcl
+module "grafana01" {
+  source = "./modules/grafana"
+
+  environment_variables = {
+    ENABLE_TLS         = "true"
+    STEPCA_URL         = "https://step-ca01.incus:9000"
+    STEPCA_FINGERPRINT = "abc123..."
+  }
+}
+```
+
 ### Security
 
 **Non-root User**
@@ -30,6 +62,7 @@ make build-grafana
 
 **Health Check**
 - Built-in Docker/Incus health check using Grafana's `/api/health` endpoint
+- Automatically adapts to HTTP or HTTPS based on TLS mode
 - Interval: 30 seconds
 - Timeout: 3 seconds
 - Start period: 30 seconds (Grafana needs time to initialize, especially with plugins)
@@ -93,7 +126,7 @@ Reference this image in your Terraform configuration:
 module "grafana01" {
   source = "./modules/grafana"
 
-  image = "docker:atlas/grafana:latest"
+  image = "ghcr:atlas/grafana:latest"
   # ... other configuration
 }
 ```
@@ -107,9 +140,9 @@ For local development:
 # Build locally
 make build-grafana
 
-# Test with Terraform
+# Test with OpenTofu
 cd terraform
-terraform plan
+tofu plan
 ```
 
 ## Health Monitoring
@@ -117,8 +150,11 @@ terraform plan
 The health check uses Grafana's built-in `/api/health` endpoint:
 
 ```bash
-# Check Grafana health directly
+# Check Grafana health directly (HTTP mode)
 curl http://localhost:3000/api/health
+
+# Check Grafana health (HTTPS mode)
+curl -k https://localhost:3000/api/health
 
 # Or via Incus
 incus exec grafana01 -- wget -qO- http://localhost:3000/api/health

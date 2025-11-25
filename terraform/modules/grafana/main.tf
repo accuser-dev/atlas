@@ -6,6 +6,11 @@ resource "incus_storage_volume" "grafana_data" {
 
   config = {
     size = var.data_volume_size
+    # Set initial ownership for Grafana user (UID 472) to allow writes from non-root container
+    # Requires Incus 6.8+ (https://linuxcontainers.org/incus/news/2024_12_13_07_12.html)
+    "initial.uid"  = "472"
+    "initial.gid"  = "472"
+    "initial.mode" = "0755"
   }
 
   content_type = "filesystem"
@@ -15,8 +20,10 @@ resource "incus_profile" "grafana" {
   name = var.profile_name
 
   config = {
-    "limits.cpu"    = var.cpu_limit
-    "limits.memory" = var.memory_limit
+    "limits.cpu"            = var.cpu_limit
+    "limits.memory"         = var.memory_limit
+    "limits.memory.enforce" = "hard"
+    "boot.autorestart"      = "true"
   }
 
   device {
@@ -54,6 +61,16 @@ resource "incus_profile" "grafana" {
   ]
 }
 
+locals {
+  # TLS environment variables (only set when TLS is enabled)
+  tls_env_vars = var.enable_tls ? {
+    ENABLE_TLS         = "true"
+    STEPCA_URL         = var.stepca_url
+    STEPCA_FINGERPRINT = var.stepca_fingerprint
+    CERT_DURATION      = var.cert_duration
+  } : {}
+}
+
 resource "incus_instance" "grafana" {
   name     = var.instance_name
   image    = var.image
@@ -62,5 +79,18 @@ resource "incus_instance" "grafana" {
 
   config = merge(
     { for k, v in var.environment_variables : "environment.${k}" => v },
+    { for k, v in local.tls_env_vars : "environment.${k}" => v },
   )
+
+  # Provision datasources if configured
+  dynamic "file" {
+    for_each = length(var.datasources) > 0 ? [1] : []
+    content {
+      content = templatefile("${path.module}/templates/datasources.yaml.tftpl", {
+        datasources = var.datasources
+      })
+      target_path = "/etc/grafana/provisioning/datasources/datasources.yaml"
+      mode        = "0644"
+    }
+  }
 }

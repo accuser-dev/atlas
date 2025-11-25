@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a OpenTofu infrastructure project that manages Incus containers for a complete monitoring stack including Caddy reverse proxy, Grafana, Prometheus, and Loki. The setup provisions containerized services with automatic HTTPS certificate management, persistent storage, and dynamic configuration generation.
+This is a Terraform infrastructure project that manages Incus containers for a complete monitoring stack including Caddy reverse proxy, Grafana, Prometheus, and Loki. The setup provisions containerized services with automatic HTTPS certificate management, persistent storage, and dynamic configuration generation.
 
 The project is organized into two main directories:
 - **`docker/`** - Custom Docker images for each service
-- **`terraform/`** - Infrastructure as Code using OpenTofu
+- **`terraform/`** - Infrastructure as Code using Terraform
 
 ## Project Structure
 
@@ -24,21 +24,25 @@ atlas/
 │   ├── loki/                 # Loki log aggregation
 │   │   ├── Dockerfile
 │   │   └── README.md
-│   └── prometheus/           # Prometheus metrics collection
+│   ├── prometheus/           # Prometheus metrics collection
+│   │   ├── Dockerfile
+│   │   └── README.md
+│   └── step-ca/              # Internal ACME CA for TLS certificates
 │       ├── Dockerfile
 │       └── README.md
-├── terraform/                 # OpenTofu infrastructure
-│   ├── bootstrap/            # Bootstrap OpenTofu project
+├── terraform/                 # Terraform infrastructure
+│   ├── bootstrap/            # Bootstrap Terraform project
 │   │   ├── main.tf           # Creates storage bucket and credentials
 │   │   ├── variables.tf      # Bootstrap variables
 │   │   ├── outputs.tf        # Bootstrap outputs
 │   │   ├── versions.tf       # Version constraints (local state)
 │   │   └── README.md         # Bootstrap documentation
-│   ├── modules/              # Reusable OpenTofu modules
+│   ├── modules/              # Reusable Terraform modules
 │   │   ├── caddy/
 │   │   ├── grafana/
 │   │   ├── loki/
-│   │   └── prometheus/
+│   │   ├── prometheus/
+│   │   └── step-ca/
 │   ├── init.sh               # Initialization wrapper script
 │   ├── main.tf               # Module instantiations
 │   ├── variables.tf          # Variable definitions
@@ -46,7 +50,7 @@ atlas/
 │   ├── outputs.tf            # Output values
 │   ├── providers.tf          # Provider configuration
 │   ├── versions.tf           # Version constraints and backend config
-│   ├── README.md             # OpenTofu usage documentation
+│   ├── README.md             # Terraform usage documentation
 │   ├── terraform.tfvars      # Variable values (gitignored)
 │   ├── backend.hcl           # Backend credentials (gitignored)
 │   ├── backend.hcl.example   # Backend config template
@@ -63,53 +67,70 @@ atlas/
 For a vanilla Incus installation (after `incus admin init`):
 
 ```bash
-# Complete setup in one command
-make setup     # bootstrap + plan (review plan, then apply)
+# 1. Bootstrap (creates storage bucket for Terraform state)
+make bootstrap
 
-# Or step by step:
-make bootstrap # One-time: creates state bucket + initializes tofu
-make plan      # Review changes
-make apply     # Deploy infrastructure
+# 2. Initialize Terraform with remote backend
+make terraform-init
+
+# 3. Deploy infrastructure
+make deploy
 ```
 
-### Standard Workflow (Makefile)
-
+### Build and Deployment (Makefile)
 ```bash
-# Primary commands (Atlantis-compatible)
-make plan              # Plan infrastructure changes
-make apply             # Apply infrastructure changes
-make destroy           # Destroy all infrastructure
-
-# Utility commands
-make init              # Re-initialize OpenTofu (after provider changes)
-make format            # Format OpenTofu files
-make clean             # Clean build artifacts
+# Bootstrap commands (run once for fresh setup)
+make bootstrap           # Complete bootstrap process
+make bootstrap-init      # Initialize bootstrap Terraform
+make bootstrap-plan      # Plan bootstrap changes
+make bootstrap-apply     # Apply bootstrap
 
 # Build Docker images locally (for testing only)
-make build-all         # Build all images
-make build-<service>   # Build specific image (caddy/grafana/loki/prometheus)
+make build-all
+make build-caddy
+make build-grafana
+make build-loki
+make build-prometheus
+
+# Terraform operations (after bootstrap)
+make terraform-init      # Initialize Terraform with remote backend
+make terraform-plan      # Plan changes
+make terraform-apply     # Apply changes
+make terraform-destroy   # Destroy infrastructure
+
+# Complete deployment (applies Terraform, pulls images from ghcr.io)
+make deploy
+
+# Cleanup
+make clean               # Clean all build artifacts
+make clean-docker        # Clean Docker build cache
+make clean-terraform     # Clean Terraform cache
+make clean-bootstrap     # Clean bootstrap Terraform cache
+
+# Format Terraform files
+make format
 ```
 
 **Note:** Production images are built and published automatically via GitHub Actions to `ghcr.io/accuser/atlas/*:latest`. Local builds are only needed for development/testing.
 
-### Direct OpenTofu Operations
+### Direct Terraform Operations
 
 **Important:** Do not run `tofu init` directly - it requires backend configuration. Use one of these methods:
 
 ```bash
 # Option 1: Use the Makefile (recommended)
-make tofu-init
+make terraform-init
 
 # Option 2: Use the init wrapper script
-cd tofu && ./init.sh
+cd terraform && ./init.sh
 
 # Option 3: Manual with backend config
-cd tofu && tofu init -backend-config=backend.hcl
+cd terraform && tofu init -backend-config=backend.hcl
 ```
 
 After initialization, you can run other commands directly:
 ```bash
-cd tofu
+cd terraform
 
 # Validate configuration
 tofu validate
@@ -123,7 +144,7 @@ tofu apply
 # Destroy infrastructure
 tofu destroy
 
-# Format OpenTofu files
+# Format Terraform files
 tofu fmt -recursive
 
 # Show current state
@@ -133,7 +154,7 @@ tofu show
 tofu output
 ```
 
-### OpenTofu State Management
+### Terraform State Management
 
 **Remote State Backend:**
 
@@ -157,8 +178,8 @@ make bootstrap
 
 # Bootstrap creates:
 # - Incus storage buckets configuration
-# - Storage pool (tofu-state)
-# - Storage bucket (atlas-tofu-state)
+# - Storage pool (terraform-state)
+# - Storage bucket (atlas-terraform-state)
 # - S3 credentials
 # - Backend config file (terraform/backend.hcl)
 ```
@@ -169,7 +190,7 @@ See [terraform/BACKEND_SETUP.md](terraform/BACKEND_SETUP.md) for detailed instru
 
 ```bash
 # Normal operations work the same
-cd tofu
+cd terraform
 tofu plan
 tofu apply
 
@@ -195,6 +216,7 @@ Images are automatically built and published by GitHub Actions when code is push
 - Grafana: `ghcr.io/accuser/atlas/grafana:latest`
 - Loki: `ghcr.io/accuser/atlas/loki:latest`
 - Prometheus: `ghcr.io/accuser/atlas/prometheus:latest`
+- step-ca: `ghcr.io/accuser/atlas/step-ca:latest`
 
 **Local Development:**
 ```bash
@@ -250,10 +272,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed workflow guidelines.
 
 ### Modular Structure
 
-The project uses OpenTofu modules for scalability and reusability:
+The project uses Terraform modules for scalability and reusability:
 
-**OpenTofu Root Level:**
-- [terraform/versions.tf](terraform/versions.tf) - OpenTofu and provider version constraints
+**Terraform Root Level:**
+- [terraform/versions.tf](terraform/versions.tf) - Terraform and provider version constraints
 - [terraform/providers.tf](terraform/providers.tf) - Provider configuration
 - [terraform/variables.tf](terraform/variables.tf) - Root-level input variable definitions
 - [terraform/main.tf](terraform/main.tf) - Module instantiations and orchestration
@@ -261,7 +283,7 @@ The project uses OpenTofu modules for scalability and reusability:
 - [terraform/outputs.tf](terraform/outputs.tf) - Output values (endpoints, configurations)
 - [terraform/terraform.tfvars](terraform/terraform.tfvars) - Variable values (gitignored, contains secrets)
 
-**OpenTofu Modules:**
+**Terraform Modules:**
 - [terraform/modules/caddy/](terraform/modules/caddy/) - Reverse proxy with dynamic Caddyfile generation
   - [main.tf](terraform/modules/caddy/main.tf) - Profile, container, and Caddyfile templating
   - [variables.tf](terraform/modules/caddy/variables.tf) - Module input variables
@@ -382,6 +404,24 @@ The project uses OpenTofu modules for scalability and reusability:
     - Storage: 100GB persistent volume for `/prometheus`
     - Network: Connected to management network (internal only)
 
+11. **step-ca Module** ([terraform/modules/step-ca/](terraform/modules/step-ca/))
+    - Internal ACME Certificate Authority for TLS certificates
+    - Persistent storage for CA data and certificates (1GB)
+    - Configurable CA name and DNS names
+    - ACME endpoint for automated certificate issuance
+    - Internal endpoint for services requesting certificates
+    - Custom Docker image: [docker/step-ca/](docker/step-ca/)
+
+12. **step-ca Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+    - Instance name: `step-ca01`
+    - Image: `ghcr.io/accuser/atlas/step-ca:6af092e` (SHA tag until `:latest` published)
+    - CA name: "Atlas Internal CA"
+    - DNS names: `step-ca01.incus,step-ca01,localhost`
+    - ACME endpoint: `https://step-ca01.incus:9000`
+    - Resource limits: 1 CPU, 512MB memory
+    - Storage: 1GB persistent volume for `/home/step`
+    - Network: Connected to management network (internal only)
+
 ### Dynamic Caddyfile Generation
 
 The project uses a template-based approach for generating Caddyfile configurations:
@@ -414,16 +454,189 @@ Each service with persistent storage uses Incus storage volumes:
 - `grafana01-data` - 10GB - `/var/lib/grafana`
 - `loki01-data` - 50GB - `/loki`
 - `prometheus01-data` - 100GB - `/prometheus`
+- `step-ca01-data` - 1GB - `/home/step`
+
+### Profile Architecture
+
+Each service uses Incus profiles to define resource limits, devices, and configuration. The project follows a **standardized profile composition strategy** across all modules.
+
+#### Profile Composition Pattern
+
+All containers use a two-profile composition:
+```hcl
+profiles = ["default", incus_profile.service.name]
+```
+
+**"default" profile**: Incus's built-in profile providing baseline container configuration
+- Root filesystem device
+- Basic network device (eth0)
+- Standard container settings
+
+**Service-specific profile**: Module-defined profile that extends/overrides defaults
+- Resource limits (CPU, memory)
+- Service-specific devices (storage volumes, additional NICs)
+- Boot and restart policies
+
+Profiles are applied in order, so service-specific settings take precedence over defaults.
+
+#### Profile Structure
+
+Every module follows the same pattern for profile definition in `main.tf`:
+
+```hcl
+resource "incus_profile" "service" {
+  name = var.profile_name
+
+  config = {
+    "limits.cpu"            = var.cpu_limit      # Configurable CPU cores
+    "limits.memory"         = var.memory_limit   # Configurable RAM
+    "limits.memory.enforce" = "hard"             # Strict memory enforcement
+    "boot.autorestart"      = "true"             # Auto-restart on host reboot
+  }
+
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool  # Default: "local"
+    }
+  }
+
+  device {
+    name = "eth0"
+    type = "nic"
+    properties = {
+      network = var.network_name
+    }
+  }
+
+  # Optional: Additional devices (storage volumes, extra NICs)
+}
+```
+
+#### Resource Limits
+
+All services enforce hard memory limits and configurable resources:
+
+| Service | CPU (Default) | Memory (Default) | Validation |
+|---------|---------------|-----------------|------------|
+| Caddy   | 2 cores       | 1GB             | 1-64 CPUs, MB/GB format |
+| Grafana | 2 cores       | 1GB             | 1-64 CPUs, MB/GB format |
+| Loki    | 2 cores       | 2GB             | 1-64 CPUs, MB/GB format |
+| Prometheus | 2 cores    | 2GB             | 1-64 CPUs, MB/GB format |
+| step-ca | 1 core        | 512MB           | 1-64 CPUs, MB/GB format |
+
+All limits are validated at the Terraform variable level to ensure correctness before deployment.
+
+#### Profile Naming Convention
+
+Profiles follow a simple, service-specific naming pattern:
+
+| Service | Profile Name | Instance Name |
+|---------|--------------|---------------|
+| Caddy   | `caddy`      | `caddy01`     |
+| Grafana | `grafana`    | `grafana01`   |
+| Loki    | `loki`       | `loki01`      |
+| Prometheus | `prometheus` | `prometheus01` |
+| step-ca | `step-ca`    | `step-ca01`   |
+
+Profile names are independent of instance names, allowing flexibility for multiple instances.
+
+#### Dynamic Device Management
+
+Profiles use Terraform's `dynamic` blocks for conditional device attachment:
+
+```hcl
+dynamic "device" {
+  for_each = var.enable_data_persistence ? [1] : []
+  content {
+    name = "service-data"
+    type = "disk"
+    properties = {
+      source = incus_storage_volume.service_data[0].name
+      pool   = var.storage_pool
+      path   = "/var/lib/service"
+    }
+  }
+}
+```
+
+This enables:
+- Optional persistent storage (enabled/disabled per instance)
+- Clean profiles when persistence is disabled
+- Single definition handling both scenarios
+
+#### Network Device Configuration
+
+**Standard services** (Grafana, Loki, Prometheus, step-ca):
+- Single network interface (`eth0`)
+- Connected to management network by default
+- Internal-only communication
+
+**Caddy** (special case - reverse proxy):
+- Three network interfaces:
+  - `eth0`: Production network (public-facing apps)
+  - `eth1`: Management network (internal services)
+  - `eth2`: External network (incusbr0 bridge for internet access)
+
+#### Profile Dependencies
+
+Profiles have explicit dependencies on storage volumes when persistence is enabled:
+
+```hcl
+resource "incus_profile" "service" {
+  # ... profile config
+
+  depends_on = [
+    incus_storage_volume.service_data
+  ]
+}
+```
+
+This ensures:
+- Storage volumes exist before profiles reference them
+- Proper creation order during `tofu apply`
+- Clean teardown order during `tofu destroy`
+
+#### Why Use the Default Profile?
+
+The "default" profile provides:
+- Standard root filesystem device configuration
+- Basic network device setup
+- Common container settings and limits
+- Proven baseline used by Incus community
+
+By composing with "default" rather than replacing it:
+- Leverage Incus best practices
+- Reduce duplication in module profiles
+- Service profiles focus only on service-specific requirements
+- Easier to maintain as Incus evolves
+
+**Verification**: To see the default profile contents on your Incus server:
+```bash
+incus profile show default
+```
+
+#### Profile Design Principles
+
+1. **Consistency**: All modules follow identical profile patterns
+2. **Modularity**: Profiles are self-contained within modules
+3. **Flexibility**: Variable-driven configuration for all limits
+4. **Composition**: Extend "default" rather than replace
+5. **Separation of Concerns**: Profiles handle resources, instances handle runtime config
+
+This approach enables easy scaling - new instances reuse the proven profile pattern with customized resource limits.
 
 ### Adding New Service Modules
 
 **For public-facing services (with Caddy reverse proxy):**
 
 1. Create Docker image in `docker/yourservice/` with Dockerfile
-2. Add service to GitHub Actions matrix in `.github/workflows/tofu-ci.yml`
-3. Create OpenTofu module in `terraform/modules/yourservice/`
+2. Add service to GitHub Actions matrix in `.github/workflows/terraform-ci.yml`
+3. Create Terraform module in `terraform/modules/yourservice/`
 4. Add `domain`, `allowed_ip_range`, and port variables to module
-5. Set default image to `docker:ghcr.io/accuser/atlas/yourservice:latest`
+5. Set default image to `ghcr:accuser/atlas/yourservice:latest`
 6. Create `templates/caddyfile.tftpl` for reverse proxy config
 7. Add `caddy_config_block` output using templatefile()
 8. Instantiate module in [terraform/main.tf](terraform/main.tf)
@@ -433,9 +646,9 @@ Each service with persistent storage uses Incus storage volumes:
 **For internal-only services (no public access):**
 
 1. Create Docker image in `docker/yourservice/` with Dockerfile
-2. Add service to GitHub Actions matrix in `.github/workflows/tofu-ci.yml`
-3. Create OpenTofu module in `terraform/modules/yourservice/`
-4. Set default image to `docker:ghcr.io/accuser/atlas/yourservice:latest`
+2. Add service to GitHub Actions matrix in `.github/workflows/terraform-ci.yml`
+3. Create Terraform module in `terraform/modules/yourservice/`
+4. Set default image to `ghcr:accuser/atlas/yourservice:latest`
 5. Add storage and network configuration to module
 6. Add endpoint output for internal connectivity
 7. Instantiate module in [terraform/main.tf](terraform/main.tf)
@@ -459,7 +672,7 @@ module "grafana02" {
   domain           = "grafana-dev.accuser.dev"
   allowed_ip_range = "192.168.68.0/22"
 
-  # Uses ghcr.io image by default (docker:ghcr.io/accuser/atlas/grafana:latest)
+  # Uses ghcr.io image by default (ghcr:accuser/atlas/grafana:latest)
   # Optional: Override to use official image
   # image = "docker:grafana/grafana:latest"
 
@@ -488,7 +701,7 @@ module "caddy01" {
 
 **Modular Architecture:**
 - Each service type has its own Docker image in `docker/`
-- Each service type has its own OpenTofu module in `terraform/modules/`
+- Each service type has its own Terraform module in `terraform/modules/`
 - Modules are instantiated in the root [terraform/main.tf](terraform/main.tf)
 - Easy to scale by adding new module instances
 - Module parameters allow customization per instance
@@ -503,7 +716,7 @@ module "caddy01" {
 **Dynamic Configuration:**
 - Services declare their own reverse proxy configuration
 - Caddy module assembles configurations into complete Caddyfile
-- Type-safe: All values validated by OpenTofu
+- Type-safe: All values validated by Terraform
 - DRY principle: No duplicate configuration
 
 **Network Architecture:**
@@ -519,32 +732,113 @@ module "caddy01" {
 - Each service module manages its own storage volume
 - Conditionally created based on `enable_data_persistence`
 - Configurable size per instance
-- Proper lifecycle management by OpenTofu
+- Proper lifecycle management by Terraform
 
 ### Monitoring Stack Integration
 
-The complete observability stack is designed to work together:
+The complete observability stack is designed to work together with automatic configuration:
 
 1. **Grafana** (public) - Visualization frontend
    - Access: `https://grafana.accuser.dev`
-   - Connects to Prometheus and Loki as data sources
+   - Auto-configured datasources for Prometheus and Loki
+   - Datasources provisioned via Terraform on deployment
 
-2. **Prometheus** (internal) - Metrics storage
+2. **Prometheus** (internal) - Metrics storage and health monitoring
    - Endpoint: `http://prometheus01.incus:9090`
-   - Scrapes metrics from applications
+   - Scrapes metrics from all services (Grafana, Loki, Caddy, step-ca, self)
+   - Health check monitoring for infrastructure components
    - Queried by Grafana for metric visualization
+   - Scrape interval: 15 seconds
 
 3. **Loki** (internal) - Log aggregation
    - Endpoint: `http://loki01.incus:3100`
    - Receives logs from applications
    - Queried by Grafana for log exploration
 
-**Configuring Grafana data sources:**
-```yaml
-# Add in Grafana UI or via provisioning:
-# Prometheus: http://prometheus01.incus:9090
-# Loki: http://loki01.incus:3100
+**Automatic Configuration:**
+
+Datasources are automatically provisioned in Grafana via Terraform:
+```hcl
+datasources = [
+  {
+    name            = "Prometheus"
+    type            = "prometheus"
+    url             = "http://prometheus01.incus:9090"
+    is_default      = true
+    tls_skip_verify = false
+  },
+  {
+    name            = "Loki"
+    type            = "loki"
+    url             = "http://loki01.incus:3100"
+    is_default      = false
+    tls_skip_verify = false
+  }
+]
 ```
+
+**Health Check Monitoring:**
+
+Prometheus is configured to scrape health and metrics endpoints from all services:
+- `grafana01.incus:3000` - Grafana metrics
+- `loki01.incus:3100` - Loki metrics
+- `caddy01.incus:2019` - Caddy admin API metrics
+- `step-ca01.incus:9000` - step-ca health endpoint
+- `node-exporter01.incus:9100` - Host system metrics (CPU, memory, disk, network)
+- `localhost:9090` - Prometheus self-monitoring
+
+All Docker containers include built-in health checks that run every 30 seconds:
+- Caddy: `caddy version` command
+- Grafana: HTTP check on `/api/health`
+- Loki: HTTP check on `/ready`
+- Prometheus: HTTP check on `/-/ready`
+- step-ca: `step ca health` command
+- Node Exporter: HTTP check on `/metrics`
+
+These health checks are monitored by Docker and can be viewed with `incus exec <container> -- docker ps`.
+
+**Infrastructure Monitoring:**
+
+4. **Node Exporter** (internal) - Host-level metrics collection
+   - Endpoint: `http://node-exporter01.incus:9100`
+   - Collects host system metrics:
+     - CPU usage and load averages
+     - Memory usage and swap
+     - Disk I/O and filesystem usage
+     - Network traffic and errors
+     - System uptime
+   - Mounted host paths: `/`, `/proc`, `/sys` (read-only)
+   - Scraped by Prometheus every 15 seconds
+
+**Alerting and Rules:**
+
+Prometheus is configured with comprehensive alerting rules for infrastructure monitoring:
+- Rule evaluation interval: 15 seconds
+- Alert rules file: `terraform/prometheus-alerts.yml`
+- Automatically injected into Prometheus on deployment
+- Alertmanager integration ready (configure targets as needed)
+
+**Active Alert Rules:**
+
+*Service Availability:*
+- `ServiceDown` - Critical alert when a service is unreachable for >2 minutes
+- `ServiceFlapping` - Warning when a service restarts >5 times in 10 minutes
+
+*Memory Alerts:*
+- `HighMemoryUsage` - Warning at >80% container memory usage for >5 minutes
+- `CriticalMemoryUsage` - Critical at >95% container memory (OOM kill imminent)
+- `HostOutOfMemory` - Warning when host has <10% memory available
+- `HostHighMemoryPressure` - Warning on excessive page faults
+
+*Disk Space Alerts:*
+- `DiskSpaceWarning` - Warning at <20% disk space remaining
+- `DiskSpaceCritical` - Critical at <10% disk space remaining
+
+*CPU and Load:*
+- `HighCPUUsage` - Warning at >80% CPU usage for >10 minutes
+- `HighLoadAverage` - Warning when load average exceeds 2x CPU count
+
+All alerts include detailed annotations with current values and context.
 
 ## Workflow
 
@@ -557,7 +851,7 @@ The complete observability stack is designed to work together:
    - Push to GitHub to trigger CI/CD build and publish
 
 2. **Configure Infrastructure**:
-   - Edit OpenTofu modules in `terraform/modules/`
+   - Edit Terraform modules in `terraform/modules/`
    - Modify main configuration in `terraform/main.tf`
    - Update variables in `terraform/terraform.tfvars`
 
@@ -567,14 +861,14 @@ The complete observability stack is designed to work together:
    make deploy
 
    # Or step-by-step
-   make tofu-init
-   make tofu-plan
-   make tofu-apply
+   make terraform-init
+   make terraform-plan
+   make terraform-apply
    ```
 
 4. **Verify**:
    ```bash
-   cd tofu && tofu output
+   cd terraform && tofu output
    ```
 
 ### Docker Image Configuration
@@ -582,10 +876,10 @@ The complete observability stack is designed to work together:
 **Default: GitHub Container Registry Images**
 
 All modules are configured to use custom images published to GitHub Container Registry:
-- Caddy: `docker:ghcr.io/accuser/atlas/caddy:latest`
-- Grafana: `docker:ghcr.io/accuser/atlas/grafana:latest`
-- Loki: `docker:ghcr.io/accuser/atlas/loki:latest`
-- Prometheus: `docker:ghcr.io/accuser/atlas/prometheus:latest`
+- Caddy: `ghcr:accuser/atlas/caddy:latest`
+- Grafana: `ghcr:accuser/atlas/grafana:latest`
+- Loki: `ghcr:accuser/atlas/loki:latest`
+- Prometheus: `ghcr:accuser/atlas/prometheus:latest`
 
 These images are:
 - Built automatically by GitHub Actions on push to main/develop
@@ -598,7 +892,7 @@ These images are:
 1. Edit Dockerfile in `docker/*/Dockerfile`
 2. Push changes to `main` or `develop` branch
 3. GitHub Actions builds and publishes to ghcr.io
-4. OpenTofu pulls latest image on next apply
+4. Terraform pulls latest image on next apply
 
 **Switching to Official Images**
 
@@ -619,10 +913,10 @@ module "grafana01" {
 
 **For Docker containers**:
 - ✅ **Custom Docker images** - Pre-install packages and plugins (recommended)
-- ✅ **Environment variables** - Configure at runtime via OpenTofu
-- ✅ **File injection** - Use OpenTofu `file` blocks for configuration files
+- ✅ **Environment variables** - Configure at runtime via Terraform
+- ✅ **File injection** - Use Terraform `file` blocks for configuration files
 - ⚠️ **External scripts** - Use `incus exec` via separate orchestration script
-- ❌ **OpenTofu provisioners** - Avoid (fragile and non-declarative)
+- ❌ **Terraform provisioners** - Avoid (fragile and non-declarative)
 - ❌ **Cloud-init** - Not available for Docker protocol images
 
 **For system containers** (future use):
@@ -642,7 +936,9 @@ module "grafana01" {
 
 ## Outputs
 
-After applying, use `cd tofu && tofu output` to view:
+After applying, use `cd terraform && tofu output` to view:
 - `grafana_caddy_config` - Generated Caddy configuration for Grafana
 - `loki_endpoint` - Internal Loki endpoint URL
 - `prometheus_endpoint` - Internal Prometheus endpoint URL
+- `step_ca_acme_endpoint` - step-ca ACME endpoint URL for certificate requests
+- `step_ca_acme_directory` - step-ca ACME directory URL for ACME clients

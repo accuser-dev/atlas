@@ -86,7 +86,7 @@ Test 5: Working directory...
 
 Tests run automatically in GitHub Actions:
 
-1. `tofu-validate` - Validates OpenTofu configuration
+1. `terraform-validate` - Validates Terraform configuration
 2. `docker-build` - Builds all Docker images
 3. `docker-test` - Runs smoke tests for each image
 
@@ -98,7 +98,7 @@ The workflow uses a matrix strategy to test all services in parallel.
 
 1. Create `test/docker/<service>_test.sh`
 2. Follow the existing test structure
-3. Add the service to the matrix in `.github/workflows/ci.yml`
+3. Add the service to the matrix in `.github/workflows/terraform-ci.yml`
 
 ### Test Script Template
 

@@ -80,21 +80,27 @@ fi
 echo "✅ Working directory is /prometheus"
 
 # Test 7: Metrics endpoint is accessible (with retry)
+# Note: Metrics endpoint may take longer to initialize than the ready endpoint
 echo ""
 echo "Test 7: Metrics endpoint..."
-METRICS_RETRIES=5
+METRICS_RETRIES=10
 METRICS_SUCCESS=false
 for i in $(seq 1 $METRICS_RETRIES); do
-  sleep 3
-  # Check if metrics endpoint returns any data with common metric patterns
-  if docker exec "${CONTAINER_NAME}" wget -qO- http://localhost:9090/metrics 2>/dev/null | grep -qE "^(prometheus_|go_gc|process_|#)"; then
+  # Fetch just the first line of metrics to avoid SIGPIPE issues with large output
+  # Prometheus metrics always start with "# HELP" or "# TYPE" comments
+  FIRST_LINE=$(docker exec "${CONTAINER_NAME}" sh -c "wget -qO- http://localhost:9090/metrics 2>/dev/null | head -1" || true)
+  if [ -n "$FIRST_LINE" ] && [ "${FIRST_LINE:0:2}" = "# " ]; then
     METRICS_SUCCESS=true
     break
   fi
   echo "  Retry $i/$METRICS_RETRIES..."
+  sleep 3
 done
 if [ "$METRICS_SUCCESS" != "true" ]; then
   echo "❌ Metrics endpoint not accessible after $METRICS_RETRIES retries"
+  echo "Debug - trying to fetch metrics:"
+  docker exec "${CONTAINER_NAME}" sh -c "wget -qO- http://localhost:9090/metrics 2>&1 | head -5" || echo "wget failed"
+  docker logs "${CONTAINER_NAME}" | tail -20
   exit 1
 fi
 echo "✅ Metrics endpoint accessible"

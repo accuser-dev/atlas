@@ -61,8 +61,8 @@ The bootstrap process creates everything needed for remote state:
 
 3. **Review the output** - Bootstrap creates:
    - Storage buckets configuration
-   - Storage pool (`tofu-state`)
-   - Storage bucket (`atlas-tofu-state`)
+   - Storage pool (`terraform-state`)
+   - Storage bucket (`atlas-terraform-state`)
    - S3 credentials
    - Backend config file (`../backend.hcl`)
 
@@ -115,40 +115,38 @@ If you don't have an existing storage pool, create one:
 incus storage list
 
 # Create a new pool (using dir driver for simplicity)
-incus storage create tofu-state dir
+incus storage create terraform-state dir
 
 # Or use ZFS for better performance
-incus storage create tofu-state zfs size=10GB
+incus storage create terraform-state zfs size=10GB
 ```
 
 ### 3. Create Storage Bucket
 
-Create a dedicated bucket for OpenTofu state:
+Create a dedicated bucket for Terraform state:
 
 ```bash
 # Create bucket
-incus storage bucket create tofu-state atlas-tofu-state
+incus storage bucket create terraform-state atlas-terraform-state
 
 # Verify bucket was created
-incus storage bucket list tofu-state
+incus storage bucket list terraform-state
 ```
 
 ### 4. Generate S3 Credentials
 
-Create access credentials for OpenTofu to use. **Important**: Use `--role=admin` to grant write access for state management:
+Create access credentials for OpenTofu to use:
 
 ```bash
-# Create credentials with admin role (required for OpenTofu to write state)
-incus storage bucket key create tofu-state atlas-tofu-state tofu-access --role=admin
+# Create credentials (replace with your own names)
+incus storage bucket key create terraform-state atlas-terraform-state terraform-access
 
 # This will output:
 # Access key: <ACCESS_KEY>
 # Secret key: <SECRET_KEY>
 ```
 
-**Important**:
-- Save these credentials securely. You'll need them for OpenTofu configuration.
-- The `--role=admin` flag is required. Without it, the key has read-only access and OpenTofu cannot save state.
+**Important**: Save these credentials securely. You'll need them for OpenTofu configuration.
 
 ### 5. Configure OpenTofu Backend
 
@@ -159,7 +157,7 @@ The backend configuration is already included in `versions.tf`. You need to prov
 ```bash
 export AWS_ACCESS_KEY_ID="<ACCESS_KEY>"
 export AWS_SECRET_ACCESS_KEY="<SECRET_KEY>"
-export TF_BACKEND_BUCKET="atlas-tofu-state"
+export TF_BACKEND_BUCKET="atlas-terraform-state"
 export TF_BACKEND_ENDPOINT="http://localhost:8555"  # Or your Incus host IP
 ```
 
@@ -181,16 +179,13 @@ Create a `backend.hcl` file (gitignored):
 ```hcl
 # terraform/backend.hcl
 # OpenTofu 1.6+ requires endpoints block instead of endpoint parameter
-bucket     = "atlas-tofu-state"
+bucket     = "atlas-terraform-state"
 access_key = "<ACCESS_KEY>"
 secret_key = "<SECRET_KEY>"
 
 endpoints = {
-  s3 = "https://your-incus-host:8555"
+  s3 = "http://your-incus-host:8555"
 }
-
-# Skip TLS verification for self-signed Incus certificate
-insecure = true
 ```
 
 Then initialize:
@@ -220,10 +215,10 @@ OpenTofu will prompt to copy existing state to the new backend. Answer `yes` to 
 
 ```bash
 # Check state is stored remotely
-incus storage bucket show tofu-state atlas-tofu-state
+incus storage bucket show terraform-state atlas-terraform-state
 
 # List objects in bucket
-incus storage bucket export tofu-state atlas-tofu-state --list-only
+incus storage bucket export terraform-state atlas-terraform-state --list-only
 ```
 
 ## Security Considerations
@@ -232,7 +227,7 @@ incus storage bucket export tofu-state atlas-tofu-state --list-only
 
 1. **Restrict S3 API access**:
    ```bash
-   # Bind to localhost only if OpenTofu runs on same host
+   # Bind to localhost only if Terraform runs on same host
    incus config set core.storage_buckets_address 127.0.0.1:8555
    ```
 
@@ -241,10 +236,10 @@ incus storage bucket export tofu-state atlas-tofu-state --list-only
 3. **Rotate credentials** regularly:
    ```bash
    # Delete old key
-   incus storage bucket key delete tofu-state atlas-tofu-state tofu-access
+   incus storage bucket key delete terraform-state atlas-terraform-state terraform-access
 
-   # Create new key with admin role
-   incus storage bucket key create tofu-state atlas-tofu-state tofu-access --role=admin
+   # Create new key
+   incus storage bucket key create terraform-state atlas-terraform-state terraform-access
    ```
 
 ### Credential Storage
@@ -260,14 +255,14 @@ Storage buckets in Incus are backed by the storage pool, so regular backups of t
 
 ```bash
 # Export bucket data
-incus storage bucket export tofu-state atlas-tofu-state backup.tar.gz
+incus storage bucket export terraform-state atlas-terraform-state backup.tar.gz
 
 # Store backup securely
 ```
 
 ## Network Configuration
 
-If running OpenTofu from a remote machine:
+If running Terraform from a remote machine:
 
 1. Ensure Incus host is accessible on port 8555
 2. Update endpoint in backend config:
@@ -291,40 +286,27 @@ sudo netstat -tlnp | grep 8555
 ### Authentication Errors
 
 ```bash
-# List existing keys and check their roles
-incus storage bucket key list tofu-state atlas-tofu-state
+# List existing keys
+incus storage bucket key list terraform-state atlas-terraform-state
 
-# If the key is read-only, delete and recreate with admin role
-incus storage bucket key delete tofu-state atlas-tofu-state tofu-access
-incus storage bucket key create tofu-state atlas-tofu-state tofu-access --role=admin
-```
-
-### TLS Certificate Errors
-
-If you see "tls: failed to verify certificate" errors with HTTPS endpoints:
-
-```hcl
-# Add insecure = true to backend.hcl for self-signed certificates
-endpoints = {
-  s3 = "https://your-incus-host:8555"
-}
-insecure = true
+# Regenerate keys if needed
+incus storage bucket key create terraform-state atlas-terraform-state terraform-access --force
 ```
 
 ### State Locking
 
 Note: Incus storage buckets do **not** provide native state locking. For single-user projects, this is acceptable. For team collaboration, consider:
 
-- Using OpenTofu Cloud (free tier)
+- Using Terraform Cloud (free tier)
 - Implementing external locking with DynamoDB
 - Using coordination via git branches
 
-## Alternative: OpenTofu Cloud
+## Alternative: Terraform Cloud
 
-If you prefer managed state with built-in locking and versioning, OpenTofu Cloud's free tier is an excellent alternative:
+If you prefer managed state with built-in locking and versioning, Terraform Cloud's free tier is an excellent alternative:
 
 ```hcl
-tofu {
+terraform {
   cloud {
     organization = "your-org"
     workspaces {
@@ -339,5 +321,5 @@ See: https://app.terraform.io/signup
 ## References
 
 - [Incus Storage Buckets Documentation](https://linuxcontainers.org/incus/docs/main/howto/storage_buckets/)
-- [OpenTofu S3 Backend](https://developer.hashicorp.com/terraform/language/backend/s3)
+- [Terraform S3 Backend](https://developer.hashicorp.com/terraform/language/backend/s3)
 - [Incus Storage Explanation](https://linuxcontainers.org/incus/docs/main/explanation/storage/)

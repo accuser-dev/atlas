@@ -5,7 +5,7 @@ resource "incus_network" "development" {
 
   config = {
     "ipv4.address" = var.development_network_ipv4
-    "ipv4.nat"     = var.development_network_nat
+    "ipv4.nat"     = tostring(var.development_network_nat)
   }
 }
 
@@ -16,7 +16,7 @@ resource "incus_network" "testing" {
 
   config = {
     "ipv4.address" = var.testing_network_ipv4
-    "ipv4.nat"     = var.testing_network_nat
+    "ipv4.nat"     = tostring(var.testing_network_nat)
   }
 }
 
@@ -27,7 +27,7 @@ resource "incus_network" "staging" {
 
   config = {
     "ipv4.address" = var.staging_network_ipv4
-    "ipv4.nat"     = var.staging_network_nat
+    "ipv4.nat"     = tostring(var.staging_network_nat)
   }
 }
 
@@ -38,7 +38,7 @@ resource "incus_network" "production" {
 
   config = {
     "ipv4.address" = var.production_network_ipv4
-    "ipv4.nat"     = var.production_network_nat
+    "ipv4.nat"     = tostring(var.production_network_nat)
   }
 }
 
@@ -49,6 +49,6 @@ resource "incus_network" "management" {
 
   config = {
     "ipv4.address" = var.management_network_ipv4
-    "ipv4.nat"     = var.management_network_nat
+    "ipv4.nat"     = tostring(var.management_network_nat)
   }
 }

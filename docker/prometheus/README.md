@@ -1,6 +1,6 @@
 # Prometheus Custom Image
 
-This directory contains the Dockerfile for building a custom Prometheus image with pre-configured rules and settings.
+This directory contains the Dockerfile for building a custom Prometheus image with TLS support via step-ca.
 
 ## Base Image
 
@@ -21,6 +21,38 @@ make build-prometheus
 
 ## Image Features
 
+### TLS Support
+
+This image includes built-in TLS support via step-ca integration:
+
+- **step CLI**: Pre-installed for certificate requests
+- **ACME Protocol**: Automatic certificate provisioning
+- **Backward Compatible**: TLS is opt-in (disabled by default)
+
+**Enable TLS with environment variables:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ENABLE_TLS` | Enable TLS mode | `false` |
+| `STEPCA_URL` | step-ca server URL | (required if TLS enabled) |
+| `STEPCA_FINGERPRINT` | CA root certificate fingerprint | (required if TLS enabled) |
+| `CERT_DURATION` | Certificate validity duration | `24h` |
+| `CERT_RENEW_BEFORE` | Renew certificate before expiry | `1h` |
+
+**Example Terraform configuration with TLS:**
+
+```hcl
+module "prometheus01" {
+  source = "./modules/prometheus"
+
+  environment_variables = {
+    ENABLE_TLS         = "true"
+    STEPCA_URL         = "https://step-ca01.incus:9000"
+    STEPCA_FINGERPRINT = "abc123..."
+  }
+}
+```
+
 ### Security
 
 **Non-root User**
@@ -30,9 +62,10 @@ make build-prometheus
 
 **Health Check**
 - Built-in Docker/Incus health check using Prometheus's `/-/ready` endpoint
+- Automatically adapts to HTTP or HTTPS based on TLS mode
 - Interval: 30 seconds
 - Timeout: 3 seconds
-- Start period: 15 seconds (Prometheus needs time to initialize)
+- Start period: 30 seconds (extended for TLS certificate acquisition)
 - Retries: 3 attempts before marking unhealthy
 - Enables automatic restart policies and monitoring integration
 
@@ -136,9 +169,9 @@ For local development:
 # Build locally
 make build-prometheus
 
-# Test with Terraform
+# Test with OpenTofu
 cd terraform
-terraform plan
+tofu plan
 ```
 
 ## Health Monitoring
@@ -146,8 +179,11 @@ terraform plan
 The health check uses Prometheus's built-in `/-/ready` endpoint:
 
 ```bash
-# Check Prometheus health directly
+# Check Prometheus health directly (HTTP mode)
 curl http://localhost:9090/-/ready
+
+# Check Prometheus health (HTTPS mode)
+curl -k https://localhost:9090/-/ready
 
 # Or via Incus
 incus exec prometheus01 -- wget -qO- http://localhost:9090/-/ready
