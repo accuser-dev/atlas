@@ -32,3 +32,8 @@ output "node_exporter_endpoint" {
   description = "Node Exporter metrics endpoint URL for host monitoring"
   value       = module.node_exporter01.node_exporter_endpoint
 }
+
+output "alertmanager_endpoint" {
+  description = "Alertmanager endpoint URL for alert routing"
+  value       = module.alertmanager01.alertmanager_endpoint
+}
