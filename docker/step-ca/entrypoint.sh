@@ -64,13 +64,23 @@ initialize_ca() {
     echo "Root CA certificate: ${STEPPATH}/certs/root_ca.crt"
 }
 
-# Export root CA certificate to a well-known location for easy access
+# Export root CA certificate and fingerprint to well-known locations for easy access
 export_root_ca() {
     if [ -f "${STEPPATH}/certs/root_ca.crt" ]; then
         # Make root CA available at a predictable path
         cp "${STEPPATH}/certs/root_ca.crt" "${STEPPATH}/root-ca.pem"
         chmod 644 "${STEPPATH}/root-ca.pem"
         echo "Root CA exported to ${STEPPATH}/root-ca.pem"
+
+        # Export fingerprint for service bootstrapping
+        FINGERPRINT=$(step certificate fingerprint "${STEPPATH}/certs/root_ca.crt")
+        echo "${FINGERPRINT}" > "${STEPPATH}/fingerprint"
+        chmod 644 "${STEPPATH}/fingerprint"
+        echo "======================================================"
+        echo "CA FINGERPRINT: ${FINGERPRINT}"
+        echo "======================================================"
+        echo "Use this fingerprint to configure TLS for services."
+        echo "Fingerprint also saved to: ${STEPPATH}/fingerprint"
     fi
 }
 

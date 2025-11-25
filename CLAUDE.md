@@ -420,13 +420,14 @@ The project uses Terraform modules for scalability and reusability:
 
 12. **step-ca Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `step-ca01`
-    - Image: `ghcr.io/accuser/atlas/step-ca:6af092e` (SHA tag until `:latest` published)
+    - Image: `ghcr.io/accuser/atlas/step-ca:latest` (published from [docker/step-ca/](docker/step-ca/))
     - CA name: "Atlas Internal CA"
     - DNS names: `step-ca01.incus,step-ca01,localhost`
     - ACME endpoint: `https://step-ca01.incus:9000`
     - Resource limits: 1 CPU, 512MB memory
     - Storage: 1GB persistent volume for `/home/step`
     - Network: Connected to management network (internal only)
+    - CA fingerprint: Retrieved after deployment via `incus exec step-ca01 -- cat /home/step/fingerprint`
 
 ### Dynamic Caddyfile Generation
 
@@ -501,6 +502,107 @@ module "loki01" {
 | 14 days  | `14d`      | `336h` |
 | 30 days  | `30d`      | `720h` |
 | 90 days  | `90d`      | `2160h` |
+
+### TLS Configuration
+
+The project includes an internal ACME Certificate Authority (step-ca) for automated TLS certificate management. Services can request certificates from step-ca to enable encrypted communication.
+
+#### How TLS Works
+
+1. **step-ca initializes** - On first start, step-ca generates a root CA certificate and fingerprint
+2. **Services bootstrap trust** - Services use the CA fingerprint to establish trust
+3. **Certificate request** - Services request certificates via ACME protocol
+4. **Automatic renewal** - Certificates are short-lived (24h default) and renewed automatically
+
+#### Enabling TLS for Services
+
+**Step 1: Deploy step-ca and retrieve the fingerprint**
+
+After deploying with `make deploy`, retrieve the CA fingerprint:
+
+```bash
+# Get the fingerprint (also shown in tofu output)
+incus exec step-ca01 -- cat /home/step/fingerprint
+
+# Or view the command from Terraform output
+cd terraform && tofu output step_ca_fingerprint_command
+```
+
+**Step 2: Enable TLS in service modules**
+
+Update `terraform/main.tf` to enable TLS for a service:
+
+```hcl
+module "grafana01" {
+  source = "./modules/grafana"
+
+  # ... existing configuration ...
+
+  # Enable TLS
+  enable_tls         = true
+  stepca_url         = "https://step-ca01.incus:9000"
+  stepca_fingerprint = "abc123..."  # From step 1
+}
+```
+
+**Step 3: Re-deploy**
+
+```bash
+make deploy
+```
+
+#### TLS-Enabled Services
+
+The following services support TLS via step-ca:
+
+| Service | TLS Variable | Default Port (TLS) |
+|---------|--------------|-------------------|
+| Grafana | `enable_tls` | 3000 (HTTPS) |
+| Prometheus | `enable_tls` | 9090 (HTTPS) |
+| Loki | `enable_tls` | 3100 (HTTPS) |
+
+#### Certificate Lifecycle
+
+- **Duration**: 24 hours (configurable via `cert_duration`)
+- **Renewal**: Automatic via entrypoint scripts on container restart
+- **Storage**: Certificates stored in `/etc/<service>/tls/` inside containers
+- **Root CA**: Available at `/home/step/certs/root_ca.crt` in step-ca container
+
+#### Two-Phase Deployment for TLS
+
+Since the CA fingerprint is generated at runtime, TLS requires a two-phase deployment:
+
+```bash
+# Phase 1: Deploy infrastructure (step-ca generates fingerprint)
+make deploy
+
+# Get the fingerprint
+FINGERPRINT=$(incus exec step-ca01 -- cat /home/step/fingerprint)
+echo "CA Fingerprint: $FINGERPRINT"
+
+# Phase 2: Update terraform.tfvars or main.tf with fingerprint, re-deploy
+# Edit main.tf to add enable_tls = true and stepca_fingerprint = "..."
+make deploy
+```
+
+#### Troubleshooting TLS
+
+**Check if step-ca is healthy:**
+```bash
+incus exec step-ca01 -- step ca health --ca-url https://localhost:9000 --root /home/step/certs/root_ca.crt
+```
+
+**View CA certificate details:**
+```bash
+incus exec step-ca01 -- step certificate inspect /home/step/certs/root_ca.crt
+```
+
+**Test certificate request manually:**
+```bash
+incus exec step-ca01 -- step ca certificate test.local /tmp/test.crt /tmp/test.key \
+  --provisioner acme \
+  --ca-url https://localhost:9000
+```
 
 ### Profile Architecture
 
@@ -1004,3 +1106,4 @@ After applying, use `cd terraform && tofu output` to view:
 - `prometheus_endpoint` - Internal Prometheus endpoint URL
 - `step_ca_acme_endpoint` - step-ca ACME endpoint URL for certificate requests
 - `step_ca_acme_directory` - step-ca ACME directory URL for ACME clients
+- `step_ca_fingerprint_command` - Command to retrieve CA fingerprint for TLS configuration
