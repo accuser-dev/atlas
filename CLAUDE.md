@@ -342,6 +342,7 @@ The project uses Terraform modules for scalability and reusability:
    - Reverse proxy with automatic HTTPS via Let's Encrypt
    - Dynamic Caddyfile generation from service module outputs
    - Cloudflare DNS-01 ACME challenge support
+   - Rate limiting protection (mholt/caddy-ratelimit plugin)
    - Triple network interfaces (production + management + external)
    - Accepts `service_blocks` list for dynamic configuration
    - Custom Docker image: [docker/caddy/](docker/caddy/)
@@ -362,6 +363,7 @@ The project uses Terraform modules for scalability and reusability:
    - Environment variable support for configuration
    - Generates Caddy reverse proxy configuration block
    - Domain-based access with IP restrictions
+   - Rate limiting support (configurable requests/window)
    - Custom Docker image: [docker/grafana/](docker/grafana/)
 
 6. **Grafana Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
@@ -726,6 +728,14 @@ module "caddy01" {
 - Public services exposed via Caddy reverse proxy with triple NICs (production, management, external)
 - IP-based access control for security
 - Automatic HTTPS via Let's Encrypt with Cloudflare DNS validation
+
+**Rate Limiting:**
+- Built-in rate limiting via mholt/caddy-ratelimit plugin
+- Default limits: 100 requests/min for general endpoints, 10 requests/min for login endpoints
+- Sliding window algorithm for smooth rate limiting
+- Per-service zones prevent cross-service interference
+- Configurable via Terraform variables (`enable_rate_limiting`, `rate_limit_requests`, etc.)
+- Protects against brute force attacks, DoS attempts, and resource exhaustion
 
 **Storage Management:**
 - Each service module manages its own storage volume

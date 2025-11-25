@@ -21,11 +21,16 @@ output "storage_volume_name" {
 output "caddy_config_block" {
   description = "Caddyfile configuration block for this Grafana instance"
   value = var.domain != "" ? templatefile("${path.module}/templates/caddyfile.tftpl", {
-    domain           = var.domain
-    allowed_ip_range = var.allowed_ip_range
-    instance_name    = var.instance_name
-    port             = var.grafana_port
-    backend_tls      = var.enable_tls
+    domain                    = var.domain
+    allowed_ip_range          = var.allowed_ip_range
+    instance_name             = var.instance_name
+    port                      = var.grafana_port
+    backend_tls               = var.enable_tls
+    enable_rate_limiting      = var.enable_rate_limiting
+    rate_limit_requests       = var.rate_limit_requests
+    rate_limit_window         = var.rate_limit_window
+    login_rate_limit_requests = var.login_rate_limit_requests
+    login_rate_limit_window   = var.login_rate_limit_window
   }) : ""
 }
 

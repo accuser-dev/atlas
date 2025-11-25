@@ -148,3 +148,54 @@ variable "datasources" {
   }))
   default = []
 }
+
+# Rate Limiting
+variable "enable_rate_limiting" {
+  description = "Enable rate limiting for this service"
+  type        = bool
+  default     = true
+}
+
+variable "rate_limit_requests" {
+  description = "Maximum requests allowed per window for normal endpoints"
+  type        = number
+  default     = 100
+
+  validation {
+    condition     = var.rate_limit_requests >= 1 && var.rate_limit_requests <= 10000
+    error_message = "Rate limit must be between 1 and 10000 requests"
+  }
+}
+
+variable "rate_limit_window" {
+  description = "Time window for rate limiting (e.g., 1m, 5m, 1h)"
+  type        = string
+  default     = "1m"
+
+  validation {
+    condition     = can(regex("^[0-9]+(s|m|h)$", var.rate_limit_window))
+    error_message = "Rate limit window must be in format like '1m', '30s', or '1h'"
+  }
+}
+
+variable "login_rate_limit_requests" {
+  description = "Maximum requests allowed per window for login endpoints (stricter)"
+  type        = number
+  default     = 10
+
+  validation {
+    condition     = var.login_rate_limit_requests >= 1 && var.login_rate_limit_requests <= 1000
+    error_message = "Login rate limit must be between 1 and 1000 requests"
+  }
+}
+
+variable "login_rate_limit_window" {
+  description = "Time window for login endpoint rate limiting"
+  type        = string
+  default     = "1m"
+
+  validation {
+    condition     = can(regex("^[0-9]+(s|m|h)$", var.login_rate_limit_window))
+    error_message = "Login rate limit window must be in format like '1m', '30s', or '1h'"
+  }
+}

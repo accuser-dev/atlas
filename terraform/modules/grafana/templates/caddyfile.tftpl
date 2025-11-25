@@ -2,6 +2,27 @@ ${domain} {
 	@denied not remote_ip ${allowed_ip_range}
 	abort @denied
 
+%{ if enable_rate_limiting ~}
+	# Rate limiting - ${rate_limit_requests} requests per ${rate_limit_window} per IP
+	rate_limit {
+		zone ${replace(domain, ".", "_")} {
+			key {remote_host}
+			events ${rate_limit_requests}
+			window ${rate_limit_window}
+		}
+	}
+
+	# Stricter rate limits for login endpoints
+	@login path /login* /api/login*
+	rate_limit @login {
+		zone ${replace(domain, ".", "_")}_login {
+			key {remote_host}
+			events ${login_rate_limit_requests}
+			window ${login_rate_limit_window}
+		}
+	}
+
+%{ endif ~}
 	# Security headers
 	header {
 		# HSTS - force HTTPS for 1 year, include subdomains
