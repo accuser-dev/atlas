@@ -130,3 +130,26 @@ variable "cert_duration" {
     error_message = "Certificate duration must be in hours format (e.g., '24h', '168h')"
   }
 }
+
+# Retention Configuration
+variable "retention_time" {
+  description = "How long to retain metrics data (e.g., 15d, 30d, 90d)"
+  type        = string
+  default     = "30d"
+
+  validation {
+    condition     = can(regex("^[0-9]+(d|w|y)$", var.retention_time))
+    error_message = "Retention time must be in format like '15d', '4w', or '1y'"
+  }
+}
+
+variable "retention_size" {
+  description = "Maximum size of storage before oldest data is deleted (e.g., 50GB, 90GB). Set to empty string to disable size-based retention."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.retention_size == "" || can(regex("^[0-9]+(MB|GB|TB)$", var.retention_size))
+    error_message = "Retention size must be empty or in format like '50GB' or '90GB'"
+  }
+}

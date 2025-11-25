@@ -69,6 +69,12 @@ locals {
     STEPCA_FINGERPRINT = var.stepca_fingerprint
     CERT_DURATION      = var.cert_duration
   } : {}
+
+  # Retention environment variables
+  retention_env_vars = {
+    RETENTION_PERIOD       = var.retention_period
+    RETENTION_DELETE_DELAY = var.retention_delete_delay
+  }
 }
 
 resource "incus_instance" "loki" {
@@ -80,5 +86,6 @@ resource "incus_instance" "loki" {
   config = merge(
     { for k, v in var.environment_variables : "environment.${k}" => v },
     { for k, v in local.tls_env_vars : "environment.${k}" => v },
+    { for k, v in local.retention_env_vars : "environment.${k}" => v if v != "" },
   )
 }

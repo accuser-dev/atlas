@@ -69,6 +69,12 @@ locals {
     STEPCA_FINGERPRINT = var.stepca_fingerprint
     CERT_DURATION      = var.cert_duration
   } : {}
+
+  # Retention environment variables
+  retention_env_vars = {
+    RETENTION_TIME = var.retention_time
+    RETENTION_SIZE = var.retention_size
+  }
 }
 
 resource "incus_instance" "prometheus" {
@@ -80,6 +86,7 @@ resource "incus_instance" "prometheus" {
   config = merge(
     { for k, v in var.environment_variables : "environment.${k}" => v },
     { for k, v in local.tls_env_vars : "environment.${k}" => v },
+    { for k, v in local.retention_env_vars : "environment.${k}" => v if v != "" },
   )
 
   dynamic "file" {

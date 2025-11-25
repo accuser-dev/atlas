@@ -1,6 +1,7 @@
 #!/bin/sh
 # TLS-aware entrypoint for Prometheus
 # Requests certificate from step-ca and configures TLS if enabled
+# Also supports retention configuration via environment variables
 set -e
 
 TLS_DIR="/etc/prometheus/tls"
@@ -8,6 +9,10 @@ CERT_FILE="${TLS_DIR}/prometheus.crt"
 KEY_FILE="${TLS_DIR}/prometheus.key"
 CA_FILE="${TLS_DIR}/ca.crt"
 WEB_CONFIG="/etc/prometheus/web-config.yml"
+
+# Default retention settings (can be overridden via environment variables)
+RETENTION_TIME="${RETENTION_TIME:-30d}"
+RETENTION_SIZE="${RETENTION_SIZE:-}"
 
 # Function to request certificate from step-ca
 request_certificate() {
@@ -47,7 +52,26 @@ EOF
     echo "Web config created at ${WEB_CONFIG}"
 }
 
+# Build retention flags
+build_retention_flags() {
+    RETENTION_FLAGS=""
+
+    if [ -n "${RETENTION_TIME}" ]; then
+        RETENTION_FLAGS="${RETENTION_FLAGS} --storage.tsdb.retention.time=${RETENTION_TIME}"
+        echo "Retention time: ${RETENTION_TIME}" >&2
+    fi
+
+    if [ -n "${RETENTION_SIZE}" ]; then
+        RETENTION_FLAGS="${RETENTION_FLAGS} --storage.tsdb.retention.size=${RETENTION_SIZE}"
+        echo "Retention size: ${RETENTION_SIZE}" >&2
+    fi
+
+    echo "${RETENTION_FLAGS}"
+}
+
 # Main logic
+RETENTION_FLAGS=$(build_retention_flags)
+
 if [ "${ENABLE_TLS}" = "true" ]; then
     echo "TLS mode enabled"
 
@@ -70,19 +94,23 @@ if [ "${ENABLE_TLS}" = "true" ]; then
 
     # Start Prometheus with TLS
     echo "Starting Prometheus with TLS..."
+    # shellcheck disable=SC2086
     exec /bin/prometheus \
         --config.file=/etc/prometheus/prometheus.yml \
         --storage.tsdb.path=/prometheus \
         --web.console.libraries=/usr/share/prometheus/console_libraries \
         --web.console.templates=/usr/share/prometheus/consoles \
         --web.config.file="${WEB_CONFIG}" \
+        ${RETENTION_FLAGS} \
         "$@"
 else
     echo "TLS mode disabled, starting Prometheus normally..."
+    # shellcheck disable=SC2086
     exec /bin/prometheus \
         --config.file=/etc/prometheus/prometheus.yml \
         --storage.tsdb.path=/prometheus \
         --web.console.libraries=/usr/share/prometheus/console_libraries \
         --web.console.templates=/usr/share/prometheus/consoles \
+        ${RETENTION_FLAGS} \
         "$@"
 fi
