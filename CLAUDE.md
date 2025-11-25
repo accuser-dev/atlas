@@ -634,7 +634,7 @@ This approach enables easy scaling - new instances reuse the proven profile patt
 **For public-facing services (with Caddy reverse proxy):**
 
 1. Create Docker image in `docker/yourservice/` with Dockerfile
-2. Add service to GitHub Actions matrix in `.github/workflows/terraform-ci.yml`
+2. Add service to GitHub Actions matrix in `.github/workflows/release.yml`
 3. Create Terraform module in `terraform/modules/yourservice/`
 4. Add `domain`, `allowed_ip_range`, and port variables to module
 5. Set default image to `ghcr:accuser/atlas/yourservice:latest`
@@ -647,7 +647,7 @@ This approach enables easy scaling - new instances reuse the proven profile patt
 **For internal-only services (no public access):**
 
 1. Create Docker image in `docker/yourservice/` with Dockerfile
-2. Add service to GitHub Actions matrix in `.github/workflows/terraform-ci.yml`
+2. Add service to GitHub Actions matrix in `.github/workflows/release.yml`
 3. Create Terraform module in `terraform/modules/yourservice/`
 4. Set default image to `ghcr:accuser/atlas/yourservice:latest`
 5. Add storage and network configuration to module
@@ -891,17 +891,25 @@ All modules are configured to use custom images published to GitHub Container Re
 - Prometheus: `ghcr:accuser/atlas/prometheus:latest`
 
 These images are:
-- Built automatically by GitHub Actions on push to main
+- Built automatically by the Release workflow on push to main
 - Published to GitHub Container Registry (ghcr.io)
 - Extended from official images with custom plugins and configuration
 - Publicly accessible (no authentication required)
 
+**CI/CD Pipeline:**
+
+The pipeline is split into two workflows:
+- `ci.yml` - Validation and testing (feature branches, PRs)
+- `release.yml` - Build and publish (main branch only)
+
 **Image Publishing Workflow:**
 
 1. Edit Dockerfile in `docker/*/Dockerfile`
-2. Push changes to `main` branch (directly or via PR merge)
-3. GitHub Actions builds and publishes to ghcr.io
-4. Terraform pulls latest image on next apply
+2. Create feature branch and push changes
+3. CI workflow validates and tests the image
+4. Open PR to `main` - CI runs full validation
+5. Merge PR - Release workflow builds and publishes to ghcr.io
+6. Terraform pulls latest image on next apply
 
 **Switching to Official Images**
 
@@ -936,7 +944,7 @@ module "grafana01" {
 
 - The `terraform/terraform.tfvars` file is gitignored and must be created manually with required secrets
 - All services use custom images published to GitHub Container Registry (ghcr.io) by default
-- Images are automatically built and published by GitHub Actions on push to main
+- Images are automatically built and published by the Release workflow on push to main
 - Access to services is restricted to the 192.168.68.0/22 subnet by default
 - All services use the `production` network for connectivity
 - Storage volumes use the `local` storage pool and are created automatically when modules are applied

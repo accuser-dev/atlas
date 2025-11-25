@@ -2,118 +2,153 @@
 
 This directory contains CI/CD workflows for the Atlas infrastructure project.
 
+## Overview
+
+The CI/CD pipeline is split into two workflows for clarity and separation of concerns:
+
+| Workflow | Purpose | Triggers |
+|----------|---------|----------|
+| `ci.yml` | Validation & Testing | Feature branches, PRs |
+| `release.yml` | Build & Publish | Push to `main` |
+
 ## Workflows
 
-### OpenTofu CI (`ci.yml`)
+### CI Workflow (`ci.yml`)
 
-Validates OpenTofu configuration and builds Docker images on every push or pull request.
+Validates code and tests Docker images on feature branches and pull requests.
 
 **Triggers:**
-- Push to `main` branch
+- Push to `feature/**`, `fix/**`, `docs/**`, `refactor/**`, `test/**` branches
 - Pull requests to `main` branch
-- Only when relevant files change:
-  - `terraform/**.tf` - Terraform configuration files
-  - `terraform/**.tftpl` - Terraform template files
-  - `docker/**/Dockerfile` - Docker image definitions
-  - `.github/workflows/ci.yml` - This workflow
+- Only when relevant files change (terraform, docker, workflows)
 
 **Jobs:**
 
-Jobs run in this order to optimize cost and performance:
-
-1. **tofu-validate** - Quick validation checks (runs first, ~30 seconds)
-   - Format check: `tofu fmt -check -recursive`
-   - Initialization: `tofu init -backend=false`
-   - Validation: `tofu validate`
-   - **Fails fast** if OpenTofu config is invalid
-   - Prevents expensive Docker builds if OpenTofu has issues
-
-2. **docker-build** - Validates Docker images (runs only after validation passes)
-   - Uses **matrix strategy** to build all 5 images in parallel
-   - Services: `[caddy, grafana, loki, prometheus, step-ca]`
-   - Each image builds independently with `fail-fast: false`
-   - Uses Docker BuildKit with GitHub Actions cache (per-service scope)
-   - On PRs: Builds and validates images (does not push)
-   - On push to main: Builds and pushes to GitHub Container Registry
-
-**Job Dependencies:**
 ```
-tofu-validate (fast, fails fast)
-         ↓
-docker-build (expensive, runs in parallel via matrix)
+┌─────────────────┐
+│ tofu-validate   │ ← OpenTofu format, init, validate
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ detect-changes  │ ← Determine which images changed
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ docker-build    │ ← Build images (matrix: changed services)
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ docker-test     │ ← Run smoke tests (matrix: changed services)
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ ci-summary      │ ← Report final status
+└─────────────────┘
 ```
 
-**Note:** `tofu plan` is not run in CI because:
-- Requires actual Incus infrastructure (not available in GitHub Actions)
-- Cannot connect to provider with test credentials
-- Validation is already covered by `tofu validate`
-- Developers should run `tofu plan` locally before creating PRs
+**Behavior:**
+- **Feature branches**: Selective builds (only changed images)
+- **Pull requests**: Full builds (all 5 images)
+- **Never pushes to registry** - validation only
 
-**Performance Optimizations:**
+### Release Workflow (`release.yml`)
 
-1. **Fail fast validation** - Cheap OpenTofu checks run first
-2. **Matrix builds** - Docker images build in parallel (5 concurrent jobs)
-3. **Per-service cache** - Each Docker image has its own cache scope
-4. **fail-fast: false** - One failed Docker build doesn't cancel others
+Builds and publishes Docker images when code is merged to main.
 
-**Working Directory:**
-All OpenTofu commands run in the `terraform/` directory.
+**Triggers:**
+- Push to `main` branch only
+- Only when relevant files change (terraform, docker, workflows)
 
-**Test Variables:**
-The tofu-plan job creates a minimal `terraform.tfvars` file with placeholder values.
+**Jobs:**
+
+```
+┌─────────────────┐
+│ validate        │ ← Quick OpenTofu validation
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ docker-release  │ ← Build & push all images (matrix: all 5 services)
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ release-summary │ ← Report published images
+└─────────────────┘
+```
+
+**Behavior:**
+- **Always builds all images** - ensures registry consistency
+- **Pushes to ghcr.io** with `latest` and SHA tags
+- **Generates summary** with published image details
+
+## Image Tagging Strategy
+
+| Tag | Description |
+|-----|-------------|
+| `latest` | Current production version from `main` |
+| `<sha>` | Commit-specific tag for traceability |
+
+## Performance Optimizations
+
+1. **Selective builds** - Feature branches only build changed images
+2. **Full validation on PRs** - All images tested before merge
+3. **Matrix strategy** - Images build in parallel (5 concurrent jobs)
+4. **Per-service cache** - Each image has dedicated GitHub Actions cache
+5. **fail-fast: false** - One failed build doesn't cancel others
+
+## GitHub Flow Integration
+
+```
+feature/issue-X ──push──► CI (selective build, test)
+        │
+        └──PR──► CI (full build, test all)
+                      │
+                      └──merge──► Release (build & push all)
+```
+
+1. Create branch: `git checkout -b feature/issue-X-description`
+2. Push changes - CI validates changed images
+3. Open PR to `main` - CI builds and tests all images
+4. Merge - Release workflow publishes to ghcr.io
 
 ## Local Testing
 
-You can test the workflow locally using [act](https://github.com/nektos/act):
+Test workflows locally using [act](https://github.com/nektos/act):
 
 ```bash
 # Install act (macOS)
 brew install act
 
-# Run the workflow
-act push
+# Run CI workflow
+act push -W .github/workflows/ci.yml
 
 # Run specific job
-act -j docker-build
 act -j tofu-validate
+act -j docker-build
 ```
 
 ## Adding New Workflows
 
 When adding new workflows:
 
-1. Name the file descriptively: `<purpose>-ci.yml`
+1. Name the file descriptively
 2. Add appropriate triggers and path filters
-3. Use `working-directory` for commands in subdirectories
+3. Include GitHub step summaries for visibility
 4. Document the workflow in this README
 5. Test locally with `act` if possible
 
-## GitHub Flow Integration
+## Making Images Public
 
-This workflow is designed to support GitHub Flow with `main` as the primary branch:
+GitHub packages default to private. To allow Incus to pull images without authentication:
 
-**Feature Branch Workflow:**
-1. Create branch from `main`: `git checkout -b feature/issue-X-description`
-2. Make changes and push: `git push -u origin feature/issue-X-description`
-3. Open PR targeting `main`
-4. CI runs validation and builds (does not push images)
-5. After approval and CI passes, merge to `main`
-6. CI rebuilds and pushes images with `latest` tag
+1. Go to https://github.com/accuser/atlas/packages
+2. Click on each package (caddy, grafana, loki, prometheus, step-ca)
+3. Go to "Package settings"
+4. Under "Danger Zone", change visibility to "Public"
 
-**Image Tagging Strategy:**
-- `latest` - Production images from `main` branch
-- `<sha>` - Commit-specific tags for traceability
-
-## Workflow Best Practices
-
-- **Path filters**: Only trigger when relevant files change
-- **Working directories**: Explicitly set `working-directory` for clarity
-- **Cache**: Use GitHub Actions cache for Docker builds
-- **PR comments**: Automatically comment results on pull requests
-- **Continue on error**: Use for non-critical checks that should be reported but not fail the build
-- **Dependency order**: Use `needs:` to sequence jobs appropriately
+This only needs to be done once per package after first publish.
 
 ## Related Documentation
 
-- [CONTRIBUTING.md](../../CONTRIBUTING.md) - Full GitHub Flow workflow guide
-- [CLAUDE.md](../../CLAUDE.md) - Project architecture and quick reference
+- [CONTRIBUTING.md](../../CONTRIBUTING.md) - GitHub Flow workflow guide
+- [CLAUDE.md](../../CLAUDE.md) - Project architecture
+- [docker/README.md](../../docker/README.md) - Docker image details
