@@ -4,41 +4,41 @@ This directory contains CI/CD workflows for the Atlas infrastructure project.
 
 ## Workflows
 
-### Terraform CI (`terraform-ci.yml`)
+### OpenTofu CI (`ci.yml`)
 
-Validates Terraform configuration and builds Docker images on every push or pull request.
+Validates OpenTofu configuration and builds Docker images on every push or pull request.
 
 **Triggers:**
-- Push to `main` or `develop` branches
-- Pull requests to `main` or `develop` branches
+- Push to `main` branch
+- Pull requests to `main` branch
 - Only when relevant files change:
   - `terraform/**.tf` - Terraform configuration files
   - `terraform/**.tftpl` - Terraform template files
   - `docker/**/Dockerfile` - Docker image definitions
-  - `.github/workflows/terraform-ci.yml` - This workflow
+  - `.github/workflows/ci.yml` - This workflow
 
 **Jobs:**
 
 Jobs run in this order to optimize cost and performance:
 
-1. **terraform-validate** - Quick validation checks (runs first, ~30 seconds)
+1. **tofu-validate** - Quick validation checks (runs first, ~30 seconds)
    - Format check: `tofu fmt -check -recursive`
    - Initialization: `tofu init -backend=false`
    - Validation: `tofu validate`
-   - **Fails fast** if Terraform config is invalid
-   - Prevents expensive Docker builds if Terraform has issues
+   - **Fails fast** if OpenTofu config is invalid
+   - Prevents expensive Docker builds if OpenTofu has issues
 
 2. **docker-build** - Validates Docker images (runs only after validation passes)
-   - Uses **matrix strategy** to build all 4 images in parallel
-   - Services: `[caddy, grafana, loki, prometheus]`
+   - Uses **matrix strategy** to build all 5 images in parallel
+   - Services: `[caddy, grafana, loki, prometheus, step-ca]`
    - Each image builds independently with `fail-fast: false`
    - Uses Docker BuildKit with GitHub Actions cache (per-service scope)
    - On PRs: Builds and validates images (does not push)
-   - On push to main/develop: Builds and pushes to GitHub Container Registry
+   - On push to main: Builds and pushes to GitHub Container Registry
 
 **Job Dependencies:**
 ```
-terraform-validate (fast, fails fast)
+tofu-validate (fast, fails fast)
          ↓
 docker-build (expensive, runs in parallel via matrix)
 ```
@@ -51,16 +51,16 @@ docker-build (expensive, runs in parallel via matrix)
 
 **Performance Optimizations:**
 
-1. **Fail fast validation** - Cheap Terraform checks run first
-2. **Matrix builds** - Docker images build in parallel (4 concurrent jobs)
+1. **Fail fast validation** - Cheap OpenTofu checks run first
+2. **Matrix builds** - Docker images build in parallel (5 concurrent jobs)
 3. **Per-service cache** - Each Docker image has its own cache scope
 4. **fail-fast: false** - One failed Docker build doesn't cancel others
 
 **Working Directory:**
-All Terraform commands run in the `terraform/` directory.
+All OpenTofu commands run in the `terraform/` directory.
 
 **Test Variables:**
-The terraform-plan job creates a minimal `terraform.tfvars` file with placeholder values.
+The tofu-plan job creates a minimal `terraform.tfvars` file with placeholder values.
 
 ## Local Testing
 
@@ -75,7 +75,7 @@ act push
 
 # Run specific job
 act -j docker-build
-act -j terraform-checks
+act -j tofu-validate
 ```
 
 ## Adding New Workflows
@@ -90,27 +90,19 @@ When adding new workflows:
 
 ## GitHub Flow Integration
 
-This workflow is designed to support GitHub Flow with `develop` as the main development branch:
+This workflow is designed to support GitHub Flow with `main` as the primary branch:
 
 **Feature Branch Workflow:**
-1. Create branch from `develop`: `git checkout -b feature/issue-X-description`
+1. Create branch from `main`: `git checkout -b feature/issue-X-description`
 2. Make changes and push: `git push -u origin feature/issue-X-description`
-3. Open PR targeting `develop`
+3. Open PR targeting `main`
 4. CI runs validation and builds (does not push images)
-5. After approval and CI passes, merge to `develop`
-6. CI rebuilds and pushes images with `develop` tag
-
-**Release Workflow:**
-1. When `develop` is stable, create PR from `develop` to `main`
-2. CI validates the production-ready code
-3. After approval, merge to `main`
-4. CI rebuilds and pushes images with `latest` tag
-5. Tag the release on `main`: `git tag -a v1.0.0 -m "Release 1.0.0"`
+5. After approval and CI passes, merge to `main`
+6. CI rebuilds and pushes images with `latest` tag
 
 **Image Tagging Strategy:**
 - `latest` - Production images from `main` branch
-- `develop` - Development images from `develop` branch
-- `<branch>-<sha>` - Branch-specific builds (on push to main/develop)
+- `<sha>` - Commit-specific tags for traceability
 
 ## Workflow Best Practices
 

@@ -133,7 +133,7 @@ module "grafana01" {
 
 ## Production Deployment
 
-Images are automatically built and published to `ghcr.io/accuser/atlas/grafana:latest` by GitHub Actions when code is pushed to `main` or `develop` branches.
+Images are automatically built and published to `ghcr.io/accuser/atlas/grafana:latest` by GitHub Actions when code is pushed to the `main` branch.
 
 For local development:
 ```bash

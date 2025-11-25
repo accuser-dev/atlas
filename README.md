@@ -101,7 +101,7 @@ All services use custom images automatically built and published by GitHub Actio
 - **step-ca**: `ghcr.io/accuser/atlas/step-ca:latest`
 
 Images are:
-- Built on every push to `main` or `develop`
+- Built on every push to `main`
 - Published to GitHub Container Registry (ghcr.io)
 - Publicly accessible (no authentication required)
 - Extended from official images with custom plugins and configuration
@@ -180,7 +180,7 @@ module "grafana01" {
 1. Edit the Dockerfile in `docker/<service>/Dockerfile`
 2. Add plugins, configuration, or customizations
 3. Test locally: `make build-<service>`
-4. Push to GitHub (main or develop branch)
+4. Push to GitHub (merge PR to main)
 5. GitHub Actions builds and publishes to ghcr.io
 6. Run `make terraform-apply` to pull new image
 
@@ -248,13 +248,13 @@ The project includes GitHub Actions workflows for continuous integration:
 ### Terraform CI Workflow
 
 **Triggers:**
-- Push to `main` or `develop` branches
-- Pull requests to `main` or `develop` branches
+- Push to `main` branch
+- Pull requests to `main` branch
 - Only when relevant files change (`.tf`, `.tftpl`, `Dockerfile`)
 
 **What it does:**
 1. **OpenTofu Validation** - Validates format, initialization, and configuration
-2. **Docker Build and Publish** - Builds all five images and publishes to ghcr.io (on push to main/develop)
+2. **Docker Build and Publish** - Builds all five images and publishes to ghcr.io (on push to main)
 3. **OpenTofu Plan** - Generates a plan preview (dry run)
 4. **PR Comments** - Posts plan results on pull requests
 
@@ -262,7 +262,7 @@ The project includes GitHub Actions workflows for continuous integration:
 - Fast validation checks run first to fail fast
 - Docker images build in parallel (5 concurrent jobs)
 - GitHub Actions cache for faster rebuilds
-- Only publishes on push to main/develop (not on PRs)
+- Only publishes on push to main (not on PRs)
 
 **Workflow file:** [.github/workflows/terraform-ci.yml](.github/workflows/terraform-ci.yml)
 
@@ -272,7 +272,7 @@ Images are published to GitHub Container Registry:
 - **Registry**: `ghcr.io`
 - **Organization**: `accuser/atlas`
 - **Format**: `ghcr.io/accuser/atlas/<service>:<tag>`
-- **Tags**: `latest` (main branch), `develop` (develop branch), commit SHA
+- **Tags**: `latest` (main branch), commit SHA
 
 **Making images public:**
 After the first push, visit `https://github.com/accuser/atlas/packages` and change each package visibility to public.

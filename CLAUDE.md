@@ -211,7 +211,7 @@ tofu init -migrate-state
 
 **Production Images (GitHub Container Registry):**
 
-Images are automatically built and published by GitHub Actions when code is pushed to `main` or `develop` branches:
+Images are automatically built and published by GitHub Actions when code is pushed to the `main` branch:
 - Caddy: `ghcr.io/accuser/atlas/caddy:latest`
 - Grafana: `ghcr.io/accuser/atlas/grafana:latest`
 - Loki: `ghcr.io/accuser/atlas/loki:latest`
@@ -234,18 +234,17 @@ The `terraform/terraform.tfvars` file contains sensitive variables and is gitign
 
 ### GitHub Flow
 
-This project uses **GitHub Flow** for development. All work happens on feature branches created from and merged back to the `develop` branch.
+This project uses **GitHub Flow** for development. All work happens on feature branches created from and merged back to `main`.
 
 **Branch Structure:**
 - `main` - Production-ready code (protected)
-- `develop` - Main development branch (base for all feature branches)
 - `feature/*`, `fix/*`, `docs/*` - Short-lived branches for specific work
 
 **Quick Start:**
 ```bash
 # Start new work
-git checkout develop
-git pull origin develop
+git checkout main
+git pull origin main
 git checkout -b feature/issue-X-description
 
 # Make changes, commit, and push
@@ -255,13 +254,13 @@ git commit -m "fix: description of change
 Fixes #X"
 git push -u origin feature/issue-X-description
 
-# Create PR targeting develop
-gh pr create --base develop --title "Fix: Description" --body "Fixes #X"
+# Create PR targeting main
+gh pr create --base main --title "Fix: Description" --body "Fixes #X"
 ```
 
 **Important Notes:**
-- Always branch from `develop`
-- Always target `develop` in pull requests
+- Always branch from `main`
+- Always target `main` in pull requests
 - Link issues with "Fixes #X" in PR descriptions
 - Wait for CI checks to pass before merging
 - Delete feature branches after merging
@@ -882,7 +881,7 @@ All modules are configured to use custom images published to GitHub Container Re
 - Prometheus: `ghcr:accuser/atlas/prometheus:latest`
 
 These images are:
-- Built automatically by GitHub Actions on push to main/develop
+- Built automatically by GitHub Actions on push to main
 - Published to GitHub Container Registry (ghcr.io)
 - Extended from official images with custom plugins and configuration
 - Publicly accessible (no authentication required)
@@ -890,7 +889,7 @@ These images are:
 **Image Publishing Workflow:**
 
 1. Edit Dockerfile in `docker/*/Dockerfile`
-2. Push changes to `main` or `develop` branch
+2. Push changes to `main` branch (directly or via PR merge)
 3. GitHub Actions builds and publishes to ghcr.io
 4. Terraform pulls latest image on next apply
 
@@ -927,7 +926,7 @@ module "grafana01" {
 
 - The `terraform/terraform.tfvars` file is gitignored and must be created manually with required secrets
 - All services use custom images published to GitHub Container Registry (ghcr.io) by default
-- Images are automatically built and published by GitHub Actions on push to main/develop
+- Images are automatically built and published by GitHub Actions on push to main
 - Access to services is restricted to the 192.168.68.0/22 subnet by default
 - All services use the `production` network for connectivity
 - Storage volumes use the `local` storage pool and are created automatically when modules are applied

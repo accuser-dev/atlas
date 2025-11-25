@@ -5,7 +5,7 @@ This directory contains custom Docker images for the Atlas monitoring stack.
 ## Overview
 
 The Atlas project uses custom Docker images that are:
-- **Built automatically** by GitHub Actions when code is pushed to main/develop branches
+- **Built automatically** by GitHub Actions when code is pushed to the main branch
 - **Published to GitHub Container Registry** (ghcr.io)
 - **Publicly accessible** without authentication
 - **Extended from official images** with custom plugins and configuration
@@ -58,7 +58,7 @@ docker images | grep atlas
 
 When you push code to GitHub:
 
-1. **GitHub Actions triggers** on push to `main` or `develop` branches
+1. **GitHub Actions triggers** on push to `main` branch
 2. **Docker images are built** in parallel (all five services)
 3. **Images are published** to ghcr.io with appropriate tags
 4. **Images are cached** for faster subsequent builds
@@ -68,8 +68,7 @@ When you push code to GitHub:
 Published images receive multiple tags:
 
 - `latest` - Latest build from main branch
-- `develop` - Latest build from develop branch
-- `main-<sha>` or `develop-<sha>` - Commit-specific tags
+- `<sha>` - Commit-specific tags for traceability
 
 ### Making Images Public
 
@@ -106,11 +105,8 @@ Override the image to use a specific tag:
 module "grafana01" {
   source = "./modules/grafana"
 
-  # Use develop branch image
-  image = "ghcr:accuser/atlas/grafana:develop"
-
-  # Or use specific commit
-  # image = "ghcr:accuser/atlas/grafana:main-abc1234"
+  # Use specific commit
+  image = "ghcr:accuser/atlas/grafana:abc1234"
 
   # ... other configuration
 }
@@ -171,7 +167,7 @@ After pushing to GitHub:
 ### Updating Images
 
 Images are automatically rebuilt when:
-- Code is pushed to main or develop
+- Code is pushed to main (directly or via PR merge)
 - Dockerfiles are modified
 - Base images are updated (manual rebuild needed)
 

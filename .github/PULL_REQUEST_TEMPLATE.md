@@ -84,7 +84,7 @@ Fixes #
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to the documentation
 - [ ] My changes generate no new warnings
-- [ ] Branch is up to date with `develop` branch
+- [ ] Branch is up to date with `main` branch
 
 ## Screenshots (if applicable)
 

@@ -4,24 +4,23 @@ Thank you for your interest in contributing to the Atlas infrastructure project!
 
 ## GitHub Flow Workflow
 
-We use **GitHub Flow** with `develop` as our primary development branch. This is a simple, branch-based workflow that supports continuous delivery.
+We use **GitHub Flow** with `main` as our primary branch. This is a simple, branch-based workflow that supports continuous delivery.
 
 ### Branch Structure
 
 - **`main`** - Production-ready code. Protected branch.
-- **`develop`** - Main development branch. All feature branches are created from and merged back to this branch.
 - **`feature/*`** or **`fix/*`** - Short-lived branches for specific features or fixes.
 
 ### Workflow Steps
 
-#### 1. Create a Branch from `develop`
+#### 1. Create a Branch from `main`
 
-Always create your feature/fix branch from the latest `develop`:
+Always create your feature/fix branch from the latest `main`:
 
 ```bash
-# Make sure you're on develop and it's up to date
-git checkout develop
-git pull origin develop
+# Make sure you're on main and it's up to date
+git checkout main
+git pull origin main
 
 # Create a new branch for your work
 git checkout -b feature/issue-1-fix-grafana-password
@@ -71,16 +70,16 @@ git push -u origin feature/issue-1-fix-grafana-password
 
 #### 4. Create a Pull Request
 
-Create a PR targeting the `develop` branch:
+Create a PR targeting the `main` branch:
 
 ```bash
-gh pr create --base develop --title "Fix: Remove hardcoded Grafana admin password" --body "Fixes #1"
+gh pr create --base main --title "Fix: Remove hardcoded Grafana admin password" --body "Fixes #1"
 ```
 
 Or use the GitHub web interface.
 
 **Pull Request Guidelines:**
-- Target `develop` branch (not `main`)
+- Target `main` branch
 - Reference the issue number in the PR description (e.g., "Fixes #1")
 - Provide a clear description of what changed and why
 - Include testing steps if applicable
@@ -98,18 +97,12 @@ git commit -m "address review feedback"
 git push
 ```
 
-#### 6. Merge to `develop`
+#### 6. Merge to `main`
 
 Once approved and CI passes:
 - Squash and merge or create a merge commit (project preference)
 - Delete the feature branch after merging
-
-#### 7. Release to `main`
-
-Periodically, when `develop` is stable and ready for release:
-- Create a PR from `develop` to `main`
-- This triggers production deployment
-- Tag the release on `main`
+- CI will automatically build and push Docker images with `:latest` tag
 
 ## Development Guidelines
 
@@ -234,17 +227,14 @@ make terraform-plan
 
 ## Release Process
 
-1. **Develop** - Continuous integration, all features merged here
-2. **Staging** (optional) - Deploy from `develop` for testing
-3. **Main** - Production releases, tagged with semantic versions
-4. **Tagging** - Use semantic versioning (v1.2.3)
+Releases happen automatically when PRs are merged to `main`:
+1. CI builds and tests the code
+2. Docker images are built and pushed with `:latest` tag
+3. Tag releases manually for significant milestones
 
-Example release workflow:
+Example tagging workflow:
 ```bash
-# Create release PR
-gh pr create --base main --head develop --title "Release v1.2.0"
-
-# After merge to main
+# After significant changes are merged to main
 git checkout main
 git pull
 git tag -a v1.2.0 -m "Release version 1.2.0"

@@ -4,18 +4,17 @@
 
 ```
 main (production)
-  └── develop (development) ← Base for all feature branches
-        ├── feature/issue-1-fix-password
-        ├── feature/issue-2-remote-state
-        └── fix/issue-4-shell-script
+  ├── feature/issue-1-fix-password
+  ├── feature/issue-2-remote-state
+  └── fix/issue-4-shell-script
 ```
 
 ## Starting New Work
 
 ```bash
-# 1. Switch to develop and update
-git checkout develop
-git pull origin develop
+# 1. Switch to main and update
+git checkout main
+git pull origin main
 
 # 2. Create feature branch
 git checkout -b feature/issue-X-short-description
@@ -48,25 +47,25 @@ git push -u origin feature/issue-X-short-description
 
 ```bash
 # Using GitHub CLI (recommended)
-gh pr create --base develop --title "Fix: Descriptive title" --body "Fixes #X
+gh pr create --base main --title "Fix: Descriptive title" --body "Fixes #X
 
 Description of changes"
 
 # Or using web interface:
 # 1. Go to https://github.com/accuser/atlas/pulls
 # 2. Click "New pull request"
-# 3. Set base: develop, compare: your-branch
+# 3. Set base: main, compare: your-branch
 # 4. Fill in title and description
 ```
 
 ## After PR is Merged
 
 ```bash
-# 1. Switch back to develop
-git checkout develop
+# 1. Switch back to main
+git checkout main
 
 # 2. Pull latest changes
-git pull origin develop
+git pull origin main
 
 # 3. Delete local feature branch
 git branch -d feature/issue-X-short-description
@@ -128,65 +127,37 @@ Fixes #10
 | Event | What Happens |
 |-------|--------------|
 | Push to feature branch | Validation only (no image push) |
-| PR to develop | Validation + builds (no image push) |
-| Merge to develop | Validation + builds + push develop tags |
+| PR to main | Validation + builds (no image push) |
 | Merge to main | Validation + builds + push latest tags |
 
 ## Common Issues
 
-### Wrong base branch
-**Problem:** Created PR targeting `main` instead of `develop`
-
-**Solution:**
-```bash
-# On GitHub PR page, click "Edit" next to base branch
-# Change from "main" to "develop"
-```
-
 ### Branch out of date
-**Problem:** `develop` has moved ahead since you branched
+**Problem:** `main` has moved ahead since you branched
 
 **Solution:**
 ```bash
 # On your feature branch
 git fetch origin
-git rebase origin/develop
+git rebase origin/main
 
 # Or merge instead of rebase
-git merge origin/develop
+git merge origin/main
 
 # Resolve conflicts if any, then push
 git push --force-with-lease
 ```
 
-### Forgot to branch from develop
-**Problem:** Created branch from `main` instead of `develop`
-
-**Solution:**
-```bash
-# On your feature branch
-git rebase --onto develop main feature/issue-X-description
-git push --force-with-lease
-```
-
 ## Release Process
 
-When `develop` is ready for production:
+Releases happen automatically when PRs are merged to `main`. For milestone releases:
 
 ```bash
-# 1. Create release PR
-gh pr create --base main --head develop --title "Release v1.2.0"
-
-# 2. After approval and merge, tag the release
+# After significant changes are merged to main
 git checkout main
 git pull origin main
 git tag -a v1.2.0 -m "Release version 1.2.0"
 git push origin v1.2.0
-
-# 3. Update develop from main
-git checkout develop
-git merge main
-git push origin develop
 ```
 
 ## Tips
@@ -194,7 +165,7 @@ git push origin develop
 - **Keep PRs focused** - One issue per PR when possible
 - **Link issues** - Always use "Fixes #X" in PR description
 - **Wait for CI** - Don't merge until checks pass
-- **Update often** - Pull from develop regularly
+- **Update often** - Pull from main regularly
 - **Delete branches** - Clean up after merging
 - **Review your own PR** - Check the diff before requesting review
 
@@ -214,7 +185,7 @@ git status
 git log --oneline -10
 
 # See what changed
-git diff develop
+git diff main
 
 # Undo last commit (keep changes)
 git reset --soft HEAD~1

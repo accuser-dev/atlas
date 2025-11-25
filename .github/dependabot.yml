@@ -9,7 +9,7 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-    target-branch: "develop"
+    target-branch: "main"
     labels:
       - "dependencies"
       - "devcontainer"
@@ -22,7 +22,7 @@ updates:
     directory: "/docker/caddy"
     schedule:
       interval: "weekly"
-    target-branch: "develop"
+    target-branch: "main"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -33,7 +33,7 @@ updates:
     directory: "/docker/grafana"
     schedule:
       interval: "weekly"
-    target-branch: "develop"
+    target-branch: "main"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -44,7 +44,7 @@ updates:
     directory: "/docker/loki"
     schedule:
       interval: "weekly"
-    target-branch: "develop"
+    target-branch: "main"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -55,7 +55,7 @@ updates:
     directory: "/docker/prometheus"
     schedule:
       interval: "weekly"
-    target-branch: "develop"
+    target-branch: "main"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -66,7 +66,7 @@ updates:
     directory: "/docker/step-ca"
     schedule:
       interval: "weekly"
-    target-branch: "develop"
+    target-branch: "main"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
