@@ -23,6 +23,11 @@ output "step_ca_acme_directory" {
   value       = module.step_ca01.acme_directory
 }
 
+output "step_ca_fingerprint_command" {
+  description = "Command to retrieve the CA fingerprint (run after deployment)"
+  value       = module.step_ca01.fingerprint_command
+}
+
 output "node_exporter_endpoint" {
   description = "Node Exporter metrics endpoint URL for host monitoring"
   value       = module.node_exporter01.node_exporter_endpoint

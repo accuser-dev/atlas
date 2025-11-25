@@ -22,3 +22,13 @@ output "ca_name" {
   description = "Name of the Certificate Authority"
   value       = var.ca_name
 }
+
+output "fingerprint_command" {
+  description = "Command to retrieve the CA fingerprint after deployment"
+  value       = "incus exec ${var.instance_name} -- cat /home/step/fingerprint"
+}
+
+output "fingerprint_file_path" {
+  description = "Path to the fingerprint file inside the container"
+  value       = "/home/step/fingerprint"
+}
