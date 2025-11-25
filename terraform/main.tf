@@ -203,8 +203,8 @@ module "prometheus01" {
             - targets: []  # Configure Alertmanager if needed
   EOT
 
-  # Alert rules for OOM and container restart detection
-  alert_rules = file("${path.module}/prometheus-alerts.yml")
+  # Alert rules for OOM and container restart detection (optional)
+  alert_rules = fileexists("${path.module}/prometheus-alerts.yml") ? file("${path.module}/prometheus-alerts.yml") : ""
 
   # Enable persistent storage for metrics data
   enable_data_persistence = true
@@ -231,8 +231,7 @@ module "step_ca01" {
   instance_name = "step-ca01"
   profile_name  = "step-ca"
 
-  # Image override - use SHA tag until :latest is published
-  image = "ghcr:accuser/atlas/step-ca:6af092e"
+  # Uses ghcr.io image by default (ghcr:accuser/atlas/step-ca:latest)
 
   # Network configuration - use management network for internal services
   network_name = incus_network.management.name
