@@ -2,8 +2,10 @@ resource "incus_profile" "caddy" {
   name = var.profile_name
 
   config = {
-    "limits.cpu"    = var.cpu_limit
-    "limits.memory" = var.memory_limit
+    "limits.cpu"            = var.cpu_limit
+    "limits.memory"         = var.memory_limit
+    "limits.memory.enforce" = "hard"
+    "boot.autorestart"      = "true"
   }
 
   device {
@@ -62,5 +64,15 @@ resource "incus_instance" "caddy" {
     })
     target_path = "/etc/caddy/Caddyfile"
     mode        = "0644"
+  }
+
+  # Internal CA certificate for backend TLS connections (optional)
+  dynamic "file" {
+    for_each = var.internal_ca_certificate != "" ? [1] : []
+    content {
+      content     = var.internal_ca_certificate
+      target_path = "/etc/caddy/internal-ca.crt"
+      mode        = "0644"
+    }
   }
 }

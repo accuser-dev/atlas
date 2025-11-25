@@ -1,13 +1,13 @@
-# Bootstrap OpenTofu Project
+# Bootstrap Terraform Project
 
-This OpenTofu project bootstraps the prerequisites for the main Atlas infrastructure by setting up Incus storage buckets for encrypted remote state management.
+This Terraform project bootstraps the prerequisites for the main Atlas infrastructure by setting up Incus storage buckets for encrypted remote state management.
 
 ## Purpose
 
 The bootstrap project creates:
 1. Incus storage buckets configuration
-2. Storage pool for OpenTofu state
-3. Storage bucket for OpenTofu state
+2. Storage pool for Terraform state
+3. Storage bucket for Terraform state
 4. S3 access credentials
 5. Backend configuration file for main project
 
@@ -16,12 +16,12 @@ The bootstrap project creates:
 Run this bootstrap **once** when:
 - Setting up Atlas on a fresh Incus installation
 - Incus has been initialized (`incus admin init`) but no storage buckets configured
-- You need to recreate the OpenTofu state backend
+- You need to recreate the Terraform state backend
 
 ## Prerequisites
 
 - Incus installed and initialized (`incus admin init`)
-- OpenTofu >= 1.13.5
+- OpenTofu >= 1.9.0
 - Access to run `incus` commands (requires sudo or lxd/incus group membership)
 
 ## Usage
@@ -41,7 +41,7 @@ tofu plan
 # 4. Apply (creates storage bucket and credentials)
 tofu apply
 
-# 5. Return to main tofu directory
+# 5. Return to main terraform directory
 cd ..
 
 # 6. Initialize main project with remote backend
@@ -86,7 +86,7 @@ You have three options:
 **Option A: Set as default remote (simplest)**
 ```bash
 incus remote switch production
-# Now all incus commands and OpenTofu use this remote by default
+# Now all incus commands and Terraform use this remote by default
 ```
 
 **Option B: Use environment variable (recommended for multiple remotes)**
@@ -168,7 +168,7 @@ Sets `core.storage_buckets_address` in Incus to enable S3 API (default: `:8555`)
 Creates a storage pool named `terraform-state` (default driver: `dir`)
 
 ### 3. Storage Bucket
-Creates a bucket named `atlas-terraform-state` for OpenTofu state files
+Creates a bucket named `atlas-terraform-state` for Terraform state files
 
 ### 4. S3 Credentials
 Generates access key and secret key for S3 authentication
@@ -231,9 +231,17 @@ tofu apply \
 Bootstrap is safe to re-run:
 - Checks if resources exist before creating
 - Skips already-configured settings
-- Won't overwrite existing credentials
+- Won't overwrite existing credentials unless role upgrade is needed
+- Automatically upgrades existing credentials from read-only to admin role
 
-To regenerate credentials:
+### Credential Role Management
+
+Bootstrap creates credentials with the `admin` role, which is required for Terraform state operations (read and write). If existing credentials have a read-only role, bootstrap will automatically:
+1. Delete the existing credentials
+2. Recreate them with the `admin` role
+3. Update the `backend.hcl` file with the new credentials
+
+To manually regenerate credentials:
 ```bash
 incus storage bucket key delete terraform-state atlas-terraform-state terraform-access
 tofu apply
@@ -302,7 +310,7 @@ incus storage delete terraform-state
 incus config unset core.storage_buckets_address
 ```
 
-**Warning**: Destroying the storage bucket will delete all OpenTofu state for the main project!
+**Warning**: Destroying the storage bucket will delete all Terraform state for the main project!
 
 ## Related Documentation
 

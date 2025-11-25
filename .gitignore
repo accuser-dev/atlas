@@ -18,7 +18,6 @@ docker/**/node_modules/
 docker/**/*.log
 
 # IDE and editor files
-.vscode/
 .idea/
 *.swp
 *.swo

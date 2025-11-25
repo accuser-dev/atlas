@@ -18,8 +18,9 @@ All production images are published to GitHub Container Registry:
 - **Grafana**: `ghcr.io/accuser/atlas/grafana:latest`
 - **Loki**: `ghcr.io/accuser/atlas/loki:latest`
 - **Prometheus**: `ghcr.io/accuser/atlas/prometheus:latest`
+- **step-ca**: `ghcr.io/accuser/atlas/step-ca:latest`
 
-These images are used by default in all Terraform modules.
+These images are used by default in all OpenTofu modules.
 
 ## Local Development
 
@@ -36,6 +37,7 @@ make build-caddy
 make build-grafana
 make build-loki
 make build-prometheus
+make build-step-ca
 ```
 
 ### Viewing Built Images
@@ -57,7 +59,7 @@ docker images | grep atlas
 When you push code to GitHub:
 
 1. **GitHub Actions triggers** on push to `main` or `develop` branches
-2. **Docker images are built** in parallel (all four services)
+2. **Docker images are built** in parallel (all five services)
 3. **Images are published** to ghcr.io with appropriate tags
 4. **Images are cached** for faster subsequent builds
 
@@ -74,23 +76,23 @@ Published images receive multiple tags:
 After the first push, images default to private. To make them public:
 
 1. Visit: `https://github.com/accuser/atlas/packages`
-2. Click on each package (atlas-caddy, atlas-grafana, atlas-loki, atlas-prometheus)
+2. Click on each package (caddy, grafana, loki, prometheus, step-ca)
 3. Go to "Package settings"
 4. Scroll to "Danger Zone"
 5. Click "Change visibility" → "Public"
 
-## Using Custom Images in Terraform
+## Using Custom Images in OpenTofu
 
 ### Default Configuration
 
-All Terraform modules default to ghcr.io images:
+All OpenTofu modules default to ghcr.io images:
 
 ```hcl
 module "grafana01" {
   source = "./modules/grafana"
 
   # Default image (no override needed)
-  # image = "docker:ghcr.io/accuser/atlas/grafana:latest"
+  # image = "ghcr:accuser/atlas/grafana:latest"
 
   # ... other configuration
 }
@@ -105,10 +107,10 @@ module "grafana01" {
   source = "./modules/grafana"
 
   # Use develop branch image
-  image = "docker:ghcr.io/accuser/atlas/grafana:develop"
+  image = "ghcr:accuser/atlas/grafana:develop"
 
   # Or use specific commit
-  # image = "docker:ghcr.io/accuser/atlas/grafana:main-abc1234"
+  # image = "ghcr:accuser/atlas/grafana:main-abc1234"
 
   # ... other configuration
 }
@@ -162,7 +164,7 @@ COPY grafana.ini /etc/grafana/grafana.ini
 After pushing to GitHub:
 - GitHub Actions builds the image
 - Published to ghcr.io
-- Next `terraform apply` pulls the updated image
+- Next `tofu apply` pulls the updated image
 
 ## Image Management
 
@@ -177,20 +179,20 @@ To force a rebuild without code changes:
 - Make a trivial change to the Dockerfile (e.g., add a comment)
 - Or trigger workflow manually in GitHub Actions
 
-### Forcing Terraform to Pull New Images
+### Forcing OpenTofu to Pull New Images
 
 After publishing updated images:
 
 ```bash
 # Option 1: Recreate specific container
 cd terraform
-terraform apply -replace='module.grafana01.incus_instance.grafana'
+tofu apply -replace='module.grafana01.incus_instance.grafana'
 
 # Option 2: Restart container
 incus restart grafana01
 
 # Option 3: Rebuild container with new image
-incus rebuild grafana01 docker:ghcr.io/accuser/atlas/grafana:latest
+incus rebuild grafana01 ghcr:accuser/atlas/grafana:latest
 ```
 
 ## How It Works
@@ -200,7 +202,7 @@ incus rebuild grafana01 docker:ghcr.io/accuser/atlas/grafana:latest
 When Terraform creates a container:
 
 1. **Terraform requests** image from Incus
-2. **Incus uses docker: protocol** to pull from ghcr.io
+2. **Incus uses oci protocol** to pull from ghcr.io
 3. **Image is pulled** (or cached if already present)
 4. **Container is created** from the image
 
@@ -239,7 +241,7 @@ Error: Failed to create instance: Image not found
 
 3. **Test pull manually**:
    ```bash
-   incus launch docker:ghcr.io/accuser/atlas/grafana:latest test
+   incus launch ghcr:accuser/atlas/grafana:latest test
    ```
 
 4. **Check image name** in Terraform module:
@@ -252,9 +254,9 @@ Error: Failed to create instance: Image not found
 If container doesn't reflect recent image changes:
 
 ```bash
-# Force Terraform to recreate container
+# Force OpenTofu to recreate container
 cd terraform
-terraform apply -replace='module.grafana01.incus_instance.grafana'
+tofu apply -replace='module.grafana01.incus_instance.grafana'
 
 # Or restart to pick up new image
 incus restart grafana01
@@ -330,7 +332,7 @@ incus exec grafana01 -- grafana-cli plugins list
 
 If you prefer Docker Hub over ghcr.io:
 
-1. **Update GitHub Actions workflow** (`.github/workflows/ci.yml`):
+1. **Update GitHub Actions workflow** (`.github/workflows/terraform-ci.yml`):
    ```yaml
    - name: Log in to Docker Hub
      uses: docker/login-action@v3
@@ -344,11 +346,11 @@ If you prefer Docker Hub over ghcr.io:
    images: docker.io/yourusername/${{ matrix.service }}
    ```
 
-3. **Update Terraform modules** to use Docker Hub images
+3. **Update OpenTofu modules** to use Docker Hub images
 
 ## See Also
 
-- [GitHub Actions Workflow](../.github/workflows/ci.yml) - CI/CD configuration
+- [GitHub Actions Workflow](../.github/workflows/terraform-ci.yml) - CI/CD configuration
 - [Makefile](../Makefile) - Build automation
 - [CLAUDE.md](../CLAUDE.md) - Project architecture and documentation
 - Individual service READMEs:
@@ -356,3 +358,4 @@ If you prefer Docker Hub over ghcr.io:
   - [grafana/README.md](grafana/README.md) - Grafana plugins and provisioning
   - [loki/README.md](loki/README.md) - Loki configuration
   - [prometheus/README.md](prometheus/README.md) - Prometheus rules and configuration
+  - [step-ca/README.md](step-ca/README.md) - step-ca internal PKI configuration

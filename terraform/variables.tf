@@ -2,6 +2,11 @@ variable "cloudflare_api_token" {
   description = "Cloudflare API token for DNS management"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.cloudflare_api_token) >= 40
+    error_message = "Cloudflare API token appears invalid (must be at least 40 characters)"
+  }
 }
 
 # Grafana Configuration
@@ -21,12 +26,17 @@ variable "development_network_ipv4" {
   description = "IPv4 address for development network"
   type        = string
   default     = "10.10.0.1/24"
+
+  validation {
+    condition     = can(cidrhost(var.development_network_ipv4, 0))
+    error_message = "Must be valid CIDR notation (e.g., 10.10.0.1/24)"
+  }
 }
 
 variable "development_network_nat" {
   description = "Enable NAT for development network IPv4"
-  type        = string
-  default     = "true"
+  type        = bool
+  default     = true
 }
 
 
@@ -35,12 +45,17 @@ variable "testing_network_ipv4" {
   description = "IPv4 address for testing network"
   type        = string
   default     = "10.20.0.1/24"
+
+  validation {
+    condition     = can(cidrhost(var.testing_network_ipv4, 0))
+    error_message = "Must be valid CIDR notation (e.g., 10.20.0.1/24)"
+  }
 }
 
 variable "testing_network_nat" {
   description = "Enable NAT for testing network IPv4"
-  type        = string
-  default     = "true"
+  type        = bool
+  default     = true
 }
 
 # Staging Network Configuration
@@ -48,12 +63,17 @@ variable "staging_network_ipv4" {
   description = "IPv4 address for staging network"
   type        = string
   default     = "10.30.0.1/24"
+
+  validation {
+    condition     = can(cidrhost(var.staging_network_ipv4, 0))
+    error_message = "Must be valid CIDR notation (e.g., 10.30.0.1/24)"
+  }
 }
 
 variable "staging_network_nat" {
   description = "Enable NAT for staging network IPv4"
-  type        = string
-  default     = "true"
+  type        = bool
+  default     = true
 }
 
 # Production Network Configuration
@@ -61,12 +81,17 @@ variable "production_network_ipv4" {
   description = "IPv4 address for production network"
   type        = string
   default     = "10.40.0.1/24"
+
+  validation {
+    condition     = can(cidrhost(var.production_network_ipv4, 0))
+    error_message = "Must be valid CIDR notation (e.g., 10.40.0.1/24)"
+  }
 }
 
 variable "production_network_nat" {
   description = "Enable NAT for production network IPv4"
-  type        = string
-  default     = "true"
+  type        = bool
+  default     = true
 }
 
 # Management Network Configuration
@@ -74,10 +99,15 @@ variable "management_network_ipv4" {
   description = "IPv4 address for management network (monitoring, internal services)"
   type        = string
   default     = "10.50.0.1/24"
+
+  validation {
+    condition     = can(cidrhost(var.management_network_ipv4, 0))
+    error_message = "Must be valid CIDR notation (e.g., 10.50.0.1/24)"
+  }
 }
 
 variable "management_network_nat" {
   description = "Enable NAT for management network IPv4"
-  type        = string
-  default     = "true"
+  type        = bool
+  default     = true
 }

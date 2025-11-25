@@ -23,5 +23,13 @@ ${domain} {
 		-Server
 	}
 
+%{ if backend_tls ~}
+	reverse_proxy https://${instance_name}.incus:${port} {
+		transport http {
+			tls_trust_pool file /etc/caddy/internal-ca.crt
+		}
+	}
+%{ else ~}
 	reverse_proxy ${instance_name}.incus:${port}
+%{ endif ~}
 }

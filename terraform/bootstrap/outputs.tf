@@ -1,4 +1,4 @@
-# Bootstrap OpenTofu Outputs
+# Bootstrap Terraform Outputs
 
 output "storage_pool_name" {
   description = "Name of the created storage pool"
@@ -12,7 +12,7 @@ output "bucket_name" {
 
 output "storage_buckets_endpoint" {
   description = "S3 endpoint URL for the storage bucket"
-  value       = var.storage_buckets_endpoint
+  value       = local.detected_endpoint
 }
 
 output "backend_config_file" {
@@ -25,15 +25,14 @@ output "next_steps" {
   value       = <<-EOT
     Bootstrap complete! Next steps:
 
-    1. Return to main terraform directory:
-       cd ..
+    1. Return to the project root directory:
+       cd ../..
 
     2. Initialize OpenTofu with remote backend:
-       tofu init -backend-config=backend.hcl
+       make init
 
-    3. Plan and apply infrastructure:
-       tofu plan
-       tofu apply
+    3. Deploy infrastructure:
+       make deploy
 
     Note: The backend.hcl file contains credentials and is gitignored.
   EOT

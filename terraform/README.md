@@ -6,9 +6,9 @@ This directory contains the OpenTofu configuration for the Atlas monitoring stac
 
 ```bash
 # From project root - recommended approach
-make tofu-init    # Initialize with backend configuration
-make tofu-plan    # Preview changes
-make tofu-apply   # Apply changes
+make terraform-init    # Initialize with backend configuration
+make terraform-plan    # Preview changes
+make terraform-apply   # Apply changes
 
 # Or use the init wrapper script
 ./terraform/init.sh    # Validates prerequisites and initializes
@@ -22,7 +22,7 @@ make tofu-apply   # Apply changes
 
 1. **Use the Makefile (recommended)**:
    ```bash
-   make tofu-init
+   make terraform-init
    ```
 
 2. **Use the init wrapper script**:
@@ -59,7 +59,7 @@ For a fresh installation:
 
 2. **Initialize OpenTofu**:
    ```bash
-   make tofu-init
+   make terraform-init
    ```
 
 3. **Deploy**:
@@ -89,18 +89,19 @@ terraform/
     ├── caddy/
     ├── grafana/
     ├── loki/
-    └── prometheus/
+    ├── prometheus/
+    └── step-ca/
 ```
 
 ## Common Commands
 
 ```bash
 # From project root
-make tofu-init      # Initialize with remote backend
-make tofu-plan      # Plan changes
-make tofu-apply     # Apply changes
-make tofu-destroy   # Destroy infrastructure
-make format              # Format OpenTofu files
+make terraform-init      # Initialize with remote backend
+make terraform-plan      # Plan changes
+make terraform-apply     # Apply changes
+make terraform-destroy   # Destroy infrastructure
+make format              # Format Terraform files
 
 # Direct OpenTofu commands (after initialization)
 cd terraform
@@ -124,7 +125,7 @@ cloudflare_api_token = "your-token"
 
 Contains S3 backend credentials (OpenTofu 1.6+ syntax):
 ```hcl
-bucket     = "atlas-tofu-state"
+bucket     = "atlas-terraform-state"
 access_key = "your-access-key"
 secret_key = "your-secret-key"
 
@@ -138,7 +139,7 @@ endpoints = {
 
 ### "Error asking for input to configure backend"
 
-Run `make tofu-init` or `./init.sh` instead of `tofu init`.
+Run `make terraform-init` or `./init.sh` instead of `tofu init`.
 
 ### "backend.hcl not found"
 

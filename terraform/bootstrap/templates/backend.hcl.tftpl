@@ -7,10 +7,6 @@ access_key = "${access_key}"
 secret_key = "${secret_key}"
 
 # Terraform 1.6+ requires endpoints block instead of endpoint parameter
-# Using remote Incus server's storage buckets endpoint
 endpoints = {
   s3 = "${endpoint}"
 }
-
-# Skip TLS verification for self-signed Incus certificate
-insecure = true

@@ -29,7 +29,7 @@ assignees: ''
 <!-- Check all that apply -->
 
 - Component:
-  - [ ] OpenTofu configuration
+  - [ ] Terraform configuration
   - [ ] Docker images
   - [ ] CI/CD pipeline
   - [ ] Documentation
@@ -44,12 +44,12 @@ assignees: ''
   - [ ] Storage volumes
   - [ ] Other (specify):
 
-## OpenTofu Version
+## Terraform Version
 
-<!-- Output of `tofu version` -->
+<!-- Output of `terraform version` -->
 
 ```
-tofu version output here
+terraform version output here
 ```
 
 ## Error Messages/Logs
@@ -65,7 +65,7 @@ paste error messages here
 <!-- Relevant parts of your configuration (redact sensitive information) -->
 
 ```hcl
-# Paste relevant OpenTofu config here
+# Paste relevant Terraform config here
 ```
 
 ## Possible Solution
