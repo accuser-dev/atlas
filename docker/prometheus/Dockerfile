@@ -20,8 +20,9 @@ COPY --from=step-cli /usr/local/bin/step /usr/local/bin/step
 # Copy TLS entrypoint script
 COPY --chmod=755 entrypoint-tls.sh /usr/local/bin/entrypoint-tls.sh
 
-# TLS configuration directory
-RUN mkdir -p /etc/prometheus/tls && chown nobody:nobody /etc/prometheus/tls
+# TLS and alerts configuration directories
+RUN mkdir -p /etc/prometheus/tls /etc/prometheus/alerts && \
+    chown -R nobody:nobody /etc/prometheus/tls /etc/prometheus/alerts
 
 # Environment variables for TLS (disabled by default)
 ENV ENABLE_TLS="false"

@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use"
   type        = string
-  default     = "docker:ghcr.io/accuser/atlas/step-ca:latest"
+  default     = "ghcr:accuser/atlas/step-ca:latest"
 }
 
 variable "cpu_limit" {

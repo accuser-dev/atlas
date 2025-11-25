@@ -232,7 +232,7 @@ module "step_ca01" {
   profile_name  = "step-ca"
 
   # Image override - use SHA tag until :latest is published
-  image = "docker:ghcr.io/accuser/atlas/step-ca:6af092e"
+  image = "ghcr:accuser/atlas/step-ca:6af092e"
 
   # Network configuration - use management network for internal services
   network_name = incus_network.management.name

@@ -131,7 +131,7 @@ environment_variables = {
 | `network_name` | Incus network to connect to | `string` | n/a | yes |
 | `domain` | Domain name for Caddy reverse proxy | `string` | n/a | yes |
 | `allowed_ip_range` | CIDR range for IP allowlist | `string` | n/a | yes |
-| `image` | Docker image to use | `string` | `"docker:ghcr.io/accuser/atlas/grafana:latest"` | no |
+| `image` | Docker image to use | `string` | `"ghcr:accuser/atlas/grafana:latest"` | no |
 | `cpu_limit` | CPU limit | `number` | `2` | no |
 | `memory_limit` | Memory limit | `string` | `"1GB"` | no |
 | `port` | Internal HTTP port | `number` | `3000` | no |
