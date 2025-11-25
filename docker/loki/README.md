@@ -5,7 +5,7 @@ This directory contains the Dockerfile for building a custom Loki image with TLS
 ## Base Image
 
 - **Base**: `grafana/loki:3.6.1` (binary extracted)
-- **Runtime**: `alpine:3.21` (for shell and TLS support)
+- **Runtime**: `alpine:3.22` (for shell and TLS support)
 - **Official**: Yes, Loki binary from Grafana Labs
 - **Version**: Pinned to 3.6.1 for reproducibility and security (Dependabot tracks updates)
 - **User**: Runs as non-root user (UID 10001) by default
