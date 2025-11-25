@@ -3,7 +3,7 @@
 FROM grafana/grafana:12.3.0 AS base
 
 # Build stage: Download step CLI
-FROM alpine:3.21 AS step-cli
+FROM alpine:3.22 AS step-cli
 ARG STEP_VERSION=0.28.6
 RUN apk add --no-cache curl tar && \
     curl -sLO "https://github.com/smallstep/cli/releases/download/v${STEP_VERSION}/step_linux_${STEP_VERSION}_amd64.tar.gz" && \
