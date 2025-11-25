@@ -1,0 +1,71 @@
+name: Cleanup Old Container Images
+
+on:
+  schedule:
+    # Run weekly on Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    # Allow manual trigger with configurable retention
+    inputs:
+      min_versions_to_keep:
+        description: 'Minimum versions to keep per package'
+        required: false
+        default: '10'
+        type: string
+
+jobs:
+  cleanup:
+    name: Cleanup ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        package: [caddy, grafana, loki, prometheus, step-ca]
+      fail-fast: false
+
+    steps:
+      - name: Delete old package versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: atlas/${{ matrix.package }}
+          package-type: container
+          min-versions-to-keep: ${{ inputs.min_versions_to_keep || '10' }}
+          delete-only-untagged-versions: false
+
+      - name: Summary
+        run: |
+          echo "## Cleanup: ${{ matrix.package }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Old versions cleaned up" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package:** \`atlas/${{ matrix.package }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Versions kept:** ${{ inputs.min_versions_to_keep || '10' }}" >> $GITHUB_STEP_SUMMARY
+
+  cleanup-summary:
+    name: Cleanup Summary
+    runs-on: ubuntu-latest
+    needs: cleanup
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🧹 Container Image Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name == 'schedule' && 'Scheduled (weekly)' || 'Manual' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Versions kept:** ${{ inputs.min_versions_to_keep || '10' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Packages Cleaned" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| atlas/caddy | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| atlas/grafana | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| atlas/loki | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| atlas/prometheus | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| atlas/step-ca | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if cleanup failed
+        if: needs.cleanup.result == 'failure'
+        run: exit 1
