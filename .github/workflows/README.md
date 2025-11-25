@@ -22,9 +22,9 @@ Validates Terraform configuration and builds Docker images on every push or pull
 Jobs run in this order to optimize cost and performance:
 
 1. **terraform-validate** - Quick validation checks (runs first, ~30 seconds)
-   - Format check: `terraform fmt -check -recursive`
-   - Initialization: `terraform init -backend=false`
-   - Validation: `terraform validate`
+   - Format check: `tofu fmt -check -recursive`
+   - Initialization: `tofu init -backend=false`
+   - Validation: `tofu validate`
    - **Fails fast** if Terraform config is invalid
    - Prevents expensive Docker builds if Terraform has issues
 
@@ -43,11 +43,11 @@ terraform-validate (fast, fails fast)
 docker-build (expensive, runs in parallel via matrix)
 ```
 
-**Note:** `terraform plan` is not run in CI because:
+**Note:** `tofu plan` is not run in CI because:
 - Requires actual Incus infrastructure (not available in GitHub Actions)
 - Cannot connect to provider with test credentials
-- Validation is already covered by `terraform validate`
-- Developers should run `terraform plan` locally before creating PRs
+- Validation is already covered by `tofu validate`
+- Developers should run `tofu plan` locally before creating PRs
 
 **Performance Optimizations:**
 

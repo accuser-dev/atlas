@@ -21,7 +21,7 @@ Run this bootstrap **once** when:
 ## Prerequisites
 
 - Incus installed and initialized (`incus admin init`)
-- Terraform >= 1.13.5
+- OpenTofu >= 1.9.0
 - Access to run `incus` commands (requires sudo or lxd/incus group membership)
 
 ## Usage
@@ -32,23 +32,23 @@ Run this bootstrap **once** when:
 # 1. Navigate to bootstrap directory
 cd terraform/bootstrap
 
-# 2. Initialize Terraform
-terraform init
+# 2. Initialize OpenTofu
+tofu init
 
 # 3. Review the plan
-terraform plan
+tofu plan
 
 # 4. Apply (creates storage bucket and credentials)
-terraform apply
+tofu apply
 
 # 5. Return to main terraform directory
 cd ..
 
 # 6. Initialize main project with remote backend
-terraform init -backend-config=backend.hcl
+tofu init -backend-config=backend.hcl
 
 # 7. Deploy infrastructure
-terraform apply
+tofu apply
 ```
 
 ### Using Makefile (Recommended)
@@ -94,7 +94,7 @@ incus remote switch production
 export INCUS_REMOTE=production
 # Run bootstrap
 cd terraform/bootstrap
-terraform apply
+tofu apply
 ```
 
 **Option C: Set in terraform.tfvars (persists with project)**
@@ -125,8 +125,8 @@ storage_pool_driver = "zfs"  # Use ZFS if available
 
 ```bash
 cd terraform/bootstrap
-terraform init
-terraform apply
+tofu init
+tofu apply
 
 # Or from project root:
 make bootstrap
@@ -156,7 +156,7 @@ incus_remote = "production"
 storage_buckets_endpoint = "http://localhost:8555"
 storage_buckets_address = "0.0.0.0:8555"  # On remote server
 EOF
-terraform apply
+tofu apply
 ```
 
 ## What It Creates
@@ -193,7 +193,7 @@ bucket_name             = "my-state-bucket" # Custom bucket name
 Or via CLI:
 
 ```bash
-terraform apply \
+tofu apply \
   -var="storage_pool_driver=zfs" \
   -var="storage_buckets_address=127.0.0.1:8555"
 ```
@@ -244,7 +244,7 @@ Bootstrap creates credentials with the `admin` role, which is required for Terra
 To manually regenerate credentials:
 ```bash
 incus storage bucket key delete terraform-state atlas-terraform-state terraform-access
-terraform apply
+tofu apply
 ```
 
 ## Troubleshooting
@@ -271,7 +271,7 @@ incus storage list
 
 Try a different driver:
 ```bash
-terraform apply -var="storage_pool_driver=dir"
+tofu apply -var="storage_pool_driver=dir"
 ```
 
 ### Credentials not generated
@@ -283,7 +283,7 @@ incus storage bucket key list terraform-state atlas-terraform-state
 Delete and recreate:
 ```bash
 incus storage bucket key delete terraform-state atlas-terraform-state terraform-access
-terraform apply
+tofu apply
 ```
 
 ## State Management
@@ -302,7 +302,7 @@ To remove bootstrap resources:
 cd terraform/bootstrap
 
 # Destroy storage bucket (will lose all state!)
-terraform destroy
+tofu destroy
 
 # Or manually:
 incus storage bucket delete terraform-state atlas-terraform-state

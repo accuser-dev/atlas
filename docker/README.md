@@ -164,7 +164,7 @@ COPY grafana.ini /etc/grafana/grafana.ini
 After pushing to GitHub:
 - GitHub Actions builds the image
 - Published to ghcr.io
-- Next `terraform apply` pulls the updated image
+- Next `tofu apply` pulls the updated image
 
 ## Image Management
 
@@ -179,14 +179,14 @@ To force a rebuild without code changes:
 - Make a trivial change to the Dockerfile (e.g., add a comment)
 - Or trigger workflow manually in GitHub Actions
 
-### Forcing Terraform to Pull New Images
+### Forcing OpenTofu to Pull New Images
 
 After publishing updated images:
 
 ```bash
 # Option 1: Recreate specific container
 cd terraform
-terraform apply -replace='module.grafana01.incus_instance.grafana'
+tofu apply -replace='module.grafana01.incus_instance.grafana'
 
 # Option 2: Restart container
 incus restart grafana01
@@ -254,9 +254,9 @@ Error: Failed to create instance: Image not found
 If container doesn't reflect recent image changes:
 
 ```bash
-# Force Terraform to recreate container
+# Force OpenTofu to recreate container
 cd terraform
-terraform apply -replace='module.grafana01.incus_instance.grafana'
+tofu apply -replace='module.grafana01.incus_instance.grafana'
 
 # Or restart to pick up new image
 incus restart grafana01

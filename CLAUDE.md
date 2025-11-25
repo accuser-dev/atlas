@@ -115,7 +115,7 @@ make format
 
 ### Direct Terraform Operations
 
-**Important:** Do not run `terraform init` directly - it requires backend configuration. Use one of these methods:
+**Important:** Do not run `tofu init` directly - it requires backend configuration. Use one of these methods:
 
 ```bash
 # Option 1: Use the Makefile (recommended)
@@ -125,7 +125,7 @@ make terraform-init
 cd terraform && ./init.sh
 
 # Option 3: Manual with backend config
-cd terraform && terraform init -backend-config=backend.hcl
+cd terraform && tofu init -backend-config=backend.hcl
 ```
 
 After initialization, you can run other commands directly:
@@ -133,25 +133,25 @@ After initialization, you can run other commands directly:
 cd terraform
 
 # Validate configuration
-terraform validate
+tofu validate
 
 # Plan changes (see what will be applied)
-terraform plan
+tofu plan
 
 # Apply changes
-terraform apply
+tofu apply
 
 # Destroy infrastructure
-terraform destroy
+tofu destroy
 
 # Format Terraform files
-terraform fmt -recursive
+tofu fmt -recursive
 
 # Show current state
-terraform show
+tofu show
 
 # View outputs (endpoints, configurations)
-terraform output
+tofu output
 ```
 
 ### Terraform State Management
@@ -191,14 +191,14 @@ See [terraform/BACKEND_SETUP.md](terraform/BACKEND_SETUP.md) for detailed instru
 ```bash
 # Normal operations work the same
 cd terraform
-terraform plan
-terraform apply
+tofu plan
+tofu apply
 
 # State is automatically stored remotely
-terraform state list
+tofu state list
 
 # Migrate existing local state (if needed)
-terraform init -migrate-state
+tofu init -migrate-state
 ```
 
 **Important Notes:**
@@ -596,8 +596,8 @@ resource "incus_profile" "service" {
 
 This ensures:
 - Storage volumes exist before profiles reference them
-- Proper creation order during `terraform apply`
-- Clean teardown order during `terraform destroy`
+- Proper creation order during `tofu apply`
+- Clean teardown order during `tofu destroy`
 
 #### Why Use the Default Profile?
 
@@ -868,7 +868,7 @@ All alerts include detailed annotations with current values and context.
 
 4. **Verify**:
    ```bash
-   cd terraform && terraform output
+   cd terraform && tofu output
    ```
 
 ### Docker Image Configuration
@@ -936,7 +936,7 @@ module "grafana01" {
 
 ## Outputs
 
-After applying, use `cd terraform && terraform output` to view:
+After applying, use `cd terraform && tofu output` to view:
 - `grafana_caddy_config` - Generated Caddy configuration for Grafana
 - `loki_endpoint` - Internal Loki endpoint URL
 - `prometheus_endpoint` - Internal Prometheus endpoint URL

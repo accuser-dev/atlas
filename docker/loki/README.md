@@ -144,9 +144,9 @@ For local development:
 # Build locally
 make build-loki
 
-# Test with Terraform
+# Test with OpenTofu
 cd terraform
-terraform plan
+tofu plan
 ```
 
 ## Health Monitoring

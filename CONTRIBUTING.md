@@ -122,8 +122,8 @@ Periodically, when `develop` is stable and ready for release:
 ### Code Standards
 
 **Terraform:**
-- Run `terraform fmt` before committing
-- Run `terraform validate` to ensure valid configuration
+- Run `tofu fmt` before committing
+- Run `tofu validate` to ensure valid configuration
 - Use meaningful variable names and descriptions
 - Add comments for complex logic
 - Follow module structure conventions
@@ -150,9 +150,9 @@ Before submitting a PR:
 make format
 
 # Validate Terraform configuration
-cd terraform && terraform validate
+cd terraform && tofu validate
 
-# Run Terraform plan (requires valid terraform.tfvars)
+# Run OpenTofu plan (requires valid terraform.tfvars)
 make terraform-plan
 
 # Build Docker images locally (optional)
@@ -207,7 +207,7 @@ Dependabot automatically creates PRs for Docker base image updates. When reviewi
 - Verify compatibility with our configuration
 
 **2. Verify CI passes:**
-- Ensure all CI checks pass (build, terraform validate)
+- Ensure all CI checks pass (build, tofu validate)
 - Review any test failures carefully
 
 **3. Test locally (for major updates):**

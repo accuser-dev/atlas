@@ -54,7 +54,7 @@ terraform version output here
 
 ## Error Messages/Logs
 
-<!-- Include relevant error messages, logs, or terraform plan output -->
+<!-- Include relevant error messages, logs, or tofu plan output -->
 
 ```
 paste error messages here

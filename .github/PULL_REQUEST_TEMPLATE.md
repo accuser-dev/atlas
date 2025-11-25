@@ -36,7 +36,7 @@ Fixes #
 ### Test Results
 
 ```
-# Paste relevant test output or terraform plan results
+# Paste relevant test output or tofu plan results
 ```
 
 ## Changes Made
@@ -75,9 +75,9 @@ Fixes #
 <!-- Ensure all items are completed before requesting review -->
 
 - [ ] My code follows the project's style guidelines
-- [ ] I have run `terraform fmt` on all Terraform files
-- [ ] I have run `terraform validate` successfully
-- [ ] I have run `terraform plan` locally to verify changes (required for Terraform changes)
+- [ ] I have run `tofu fmt` on all Terraform files
+- [ ] I have run `tofu validate` successfully
+- [ ] I have run `tofu plan` locally to verify changes (required for Terraform changes)
 - [ ] I have added tests that prove my fix is effective or feature works (if applicable)
 - [ ] New and existing tests pass locally
 - [ ] No secrets or sensitive data are committed

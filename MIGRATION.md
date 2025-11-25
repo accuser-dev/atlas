@@ -44,17 +44,17 @@ atlas/
 
 **Before:**
 ```bash
-terraform init
-terraform plan
-terraform apply
+tofu init
+tofu plan
+tofu apply
 ```
 
 **After:**
 ```bash
 cd terraform
-terraform init
-terraform plan
-terraform apply
+tofu init
+tofu plan
+tofu apply
 
 # Or from root:
 make terraform-init
@@ -96,14 +96,14 @@ module "grafana01" {
 
 **Before:**
 ```bash
-terraform init
-terraform plan
-terraform apply
+tofu init
+tofu plan
+tofu apply
 ```
 
 **After:**
 ```bash
-make deploy                 # Build images + apply Terraform
+make deploy                 # Build images + apply OpenTofu
 make terraform-init         # Just initialize
 make terraform-plan         # Just plan
 make terraform-apply        # Just apply
