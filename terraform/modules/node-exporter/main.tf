@@ -68,16 +68,10 @@ resource "incus_instance" "node_exporter" {
   type     = "container"
   profiles = ["default", incus_profile.node_exporter.name]
 
-  config = {
-    "security.privileged" = "false"
-  }
-
-  # Pass environment variables to the container
-  dynamic "config" {
-    for_each = var.environment_variables
-    content {
-      key   = config.key
-      value = config.value
-    }
-  }
+  config = merge(
+    {
+      "security.privileged" = "false"
+    },
+    { for k, v in var.environment_variables : "environment.${k}" => v }
+  )
 }
