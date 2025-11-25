@@ -58,12 +58,12 @@ build_retention_flags() {
 
     if [ -n "${RETENTION_TIME}" ]; then
         RETENTION_FLAGS="${RETENTION_FLAGS} --storage.tsdb.retention.time=${RETENTION_TIME}"
-        echo "Retention time: ${RETENTION_TIME}"
+        echo "Retention time: ${RETENTION_TIME}" >&2
     fi
 
     if [ -n "${RETENTION_SIZE}" ]; then
         RETENTION_FLAGS="${RETENTION_FLAGS} --storage.tsdb.retention.size=${RETENTION_SIZE}"
-        echo "Retention size: ${RETENTION_SIZE}"
+        echo "Retention size: ${RETENTION_SIZE}" >&2
     fi
 
     echo "${RETENTION_FLAGS}"
