@@ -377,6 +377,7 @@ The project uses Terraform modules for scalability and reusability:
 7. **Loki Module** ([terraform/modules/loki/](terraform/modules/loki/))
    - Log aggregation system (internal only)
    - Persistent storage for log data (50GB)
+   - Configurable retention (default: 30 days / 720h)
    - No public-facing reverse proxy configuration
    - Internal endpoint for Grafana data source
    - Custom Docker image: [docker/loki/](docker/loki/)
@@ -387,11 +388,13 @@ The project uses Terraform modules for scalability and reusability:
    - Internal endpoint: `http://loki01.incus:3100`
    - Resource limits: 2 CPUs, 2GB memory
    - Storage: 50GB persistent volume for `/loki`
+   - Retention: 30 days (720h) with 2h delete delay
    - Network: Connected to management network (internal only)
 
 9. **Prometheus Module** ([terraform/modules/prometheus/](terraform/modules/prometheus/))
    - Metrics collection and time-series database (internal only)
    - Persistent storage for metrics data (100GB)
+   - Configurable retention (time-based and size-based)
    - Optional prometheus.yml configuration file injection
    - No public-facing reverse proxy configuration
    - Internal endpoint for Grafana data source
@@ -403,6 +406,7 @@ The project uses Terraform modules for scalability and reusability:
     - Internal endpoint: `http://prometheus01.incus:9090`
     - Resource limits: 2 CPUs, 2GB memory
     - Storage: 100GB persistent volume for `/prometheus`
+    - Retention: 30 days (time-based), no size limit by default
     - Network: Connected to management network (internal only)
 
 11. **step-ca Module** ([terraform/modules/step-ca/](terraform/modules/step-ca/))
@@ -456,6 +460,46 @@ Each service with persistent storage uses Incus storage volumes:
 - `loki01-data` - 50GB - `/loki`
 - `prometheus01-data` - 100GB - `/prometheus`
 - `step-ca01-data` - 1GB - `/home/step`
+
+### Retention Configuration
+
+Both Prometheus and Loki support configurable retention policies to prevent storage volumes from filling up.
+
+**Prometheus Retention:**
+- Configured via environment variables: `RETENTION_TIME`, `RETENTION_SIZE`
+- Time-based retention (default: 30 days): `retention_time = "30d"`
+- Size-based retention (optional): `retention_size = "90GB"`
+- Both can be used together; whichever triggers first will delete old data
+
+```hcl
+module "prometheus01" {
+  # ...
+  retention_time = "30d"    # Keep data for 30 days
+  retention_size = "90GB"   # Or delete when storage exceeds 90GB
+}
+```
+
+**Loki Retention:**
+- Configured via environment variables: `RETENTION_PERIOD`, `RETENTION_DELETE_DELAY`
+- Uses hours format (default: 720h = 30 days): `retention_period = "720h"`
+- Delete delay (minimum 2h for safety): `retention_delete_delay = "2h"`
+- Requires compactor to be enabled (automatically configured)
+
+```hcl
+module "loki01" {
+  # ...
+  retention_period       = "720h"  # Keep logs for 30 days
+  retention_delete_delay = "2h"    # Wait 2h before deleting
+}
+```
+
+**Common retention periods:**
+| Duration | Prometheus | Loki |
+|----------|------------|------|
+| 7 days   | `7d`       | `168h` |
+| 14 days  | `14d`      | `336h` |
+| 30 days  | `30d`      | `720h` |
+| 90 days  | `90d`      | `2160h` |
 
 ### Profile Architecture
 

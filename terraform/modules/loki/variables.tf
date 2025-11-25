@@ -118,3 +118,26 @@ variable "cert_duration" {
     error_message = "Certificate duration must be in hours format (e.g., '24h', '168h')"
   }
 }
+
+# Retention Configuration
+variable "retention_period" {
+  description = "How long to retain log data (e.g., 168h, 720h, 2160h for 7d, 30d, 90d). Set to empty string to disable retention."
+  type        = string
+  default     = "720h"
+
+  validation {
+    condition     = var.retention_period == "" || can(regex("^[0-9]+h$", var.retention_period))
+    error_message = "Retention period must be empty or in hours format (e.g., '720h' for 30 days)"
+  }
+}
+
+variable "retention_delete_delay" {
+  description = "Delay after which chunks will be deleted (e.g., 2h). Must be at least 2h for safety."
+  type        = string
+  default     = "2h"
+
+  validation {
+    condition     = can(regex("^[0-9]+h$", var.retention_delete_delay))
+    error_message = "Retention delete delay must be in hours format (e.g., '2h')"
+  }
+}
