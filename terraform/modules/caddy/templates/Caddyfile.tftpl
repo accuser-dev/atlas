@@ -1,4 +1,7 @@
 {
+	# Order rate_limit directive before basic_auth in the handler chain
+	order rate_limit before basic_auth
+
 	acme_dns cloudflare {file./etc/caddy/cloudflare_token} {
 		resolvers 1.1.1.1
 	}
