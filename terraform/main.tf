@@ -52,21 +52,21 @@ module "grafana01" {
     GF_SERVER_HTTP_PORT        = "3000"
   }
 
-  # Configure datasources for Prometheus and Loki
+  # Configure datasources for Prometheus and Loki (derived from module outputs)
   datasources = [
     {
       name            = "Prometheus"
       type            = "prometheus"
-      url             = "http://prometheus01.incus:9090"
+      url             = module.prometheus01.prometheus_endpoint
       is_default      = true
-      tls_skip_verify = false
+      tls_skip_verify = module.prometheus01.tls_enabled # Skip verify for internal CA
     },
     {
       name            = "Loki"
       type            = "loki"
-      url             = "http://loki01.incus:3100"
+      url             = module.loki01.loki_endpoint
       is_default      = false
-      tls_skip_verify = false
+      tls_skip_verify = module.loki01.tls_enabled # Skip verify for internal CA
     }
   ]
 
