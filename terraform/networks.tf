@@ -3,10 +3,18 @@ resource "incus_network" "development" {
   description = "Development network"
   type        = "bridge"
 
-  config = {
-    "ipv4.address" = var.development_network_ipv4
-    "ipv4.nat"     = tostring(var.development_network_nat)
-  }
+  config = merge(
+    {
+      "ipv4.address" = var.development_network_ipv4
+      "ipv4.nat"     = tostring(var.development_network_nat)
+    },
+    var.development_network_ipv6 != "" ? {
+      "ipv6.address" = var.development_network_ipv6
+      "ipv6.nat"     = tostring(var.development_network_ipv6_nat)
+      } : {
+      "ipv6.address" = "none"
+    }
+  )
 }
 
 resource "incus_network" "testing" {
@@ -14,10 +22,18 @@ resource "incus_network" "testing" {
   description = "Testing network"
   type        = "bridge"
 
-  config = {
-    "ipv4.address" = var.testing_network_ipv4
-    "ipv4.nat"     = tostring(var.testing_network_nat)
-  }
+  config = merge(
+    {
+      "ipv4.address" = var.testing_network_ipv4
+      "ipv4.nat"     = tostring(var.testing_network_nat)
+    },
+    var.testing_network_ipv6 != "" ? {
+      "ipv6.address" = var.testing_network_ipv6
+      "ipv6.nat"     = tostring(var.testing_network_ipv6_nat)
+      } : {
+      "ipv6.address" = "none"
+    }
+  )
 }
 
 resource "incus_network" "staging" {
@@ -25,10 +41,18 @@ resource "incus_network" "staging" {
   description = "Staging network"
   type        = "bridge"
 
-  config = {
-    "ipv4.address" = var.staging_network_ipv4
-    "ipv4.nat"     = tostring(var.staging_network_nat)
-  }
+  config = merge(
+    {
+      "ipv4.address" = var.staging_network_ipv4
+      "ipv4.nat"     = tostring(var.staging_network_nat)
+    },
+    var.staging_network_ipv6 != "" ? {
+      "ipv6.address" = var.staging_network_ipv6
+      "ipv6.nat"     = tostring(var.staging_network_ipv6_nat)
+      } : {
+      "ipv6.address" = "none"
+    }
+  )
 }
 
 resource "incus_network" "production" {
@@ -36,10 +60,18 @@ resource "incus_network" "production" {
   description = "Production network"
   type        = "bridge"
 
-  config = {
-    "ipv4.address" = var.production_network_ipv4
-    "ipv4.nat"     = tostring(var.production_network_nat)
-  }
+  config = merge(
+    {
+      "ipv4.address" = var.production_network_ipv4
+      "ipv4.nat"     = tostring(var.production_network_nat)
+    },
+    var.production_network_ipv6 != "" ? {
+      "ipv6.address" = var.production_network_ipv6
+      "ipv6.nat"     = tostring(var.production_network_ipv6_nat)
+      } : {
+      "ipv6.address" = "none"
+    }
+  )
 }
 
 resource "incus_network" "management" {
@@ -47,8 +79,16 @@ resource "incus_network" "management" {
   description = "Management network for internal services (monitoring, etc.)"
   type        = "bridge"
 
-  config = {
-    "ipv4.address" = var.management_network_ipv4
-    "ipv4.nat"     = tostring(var.management_network_nat)
-  }
+  config = merge(
+    {
+      "ipv4.address" = var.management_network_ipv4
+      "ipv4.nat"     = tostring(var.management_network_nat)
+    },
+    var.management_network_ipv6 != "" ? {
+      "ipv6.address" = var.management_network_ipv6
+      "ipv6.nat"     = tostring(var.management_network_ipv6_nat)
+      } : {
+      "ipv6.address" = "none"
+    }
+  )
 }

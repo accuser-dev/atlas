@@ -336,7 +336,8 @@ The project uses Terraform modules for scalability and reusability:
 2. **Network Configuration** ([terraform/networks.tf](terraform/networks.tf))
    - Five managed networks: development, testing, staging, production, management
    - Each network has configurable IPv4 addresses (default 10.10.0.1/24 through 10.50.0.1/24)
-   - NAT enabled for external connectivity
+   - Optional IPv6 support (dual-stack) using ULA addresses (e.g., fd00:10:10::1/64)
+   - NAT enabled for external connectivity (configurable for both IPv4 and IPv6)
    - Management network (10.50.0.1/24) hosts internal services like monitoring
 
 3. **Caddy Module** ([terraform/modules/caddy/](terraform/modules/caddy/))
@@ -869,12 +870,20 @@ module "caddy01" {
 
 **Network Architecture:**
 - Five managed networks: development (10.10.0.1/24), testing (10.20.0.1/24), staging (10.30.0.1/24), production (10.40.0.1/24), management (10.50.0.1/24)
+- Optional IPv6 dual-stack support using ULA addresses (fd00:10:XX::1/64)
 - Application environments: development, testing, staging, production
 - Management network: hosts internal services (monitoring stack: Grafana, Loki, Prometheus)
 - Services on same network can communicate via internal DNS
 - Public services exposed via Caddy reverse proxy with triple NICs (production, management, external)
 - IP-based access control for security
 - Automatic HTTPS via Let's Encrypt with Cloudflare DNS validation
+
+**IPv6 Configuration:**
+- IPv6 is disabled by default (set to empty string)
+- Enable by setting `*_network_ipv6` variables in terraform.tfvars
+- Uses ULA (Unique Local Address) prefix fd00::/8 for private addressing
+- NAT66 configurable per-network via `*_network_ipv6_nat` variables
+- Example: `production_network_ipv6 = "fd00:10:40::1/64"`
 
 **Rate Limiting:**
 - Built-in rate limiting via mholt/caddy-ratelimit plugin
