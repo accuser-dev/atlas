@@ -56,7 +56,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        service: [alertmanager, caddy, grafana, loki, mosquitto, prometheus, step-ca]
+        service: [alertmanager, caddy, cloudflared, grafana, loki, mosquitto, prometheus, step-ca]
       fail-fast: false
 
     steps:
@@ -126,6 +126,7 @@ jobs:
           echo "|---------|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| alertmanager | \`${{ env.IMAGE_PREFIX }}/alertmanager:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| caddy | \`${{ env.IMAGE_PREFIX }}/caddy:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| cloudflared | \`${{ env.IMAGE_PREFIX }}/cloudflared:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| grafana | \`${{ env.IMAGE_PREFIX }}/grafana:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| loki | \`${{ env.IMAGE_PREFIX }}/loki:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| mosquitto | \`${{ env.IMAGE_PREFIX }}/mosquitto:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
@@ -148,7 +149,7 @@ jobs:
 # NOTE: GitHub packages are private by default. To allow Incus to pull images
 # without authentication, you must manually set each package to public:
 #   1. Go to https://github.com/orgs/accuser/packages or your user packages page
-#   2. Click on each package (alertmanager, caddy, grafana, loki, mosquitto, prometheus, step-ca)
+#   2. Click on each package (alertmanager, caddy, cloudflared, grafana, loki, mosquitto, prometheus, step-ca)
 #   3. Go to Package settings
 #   4. Under "Danger Zone", change visibility to "Public"
 #
