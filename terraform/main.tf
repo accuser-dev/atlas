@@ -200,7 +200,7 @@ module "prometheus01" {
     alerting:
       alertmanagers:
         - static_configs:
-            - targets: []  # Configure Alertmanager if needed
+            - targets: ['alertmanager01.incus:9093']
   EOT
 
   # Alert rules for OOM and container restart detection (optional)
@@ -280,6 +280,37 @@ module "node_exporter01" {
   # Resource limits - Node Exporter is very lightweight
   cpu_limit    = "1"
   memory_limit = "128MB"
+
+  # Ensure networks are created before the container
+  depends_on = [
+    incus_network.development,
+    incus_network.testing,
+    incus_network.staging,
+    incus_network.production,
+    incus_network.management
+  ]
+}
+
+module "alertmanager01" {
+  source = "./modules/alertmanager"
+
+  instance_name = "alertmanager01"
+  profile_name  = "alertmanager"
+
+  # Network configuration - use management network for internal services
+  network_name = incus_network.management.name
+
+  # Alertmanager configuration
+  alertmanager_port = "9093"
+
+  # Enable persistent storage for silences and notification state
+  enable_data_persistence = true
+  data_volume_name        = "alertmanager01-data"
+  data_volume_size        = "1GB"
+
+  # Resource limits - Alertmanager is lightweight
+  cpu_limit    = "1"
+  memory_limit = "256MB"
 
   # Ensure networks are created before the container
   depends_on = [

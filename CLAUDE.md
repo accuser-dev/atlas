@@ -430,6 +430,23 @@ The project uses Terraform modules for scalability and reusability:
     - Network: Connected to management network (internal only)
     - CA fingerprint: Retrieved after deployment via `incus exec step-ca01 -- cat /home/step/fingerprint`
 
+13. **Alertmanager Module** ([terraform/modules/alertmanager/](terraform/modules/alertmanager/))
+    - Alert routing and notification management (internal only)
+    - Persistent storage for silences and notification state (1GB)
+    - Configurable notification routes (Slack, email, webhook)
+    - Silencing and inhibition rules support
+    - Integration with Prometheus via alertmanagers config
+    - Custom Docker image: [docker/alertmanager/](docker/alertmanager/)
+
+14. **Alertmanager Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+    - Instance name: `alertmanager01`
+    - Image: `ghcr.io/accuser/atlas/alertmanager:latest` (published from [docker/alertmanager/](docker/alertmanager/))
+    - Internal endpoint: `http://alertmanager01.incus:9093`
+    - Resource limits: 1 CPU, 256MB memory
+    - Storage: 1GB persistent volume for `/alertmanager`
+    - Network: Connected to management network (internal only)
+    - Prometheus integration: Configured via `alerting.alertmanagers` in prometheus.yml
+
 ### Dynamic Caddyfile Generation
 
 The project uses a template-based approach for generating Caddyfile configurations:
@@ -463,6 +480,7 @@ Each service with persistent storage uses Incus storage volumes:
 - `loki01-data` - 50GB - `/loki`
 - `prometheus01-data` - 100GB - `/prometheus`
 - `step-ca01-data` - 1GB - `/home/step`
+- `alertmanager01-data` - 1GB - `/alertmanager`
 
 ### Retention Configuration
 
@@ -675,6 +693,7 @@ All services enforce hard memory limits and configurable resources:
 | Loki    | 2 cores       | 2GB             | 1-64 CPUs, MB/GB format |
 | Prometheus | 2 cores    | 2GB             | 1-64 CPUs, MB/GB format |
 | step-ca | 1 core        | 512MB           | 1-64 CPUs, MB/GB format |
+| Alertmanager | 1 core   | 256MB           | 1-64 CPUs, MB/GB format |
 
 All limits are validated at the Terraform variable level to ensure correctness before deployment.
 
@@ -689,6 +708,7 @@ Profiles follow a simple, service-specific naming pattern:
 | Loki    | `loki`       | `loki01`      |
 | Prometheus | `prometheus` | `prometheus01` |
 | step-ca | `step-ca`    | `step-ca01`   |
+| Alertmanager | `alertmanager` | `alertmanager01` |
 
 Profile names are independent of instance names, allowing flexibility for multiple instances.
 
@@ -1116,3 +1136,4 @@ After applying, use `cd terraform && tofu output` to view:
 - `step_ca_acme_endpoint` - step-ca ACME endpoint URL for certificate requests
 - `step_ca_acme_directory` - step-ca ACME directory URL for ACME clients
 - `step_ca_fingerprint_command` - Command to retrieve CA fingerprint for TLS configuration
+- `alertmanager_endpoint` - Internal Alertmanager endpoint URL for alert routing
