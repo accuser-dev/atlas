@@ -37,3 +37,16 @@ output "alertmanager_endpoint" {
   description = "Alertmanager endpoint URL for alert routing"
   value       = module.alertmanager01.alertmanager_endpoint
 }
+
+output "mosquitto_mqtt_endpoint" {
+  description = "Internal MQTT endpoint URL"
+  value       = module.mosquitto01.mqtt_endpoint
+}
+
+output "mosquitto_external_ports" {
+  description = "External host ports for MQTT access"
+  value = {
+    mqtt  = module.mosquitto01.external_mqtt_port
+    mqtts = module.mosquitto01.external_mqtts_port
+  }
+}

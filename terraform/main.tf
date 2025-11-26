@@ -321,3 +321,46 @@ module "alertmanager01" {
     incus_network.management
   ]
 }
+
+module "mosquitto01" {
+  source = "./modules/mosquitto"
+
+  instance_name = "mosquitto01"
+  profile_name  = "mosquitto"
+
+  # Network configuration - use production network for externally-accessible services
+  network_name = incus_network.production.name
+
+  # MQTT port configuration
+  mqtt_port  = "1883"
+  mqtts_port = "8883"
+
+  # External access via Incus proxy devices
+  # This exposes MQTT ports on the host for external clients
+  enable_external_access = true
+  external_mqtt_port     = "1883"
+  external_mqtts_port    = "8883"
+
+  # TLS is disabled by default - enable with step-ca fingerprint when ready
+  # enable_tls         = true
+  # stepca_url         = "https://step-ca01.incus:9000"
+  # stepca_fingerprint = "your-fingerprint-here"
+
+  # Enable persistent storage for retained messages and subscriptions
+  enable_data_persistence = true
+  data_volume_name        = "mosquitto01-data"
+  data_volume_size        = "5GB"
+
+  # Resource limits - Mosquitto is lightweight
+  cpu_limit    = "1"
+  memory_limit = "256MB"
+
+  # Ensure networks are created before the container
+  depends_on = [
+    incus_network.development,
+    incus_network.testing,
+    incus_network.staging,
+    incus_network.production,
+    incus_network.management
+  ]
+}
