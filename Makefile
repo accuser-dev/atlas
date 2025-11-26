@@ -5,7 +5,8 @@
         list-images \
         bootstrap bootstrap-init bootstrap-plan bootstrap-apply \
         init plan apply destroy import clean-incus clean-images \
-        deploy clean clean-docker clean-tofu clean-bootstrap format
+        deploy clean clean-docker clean-tofu clean-bootstrap format \
+        backup-snapshot backup-export backup-list
 
 # Default target
 help:
@@ -39,6 +40,11 @@ help:
 	@echo ""
 	@echo "Deployment Commands:"
 	@echo "  make deploy            - Apply OpenTofu (pulls images from ghcr.io)"
+	@echo ""
+	@echo "Backup Commands:"
+	@echo "  make backup-snapshot   - Create snapshots of all storage volumes"
+	@echo "  make backup-export     - Export all volumes to tarballs (stops services)"
+	@echo "  make backup-list       - List all volume snapshots"
 	@echo ""
 	@echo "Utility Commands:"
 	@echo "  make format            - Format OpenTofu files"
@@ -317,3 +323,62 @@ clean-bootstrap:
 format:
 	@echo "Formatting OpenTofu files..."
 	cd terraform && tofu fmt -recursive
+
+# Backup commands
+ATLAS_VOLUMES := grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data
+ATLAS_SERVICES := grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01
+
+backup-snapshot:
+	@echo "Creating snapshots of all Atlas storage volumes..."
+	@TIMESTAMP=$$(date +%Y%m%d-%H%M%S); \
+	for vol in $(ATLAS_VOLUMES); do \
+		if incus storage volume show local $$vol >/dev/null 2>&1; then \
+			echo "  Snapshotting: $$vol -> backup-$$TIMESTAMP"; \
+			incus storage volume snapshot local $$vol "backup-$$TIMESTAMP"; \
+		else \
+			echo "  Skipping (not found): $$vol"; \
+		fi; \
+	done
+	@echo ""
+	@echo "Snapshots created successfully."
+	@echo "Use 'make backup-list' to view snapshots."
+
+backup-export:
+	@echo "=========================================="
+	@echo "WARNING: This will stop all services"
+	@echo "=========================================="
+	@echo ""
+	@echo "Exporting volumes to: ./backups/$$(date +%Y%m%d)/"
+	@echo ""
+	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	@BACKUP_DIR="./backups/$$(date +%Y%m%d)"; \
+	mkdir -p "$$BACKUP_DIR"; \
+	echo "Stopping services..."; \
+	for svc in $(ATLAS_SERVICES); do \
+		incus stop $$svc 2>/dev/null || true; \
+	done; \
+	echo "Exporting volumes..."; \
+	for vol in $(ATLAS_VOLUMES); do \
+		if incus storage volume show local $$vol >/dev/null 2>&1; then \
+			echo "  Exporting: $$vol"; \
+			incus storage volume export local $$vol "$$BACKUP_DIR/$$vol.tar.gz"; \
+		fi; \
+	done; \
+	echo "Starting services..."; \
+	for svc in $(ATLAS_SERVICES); do \
+		incus start $$svc 2>/dev/null || true; \
+	done; \
+	echo ""; \
+	echo "Backup complete: $$BACKUP_DIR"; \
+	ls -lh "$$BACKUP_DIR"
+
+backup-list:
+	@echo "Atlas Storage Volume Snapshots"
+	@echo "=============================="
+	@for vol in $(ATLAS_VOLUMES); do \
+		if incus storage volume show local $$vol >/dev/null 2>&1; then \
+			echo ""; \
+			echo "$$vol:"; \
+			incus storage volume info local $$vol 2>/dev/null | grep -A 100 "Snapshots:" | grep -E "^\s+-\s+|^\s+name:" | head -20 || echo "  (no snapshots)"; \
+		fi; \
+	done

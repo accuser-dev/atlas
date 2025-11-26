@@ -65,6 +65,7 @@ atlas/
 │   └── BACKEND_SETUP.md      # Remote state setup guide
 ├── Makefile                  # Build and deployment automation
 ├── CONTRIBUTING.md           # Contribution guidelines and GitHub Flow workflow
+├── BACKUP.md                 # Backup and disaster recovery procedures
 └── CLAUDE.md                 # This file
 ```
 
@@ -118,9 +119,16 @@ make clean-images        # Remove Atlas images from Incus cache
 
 # Format OpenTofu files
 make format
+
+# Backup operations
+make backup-snapshot     # Create snapshots of all storage volumes
+make backup-export       # Export all volumes to tarballs (stops services)
+make backup-list         # List all volume snapshots
 ```
 
 **Note:** Production images are built and published automatically via GitHub Actions to `ghcr.io/accuser/atlas/*:latest`. Local builds are only needed for development/testing.
+
+For detailed backup procedures and disaster recovery playbooks, see [BACKUP.md](BACKUP.md).
 
 ### Direct OpenTofu Operations
 
