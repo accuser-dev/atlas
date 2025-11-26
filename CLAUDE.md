@@ -30,6 +30,9 @@ atlas/
 │   ├── mosquitto/            # Eclipse Mosquitto MQTT broker
 │   │   ├── Dockerfile
 │   │   └── README.md
+│   ├── cloudflared/          # Cloudflare Tunnel client for Zero Trust
+│   │   ├── Dockerfile
+│   │   └── README.md
 │   └── step-ca/              # Internal ACME CA for TLS certificates
 │       ├── Dockerfile
 │       └── README.md
@@ -42,6 +45,7 @@ atlas/
 │   │   └── README.md         # Bootstrap documentation
 │   ├── modules/              # Reusable Terraform modules
 │   │   ├── caddy/
+│   │   ├── cloudflared/
 │   │   ├── grafana/
 │   │   ├── loki/
 │   │   ├── mosquitto/
@@ -218,6 +222,7 @@ tofu init -migrate-state
 
 Images are automatically built and published by GitHub Actions when code is pushed to the `main` branch:
 - Caddy: `ghcr.io/accuser/atlas/caddy:latest`
+- Cloudflared: `ghcr.io/accuser/atlas/cloudflared:latest`
 - Grafana: `ghcr.io/accuser/atlas/grafana:latest`
 - Loki: `ghcr.io/accuser/atlas/loki:latest`
 - Mosquitto: `ghcr.io/accuser/atlas/mosquitto:latest`
@@ -468,6 +473,21 @@ The project uses Terraform modules for scalability and reusability:
     - Resource limits: 1 CPU, 256MB memory
     - Storage: 5GB persistent volume for `/mosquitto/data`
     - Network: Connected to production network (externally accessible)
+
+17. **Cloudflared Module** ([terraform/modules/cloudflared/](terraform/modules/cloudflared/))
+    - Cloudflare Tunnel client for secure remote access via Zero Trust
+    - Token-based authentication (managed via Cloudflare dashboard)
+    - Metrics endpoint for Prometheus scraping
+    - No persistent storage required (stateless)
+    - Custom Docker image: [docker/cloudflared/](docker/cloudflared/)
+
+18. **Cloudflared Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+    - Instance name: `cloudflared01`
+    - Image: `ghcr.io/accuser/atlas/cloudflared:latest` (published from [docker/cloudflared/](docker/cloudflared/))
+    - Metrics endpoint: `http://cloudflared01.incus:2000`
+    - Resource limits: 1 CPU, 256MB memory
+    - Network: Connected to management network (internal access to all services)
+    - Conditionally deployed: Only created when `cloudflared_tunnel_token` is set
 
 ### External TCP Service Pattern (Proxy Devices)
 
@@ -1191,3 +1211,5 @@ After applying, use `cd terraform && tofu output` to view:
 - `alertmanager_endpoint` - Internal Alertmanager endpoint URL for alert routing
 - `mosquitto_mqtt_endpoint` - Internal MQTT endpoint URL
 - `mosquitto_external_ports` - External host ports for MQTT access (1883, 8883)
+- `cloudflared_metrics_endpoint` - Cloudflared metrics endpoint (if enabled)
+- `cloudflared_instance_status` - Cloudflared instance status (if enabled)

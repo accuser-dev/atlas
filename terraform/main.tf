@@ -364,3 +364,31 @@ module "mosquitto01" {
     incus_network.management
   ]
 }
+
+module "cloudflared01" {
+  source = "./modules/cloudflared"
+
+  count = var.cloudflared_tunnel_token != "" ? 1 : 0
+
+  instance_name = "cloudflared01"
+  profile_name  = "cloudflared"
+
+  # Network configuration - use management network to access internal services
+  network_name = incus_network.management.name
+
+  # Tunnel token from Cloudflare Zero Trust dashboard
+  tunnel_token = var.cloudflared_tunnel_token
+
+  # Resource limits - cloudflared is lightweight
+  cpu_limit    = "1"
+  memory_limit = "256MB"
+
+  # Ensure networks are created before the container
+  depends_on = [
+    incus_network.development,
+    incus_network.testing,
+    incus_network.staging,
+    incus_network.production,
+    incus_network.management
+  ]
+}

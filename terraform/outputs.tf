@@ -50,3 +50,13 @@ output "mosquitto_external_ports" {
     mqtts = module.mosquitto01.external_mqtts_port
   }
 }
+
+output "cloudflared_metrics_endpoint" {
+  description = "Cloudflared metrics endpoint URL (if enabled)"
+  value       = length(module.cloudflared01) > 0 ? module.cloudflared01[0].metrics_endpoint : null
+}
+
+output "cloudflared_instance_status" {
+  description = "Cloudflared instance status (if enabled)"
+  value       = length(module.cloudflared01) > 0 ? module.cloudflared01[0].instance_status : null
+}

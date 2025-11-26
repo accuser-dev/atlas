@@ -195,3 +195,11 @@ variable "management_network_ipv6_nat" {
   type        = bool
   default     = true
 }
+
+# Cloudflared Configuration
+variable "cloudflared_tunnel_token" {
+  description = "Cloudflare Tunnel token from Zero Trust dashboard"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

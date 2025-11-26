@@ -1,0 +1,72 @@
+variable "instance_name" {
+  description = "Name of the cloudflared instance"
+  type        = string
+}
+
+variable "profile_name" {
+  description = "Name of the Incus profile"
+  type        = string
+}
+
+variable "image" {
+  description = "Container image to use"
+  type        = string
+  default     = "ghcr:accuser/atlas/cloudflared:latest"
+}
+
+variable "cpu_limit" {
+  description = "CPU limit for the container"
+  type        = string
+  default     = "1"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.cpu_limit)) && tonumber(var.cpu_limit) >= 1 && tonumber(var.cpu_limit) <= 64
+    error_message = "CPU limit must be a number between 1 and 64"
+  }
+}
+
+variable "memory_limit" {
+  description = "Memory limit for the container"
+  type        = string
+  default     = "256MB"
+
+  validation {
+    condition     = can(regex("^[0-9]+(MB|GB)$", var.memory_limit))
+    error_message = "Memory limit must be in format like '256MB' or '1GB'"
+  }
+}
+
+variable "storage_pool" {
+  description = "Storage pool for the root disk"
+  type        = string
+  default     = "local"
+}
+
+variable "network_name" {
+  description = "Network name to connect the container to"
+  type        = string
+  default     = "management"
+}
+
+variable "environment_variables" {
+  description = "Environment variables for cloudflared container"
+  type        = map(string)
+  default     = {}
+}
+
+variable "tunnel_token" {
+  description = "Cloudflare Tunnel token from Zero Trust dashboard"
+  type        = string
+  sensitive   = true
+}
+
+variable "metrics_port" {
+  description = "Port for the metrics endpoint"
+  type        = string
+  default     = "2000"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.metrics_port)) && tonumber(var.metrics_port) >= 1 && tonumber(var.metrics_port) <= 65535
+    error_message = "Port must be a number between 1 and 65535"
+  }
+}
