@@ -27,6 +27,9 @@ atlas/
 │   ├── prometheus/           # Prometheus metrics collection
 │   │   ├── Dockerfile
 │   │   └── README.md
+│   ├── mosquitto/            # Eclipse Mosquitto MQTT broker
+│   │   ├── Dockerfile
+│   │   └── README.md
 │   └── step-ca/              # Internal ACME CA for TLS certificates
 │       ├── Dockerfile
 │       └── README.md
@@ -41,6 +44,7 @@ atlas/
 │   │   ├── caddy/
 │   │   ├── grafana/
 │   │   ├── loki/
+│   │   ├── mosquitto/
 │   │   ├── prometheus/
 │   │   └── step-ca/
 │   ├── init.sh               # Initialization wrapper script
@@ -216,6 +220,7 @@ Images are automatically built and published by GitHub Actions when code is push
 - Caddy: `ghcr.io/accuser/atlas/caddy:latest`
 - Grafana: `ghcr.io/accuser/atlas/grafana:latest`
 - Loki: `ghcr.io/accuser/atlas/loki:latest`
+- Mosquitto: `ghcr.io/accuser/atlas/mosquitto:latest`
 - Prometheus: `ghcr.io/accuser/atlas/prometheus:latest`
 - step-ca: `ghcr.io/accuser/atlas/step-ca:latest`
 
@@ -447,6 +452,50 @@ The project uses Terraform modules for scalability and reusability:
     - Network: Connected to management network (internal only)
     - Prometheus integration: Configured via `alerting.alertmanagers` in prometheus.yml
 
+15. **Mosquitto Module** ([terraform/modules/mosquitto/](terraform/modules/mosquitto/))
+    - Eclipse Mosquitto MQTT broker for IoT messaging
+    - External access via Incus proxy devices (new pattern for TCP services)
+    - Persistent storage for retained messages and subscriptions
+    - Optional TLS support via step-ca
+    - Password file authentication support
+    - Custom Docker image: [docker/mosquitto/](docker/mosquitto/)
+
+16. **Mosquitto Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+    - Instance name: `mosquitto01`
+    - Image: `ghcr.io/accuser/atlas/mosquitto:latest` (published from [docker/mosquitto/](docker/mosquitto/))
+    - Internal endpoint: `mqtt://mosquitto01.incus:1883`
+    - External access: Host ports 1883 (MQTT) and 8883 (MQTTS) via proxy devices
+    - Resource limits: 1 CPU, 256MB memory
+    - Storage: 5GB persistent volume for `/mosquitto/data`
+    - Network: Connected to production network (externally accessible)
+
+### External TCP Service Pattern (Proxy Devices)
+
+For non-HTTP services that need external access (like MQTT), the project uses Incus proxy devices instead of Caddy reverse proxy:
+
+```hcl
+# In the module's profile definition
+device {
+  name = "mqtt-proxy"
+  type = "proxy"
+  properties = {
+    listen  = "tcp:0.0.0.0:1883"      # Host listens on all interfaces
+    connect = "tcp:127.0.0.1:1883"    # Forward to container
+  }
+}
+```
+
+**Benefits:**
+- Native Incus feature, no additional containers
+- Works for any TCP/UDP protocol
+- Declarative in Terraform
+- Direct port forwarding with minimal overhead
+
+**Considerations:**
+- Bypasses Caddy - no centralized HTTP logging for TCP traffic
+- Port conflicts must be managed manually
+- Each service manages its own TLS (via step-ca)
+
 ### Dynamic Caddyfile Generation
 
 The project uses a template-based approach for generating Caddyfile configurations:
@@ -481,6 +530,7 @@ Each service with persistent storage uses Incus storage volumes:
 - `prometheus01-data` - 100GB - `/prometheus`
 - `step-ca01-data` - 1GB - `/home/step`
 - `alertmanager01-data` - 1GB - `/alertmanager`
+- `mosquitto01-data` - 5GB - `/mosquitto/data`
 
 ### Retention Configuration
 
@@ -694,6 +744,7 @@ All services enforce hard memory limits and configurable resources:
 | Prometheus | 2 cores    | 2GB             | 1-64 CPUs, MB/GB format |
 | step-ca | 1 core        | 512MB           | 1-64 CPUs, MB/GB format |
 | Alertmanager | 1 core   | 256MB           | 1-64 CPUs, MB/GB format |
+| Mosquitto | 1 core      | 256MB           | 1-64 CPUs, MB/GB format |
 
 All limits are validated at the Terraform variable level to ensure correctness before deployment.
 
@@ -709,6 +760,7 @@ Profiles follow a simple, service-specific naming pattern:
 | Prometheus | `prometheus` | `prometheus01` |
 | step-ca | `step-ca`    | `step-ca01`   |
 | Alertmanager | `alertmanager` | `alertmanager01` |
+| Mosquitto | `mosquitto` | `mosquitto01` |
 
 Profile names are independent of instance names, allowing flexibility for multiple instances.
 
@@ -1137,3 +1189,5 @@ After applying, use `cd terraform && tofu output` to view:
 - `step_ca_acme_directory` - step-ca ACME directory URL for ACME clients
 - `step_ca_fingerprint_command` - Command to retrieve CA fingerprint for TLS configuration
 - `alertmanager_endpoint` - Internal Alertmanager endpoint URL for alert routing
+- `mosquitto_mqtt_endpoint` - Internal MQTT endpoint URL
+- `mosquitto_external_ports` - External host ports for MQTT access (1883, 8883)
