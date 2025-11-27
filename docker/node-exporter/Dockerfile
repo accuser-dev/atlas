@@ -15,8 +15,10 @@ LABEL org.opencontainers.image.vendor="accuser"
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:9100/metrics || exit 1
 
-# Default entrypoint from upstream image
-# Container expects host paths mounted:
-#   --path.rootfs=/host (for filesystem metrics)
-#   --path.procfs=/host/proc (for process metrics)
-#   --path.sysfs=/host/sys (for system metrics)
+# Configure node_exporter to use mounted host paths
+# The Terraform module mounts:
+#   / -> /host (host root filesystem)
+#   /proc -> /host/proc (process info)
+#   /sys -> /host/sys (system info)
+ENTRYPOINT ["/bin/node_exporter"]
+CMD ["--path.rootfs=/host", "--path.procfs=/host/proc", "--path.sysfs=/host/sys"]

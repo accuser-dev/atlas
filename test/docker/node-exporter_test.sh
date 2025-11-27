@@ -37,9 +37,11 @@ fi
 echo "✅ Node Exporter version: ${VERSION}"
 
 # Test 3: Container starts successfully
+# Note: The image has default args for Incus host mounts (--path.rootfs=/host etc.)
+# For Docker testing, we override with empty args to run with container-local paths
 echo ""
 echo "Test 3: Container startup..."
-docker run -d --name "${CONTAINER_NAME}" "${IMAGE}"
+docker run -d --name "${CONTAINER_NAME}" "${IMAGE}" --path.rootfs=/ --path.procfs=/proc --path.sysfs=/sys
 sleep 3
 # Check container is running
 if ! docker ps --filter "name=${CONTAINER_NAME}" --filter "status=running" | grep -q "${CONTAINER_NAME}"; then
