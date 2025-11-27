@@ -91,15 +91,24 @@ jobs:
         with:
           base: ${{ github.event.before }}
           filters: |
+            alertmanager:
+              - 'docker/alertmanager/**'
+              - 'test/docker/alertmanager_test.sh'
             caddy:
               - 'docker/caddy/**'
               - 'test/docker/caddy_test.sh'
+            cloudflared:
+              - 'docker/cloudflared/**'
+              - 'test/docker/cloudflared_test.sh'
             grafana:
               - 'docker/grafana/**'
               - 'test/docker/grafana_test.sh'
             loki:
               - 'docker/loki/**'
               - 'test/docker/loki_test.sh'
+            mosquitto:
+              - 'docker/mosquitto/**'
+              - 'test/docker/mosquitto_test.sh'
             prometheus:
               - 'docker/prometheus/**'
               - 'test/docker/prometheus_test.sh'
@@ -112,15 +121,18 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             # PRs: Build all images for full validation
-            echo 'matrix=["caddy","grafana","loki","prometheus","step-ca"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["alertmanager","caddy","cloudflared","grafana","loki","mosquitto","prometheus","step-ca"]' >> $GITHUB_OUTPUT
             echo 'has_changes=true' >> $GITHUB_OUTPUT
             echo "📋 PR detected - will build all images"
           else
             # Feature branches: Only build changed images
             SERVICES=()
+            if [ "${{ steps.filter.outputs.alertmanager }}" == "true" ]; then SERVICES+=("alertmanager"); fi
             if [ "${{ steps.filter.outputs.caddy }}" == "true" ]; then SERVICES+=("caddy"); fi
+            if [ "${{ steps.filter.outputs.cloudflared }}" == "true" ]; then SERVICES+=("cloudflared"); fi
             if [ "${{ steps.filter.outputs.grafana }}" == "true" ]; then SERVICES+=("grafana"); fi
             if [ "${{ steps.filter.outputs.loki }}" == "true" ]; then SERVICES+=("loki"); fi
+            if [ "${{ steps.filter.outputs.mosquitto }}" == "true" ]; then SERVICES+=("mosquitto"); fi
             if [ "${{ steps.filter.outputs.prometheus }}" == "true" ]; then SERVICES+=("prometheus"); fi
             if [ "${{ steps.filter.outputs.step_ca }}" == "true" ]; then SERVICES+=("step-ca"); fi
 
@@ -149,9 +161,12 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Service | Changed |" >> $GITHUB_STEP_SUMMARY
             echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
+            echo "| alertmanager | ${{ steps.filter.outputs.alertmanager == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
             echo "| caddy | ${{ steps.filter.outputs.caddy == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| cloudflared | ${{ steps.filter.outputs.cloudflared == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
             echo "| grafana | ${{ steps.filter.outputs.grafana == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
             echo "| loki | ${{ steps.filter.outputs.loki == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| mosquitto | ${{ steps.filter.outputs.mosquitto == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
             echo "| prometheus | ${{ steps.filter.outputs.prometheus == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
             echo "| step-ca | ${{ steps.filter.outputs.step_ca == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           fi
