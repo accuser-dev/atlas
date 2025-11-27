@@ -224,7 +224,7 @@ variable "incus_metrics_server_name" {
 }
 
 variable "enable_incus_loki" {
-  description = "Enable native Incus logging to Loki (sends lifecycle and logging events)"
+  description = "Enable native Incus logging to Loki (sends lifecycle and logging events). Currently disabled by default due to Incus provider bug - see issue #135."
   type        = bool
-  default     = true
+  default     = false
 }
