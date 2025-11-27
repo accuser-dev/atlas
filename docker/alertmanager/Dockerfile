@@ -1,6 +1,7 @@
 # Custom Alertmanager with TLS support via step-ca
-# Pinned to v0.27.0 for reproducibility and security
-FROM prom/alertmanager:v0.27.0 AS base
+# Pinned to v0.28.0 for reproducibility and security
+# Note: v0.27.0 has critical CVEs (CVE-2024-45337, CVE-2024-24790)
+FROM prom/alertmanager:v0.28.0 AS base
 
 # Build stage: Download step CLI
 FROM alpine:3.22 AS step-cli
@@ -37,7 +38,7 @@ ENV CERT_RENEW_BEFORE="1h"
 LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Alertmanager with TLS support via step-ca"
 LABEL org.opencontainers.image.source="https://github.com/accuser/atlas"
-LABEL org.opencontainers.image.version="0.27.0"
+LABEL org.opencontainers.image.version="0.28.0"
 LABEL org.opencontainers.image.title="Atlas Alertmanager"
 LABEL org.opencontainers.image.description="Alertmanager for alert routing and notification management with TLS support"
 LABEL org.opencontainers.image.vendor="accuser"
