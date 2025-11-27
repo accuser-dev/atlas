@@ -60,3 +60,13 @@ output "cloudflared_instance_status" {
   description = "Cloudflared instance status (if enabled)"
   value       = length(module.cloudflared01) > 0 ? module.cloudflared01[0].instance_status : null
 }
+
+output "incus_metrics_endpoint" {
+  description = "Incus metrics endpoint URL being scraped by Prometheus"
+  value       = var.enable_incus_metrics ? "https://${var.incus_metrics_address}/1.0/metrics" : null
+}
+
+output "incus_metrics_certificate_fingerprint" {
+  description = "Fingerprint of the metrics certificate registered with Incus"
+  value       = var.enable_incus_metrics ? module.incus_metrics[0].certificate_fingerprint : null
+}

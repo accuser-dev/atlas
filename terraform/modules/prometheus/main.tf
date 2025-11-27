@@ -106,4 +106,27 @@ resource "incus_instance" "prometheus" {
       mode        = "0644"
     }
   }
+
+  # Incus metrics certificate (for mTLS authentication to Incus API)
+  dynamic "file" {
+    for_each = var.incus_metrics_certificate != "" ? [1] : []
+    content {
+      content     = var.incus_metrics_certificate
+      target_path = "/etc/prometheus/tls/metrics.crt"
+      mode        = "0644"
+    }
+  }
+
+  # Incus metrics private key
+  # Note: mode 0644 is required because Prometheus runs as nobody (UID 65534)
+  # and Incus file injection creates files as root. The key is only accessible
+  # within the container and the mTLS connection to the local Incus API.
+  dynamic "file" {
+    for_each = var.incus_metrics_private_key != "" ? [1] : []
+    content {
+      content     = var.incus_metrics_private_key
+      target_path = "/etc/prometheus/tls/metrics.key"
+      mode        = "0644"
+    }
+  }
 }

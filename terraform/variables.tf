@@ -203,3 +203,16 @@ variable "cloudflared_tunnel_token" {
   sensitive   = true
   default     = ""
 }
+
+# Incus Metrics Configuration
+variable "incus_metrics_address" {
+  description = "Address of the Incus server for metrics scraping (e.g., '10.50.0.1:8443'). The management network gateway is typically used."
+  type        = string
+  default     = "10.50.0.1:8443"
+}
+
+variable "enable_incus_metrics" {
+  description = "Enable scraping of Incus container metrics via the Incus API"
+  type        = bool
+  default     = true
+}
