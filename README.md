@@ -9,7 +9,11 @@ This project provides a declarative infrastructure setup for:
 - **Grafana** - Visualization and dashboarding
 - **Prometheus** - Metrics collection and storage
 - **Loki** - Log aggregation
+- **Alertmanager** - Alert routing and notifications
 - **step-ca** - Internal PKI for service TLS certificates
+- **Node Exporter** - Host-level system metrics
+- **Mosquitto** - MQTT broker for IoT messaging
+- **Cloudflared** - Cloudflare Tunnel for Zero Trust access
 
 All services run in Incus containers with persistent storage, network isolation, and automatic configuration management.
 
@@ -18,17 +22,27 @@ All services run in Incus containers with persistent storage, network isolation,
 ```
 atlas/
 ├── docker/                    # Custom Docker images
+│   ├── alertmanager/         # Alert routing and notifications
 │   ├── caddy/                # Reverse proxy with Cloudflare DNS plugin
+│   ├── cloudflared/          # Cloudflare Tunnel client
 │   ├── grafana/              # Grafana with optional plugins
 │   ├── loki/                 # Log aggregation
+│   ├── mosquitto/            # MQTT broker
 │   ├── prometheus/           # Metrics collection with optional rules
 │   └── step-ca/              # Internal PKI certificate authority
 │
 ├── terraform/                 # Infrastructure as Code (OpenTofu)
+│   ├── bootstrap/            # Bootstrap project for remote state
 │   ├── modules/              # Reusable service modules
+│   │   ├── alertmanager/
 │   │   ├── caddy/
+│   │   ├── cloudflared/
 │   │   ├── grafana/
+│   │   ├── incus-loki/       # Native Incus logging to Loki
+│   │   ├── incus-metrics/    # Incus container metrics
 │   │   ├── loki/
+│   │   ├── mosquitto/
+│   │   ├── node-exporter/
 │   │   ├── prometheus/
 │   │   └── step-ca/
 │   ├── main.tf               # Service instantiations
@@ -38,9 +52,12 @@ atlas/
 │   └── terraform.tfvars      # Secrets (gitignored)
 │
 ├── .github/workflows/        # CI/CD workflows
-│   └── terraform-ci.yml      # Terraform validation and Docker builds
+│   ├── ci.yml                # Validation and testing
+│   └── release.yml           # Build and publish images
 ├── Makefile                  # Build and deployment automation
 ├── CLAUDE.md                 # Detailed architecture documentation
+├── CONTRIBUTING.md           # Contribution guidelines
+├── BACKUP.md                 # Backup and disaster recovery
 └── README.md                 # This file
 ```
 
@@ -61,7 +78,12 @@ atlas/
    cd atlas
    ```
 
-2. **Create terraform.tfvars**:
+2. **Bootstrap remote state** (first time only):
+   ```bash
+   make bootstrap
+   ```
+
+3. **Create terraform.tfvars**:
    ```bash
    cd terraform
    cp terraform.tfvars.example terraform.tfvars
@@ -70,11 +92,11 @@ atlas/
    # - network addresses (IPv4)
    ```
 
-3. **Deploy infrastructure**:
+4. **Deploy infrastructure**:
    ```bash
-   make terraform-init
-   make terraform-plan
-   make terraform-apply
+   make init
+   make plan
+   make apply
    ```
 
    Or use the combined command:
@@ -82,7 +104,7 @@ atlas/
    make deploy
    ```
 
-4. **View outputs**:
+5. **View outputs**:
    ```bash
    cd terraform
    tofu output
@@ -94,9 +116,12 @@ atlas/
 
 All services use custom images automatically built and published by GitHub Actions:
 
+- **Alertmanager**: `ghcr.io/accuser/atlas/alertmanager:latest`
 - **Caddy**: `ghcr.io/accuser/atlas/caddy:latest`
+- **Cloudflared**: `ghcr.io/accuser/atlas/cloudflared:latest`
 - **Grafana**: `ghcr.io/accuser/atlas/grafana:latest`
 - **Loki**: `ghcr.io/accuser/atlas/loki:latest`
+- **Mosquitto**: `ghcr.io/accuser/atlas/mosquitto:latest`
 - **Prometheus**: `ghcr.io/accuser/atlas/prometheus:latest`
 - **step-ca**: `ghcr.io/accuser/atlas/step-ca:latest`
 
@@ -114,35 +139,30 @@ make build-all           # Build all images
 make build-grafana       # Build specific service
 ```
 
-List local images:
-```bash
-make list-images
-```
-
 **Note:** Local builds are for testing only. Production deployments use images from ghcr.io.
 
 ## Usage
 
 ### Managing Infrastructure
 
-Initialize Terraform:
+Initialize OpenTofu:
 ```bash
-make terraform-init
+make init
 ```
 
 Plan changes:
 ```bash
-make terraform-plan
+make plan
 ```
 
 Apply changes:
 ```bash
-make terraform-apply
+make apply
 ```
 
 Destroy infrastructure:
 ```bash
-make terraform-destroy
+make destroy
 ```
 
 ### Full Deployment
@@ -182,7 +202,7 @@ module "grafana01" {
 3. Test locally: `make build-<service>`
 4. Push to GitHub (merge PR to main)
 5. GitHub Actions builds and publishes to ghcr.io
-6. Run `make terraform-apply` to pull new image
+6. Run `make apply` to pull new image
 
 ### Network Configuration
 
@@ -211,27 +231,48 @@ See [CLAUDE.md](CLAUDE.md#adding-new-service-modules) for detailed instructions 
 - **Automatic HTTPS** - Let's Encrypt via Cloudflare DNS
 - **Network Isolation** - Separate networks for different environments
 - **Dynamic Configuration** - Auto-generated reverse proxy configs
+- **Native Incus Integration** - Container metrics and logging via Incus API
 
 ### Service Architecture
 
 ```
 Internet
+    │
+    ├──[Cloudflared]──── Cloudflare Tunnel (Zero Trust)
+    │
     ↓
-[Caddy Reverse Proxy] ← HTTPS certificates via Cloudflare
-    ↓
-[Grafana] → [Prometheus] → Metrics
-          ↘ [Loki]       → Logs
+[Caddy Reverse Proxy] ← HTTPS certificates via Cloudflare DNS
+    │
+    ├──[Grafana] ─────→ Visualization
+    │       │
+    │       ├─────────→ [Prometheus] → Metrics storage
+    │       │               ↑
+    │       │           [Node Exporter] → Host metrics
+    │       │           [Incus Metrics] → Container metrics
+    │       │
+    │       └─────────→ [Loki] → Log aggregation
+    │                       ↑
+    │                   [Incus Loki] → Container logs
+    │
+    └──[Mosquitto] ───→ MQTT (ports 1883/8883)
+
+[Prometheus] → [Alertmanager] → Notifications
 
 [step-ca] → Internal TLS certificates for all services
 ```
 
 **Public Services** (via Caddy):
-- Grafana: `https://grafana.accuser.dev`
+- Grafana: `https://grafana.yourdomain.com`
+
+**External TCP Services** (via Incus proxy):
+- Mosquitto MQTT: Host ports 1883 (MQTT), 8883 (MQTTS)
 
 **Internal Services** (Incus network only):
 - Prometheus: `http://prometheus01.incus:9090`
 - Loki: `http://loki01.incus:3100`
-- step-ca: `https://stepca01.incus:9000` (ACME server)
+- Alertmanager: `http://alertmanager01.incus:9093`
+- step-ca: `https://step-ca01.incus:9000` (ACME server)
+- Node Exporter: `http://node-exporter01.incus:9100`
 
 ### Storage Volumes
 
@@ -239,32 +280,31 @@ Persistent storage for each service:
 - `grafana01-data` (10GB) - Dashboards and settings
 - `loki01-data` (50GB) - Log storage
 - `prometheus01-data` (100GB) - Metrics storage
-- `stepca01-data` (1GB) - CA keys and database
+- `alertmanager01-data` (1GB) - Silences and state
+- `step-ca01-data` (1GB) - CA keys and database
+- `mosquitto01-data` (5GB) - MQTT retained messages
 
 ## CI/CD
 
-The project includes GitHub Actions workflows for continuous integration:
+The project uses separate workflows for validation and releases:
 
-### Terraform CI Workflow
+### CI Workflow (`ci.yml`)
 
-**Triggers:**
-- Push to `main` branch
-- Pull requests to `main` branch
-- Only when relevant files change (`.tf`, `.tftpl`, `Dockerfile`)
+**Triggers:** Pull requests and pushes to feature branches
 
 **What it does:**
-1. **OpenTofu Validation** - Validates format, initialization, and configuration
-2. **Docker Build and Publish** - Builds all five images and publishes to ghcr.io (on push to main)
-3. **OpenTofu Plan** - Generates a plan preview (dry run)
-4. **PR Comments** - Posts plan results on pull requests
+1. OpenTofu format and validation
+2. Docker image builds (without publish)
+3. Security scanning
 
-**Performance optimizations:**
-- Fast validation checks run first to fail fast
-- Docker images build in parallel (5 concurrent jobs)
-- GitHub Actions cache for faster rebuilds
-- Only publishes on push to main (not on PRs)
+### Release Workflow (`release.yml`)
 
-**Workflow file:** [.github/workflows/terraform-ci.yml](.github/workflows/terraform-ci.yml)
+**Triggers:** Push to `main` branch
+
+**What it does:**
+1. Builds all Docker images in parallel
+2. Publishes to GitHub Container Registry
+3. Tags with `latest` and commit SHA
 
 ### Image Publishing
 
@@ -283,17 +323,32 @@ After the first push, visit `https://github.com/accuser/atlas/packages` and chan
 
 ```bash
 make help              # Show all available commands
+
+# Bootstrap (first time setup)
+make bootstrap         # Set up remote state storage
+
+# OpenTofu operations
+make init              # Initialize OpenTofu with remote backend
+make plan              # Plan infrastructure changes
+make apply             # Apply infrastructure changes
+make destroy           # Destroy infrastructure
+make deploy            # Apply OpenTofu (pulls from ghcr.io)
+make format            # Format OpenTofu files
+
+# Docker operations
 make build-all         # Build all Docker images locally (testing)
 make build-<service>   # Build specific service image locally
-make terraform-init    # Initialize Terraform
-make terraform-plan    # Plan infrastructure changes
-make terraform-apply   # Apply infrastructure changes
-make terraform-destroy # Destroy infrastructure
-make deploy            # Apply Terraform (pulls from ghcr.io)
-make clean             # Clean build artifacts
+
+# Cleanup
+make clean             # Clean all build artifacts
 make clean-docker      # Clean Docker cache
-make clean-terraform   # Clean Terraform cache
-make format            # Format Terraform files
+make clean-tofu        # Clean OpenTofu cache
+make clean-images      # Remove Atlas images from Incus cache
+
+# Backup operations
+make backup-snapshot   # Create snapshots of all storage volumes
+make backup-export     # Export all volumes to tarballs
+make backup-list       # List all volume snapshots
 ```
 
 ### Directory Organization
@@ -303,6 +358,7 @@ make format            # Format Terraform files
   - Images are built by GitHub Actions and published to ghcr.io
 
 - **`terraform/`** - Infrastructure as Code (OpenTofu)
+  - `bootstrap/` - Remote state setup
   - `modules/` - Reusable service modules
   - `*.tf` - Root-level OpenTofu configuration
   - `terraform.tfvars` - Secrets and variables (gitignored)
@@ -348,10 +404,13 @@ If Incus can't pull images from ghcr.io:
 
 ## Contributing
 
-1. Make changes in a feature branch
-2. Test with `make terraform-plan`
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
+
+Quick start:
+1. Create a feature branch from `main`
+2. Make changes and test with `make plan`
 3. Format code: `make format`
-4. Submit pull request
+4. Submit pull request to `main`
 5. GitHub Actions will validate and build images
 
 ## License
@@ -362,5 +421,7 @@ If Incus can't pull images from ghcr.io:
 
 For detailed architecture, design patterns, and development guidance, see:
 - [CLAUDE.md](CLAUDE.md) - Complete architecture documentation
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines and GitHub Flow
+- [BACKUP.md](BACKUP.md) - Backup and disaster recovery procedures
 - [docker/*/README.md](docker/) - Service-specific Docker image docs
 - [terraform/modules/*/](terraform/modules/) - Terraform module documentation
