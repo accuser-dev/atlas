@@ -8,6 +8,7 @@ on:
       - 'terraform/**/*.tf'
       - 'terraform/**/*.tftpl'
       - 'docker/**/Dockerfile'
+      - 'docker/**/*.sh'
       - 'test/docker/**'
       - '.github/workflows/ci.yml'
   pull_request:
@@ -17,6 +18,7 @@ on:
       - 'terraform/**/*.tf'
       - 'terraform/**/*.tftpl'
       - 'docker/**/Dockerfile'
+      - 'docker/**/*.sh'
       - 'test/docker/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/release.yml'
