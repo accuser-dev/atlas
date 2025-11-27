@@ -217,6 +217,12 @@ variable "enable_incus_metrics" {
   default     = true
 }
 
+variable "incus_metrics_server_name" {
+  description = "Server name (SNI) for TLS verification of Incus metrics endpoint. Set to the ACME domain (e.g., 'incus.example.com') if Incus has ACME configured. Leave empty to skip TLS server verification (for self-signed certificates)."
+  type        = string
+  default     = ""
+}
+
 variable "enable_incus_loki" {
   description = "Enable native Incus logging to Loki (sends lifecycle and logging events)"
   type        = bool

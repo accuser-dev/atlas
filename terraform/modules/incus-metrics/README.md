@@ -87,7 +87,32 @@ Import the official Incus dashboard from Grafana.com:
 - The certificate and private key are marked as `sensitive` in Terraform
 - Certificate uses ECDSA P-384 curve (same as recommended by Incus documentation)
 - The certificate is registered with restricted `metrics` type (cannot access full Incus API)
-- `insecure_skip_verify: true` is used in the Prometheus config because the Incus server uses a self-signed certificate
+
+### TLS Server Verification
+
+By default, the Prometheus configuration uses `insecure_skip_verify: true` for the Incus metrics endpoint because Incus uses a self-signed certificate.
+
+**To enable proper TLS verification** (recommended if you have ACME configured for Incus):
+
+1. Check if Incus has ACME configured:
+   ```bash
+   incus config get acme.domain
+   ```
+
+2. If it returns a domain (e.g., `incus.example.com`), set the variable in `terraform.tfvars`:
+   ```hcl
+   incus_metrics_server_name = "incus.example.com"
+   ```
+
+3. Apply the configuration - Prometheus will now verify the server certificate.
+
+**When TLS verification is disabled (default):**
+
+- Traffic is still restricted to the internal management network
+- mTLS client authentication is still enforced (Incus validates our certificate)
+- Risk: Vulnerable to MITM attacks on the internal network
+
+See [GitHub Issue #112](https://github.com/accuser/atlas/issues/112) for discussion.
 
 ## Troubleshooting
 
