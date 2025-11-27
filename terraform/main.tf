@@ -206,10 +206,10 @@ module "prometheus01" {
           # Client certificate for mTLS authentication to Incus API
           cert_file: '/etc/prometheus/tls/metrics.crt'
           key_file: '/etc/prometheus/tls/metrics.key'
-%{ if var.incus_metrics_server_name != "" ~}
+%{if var.incus_metrics_server_name != ""~}
           # TLS server verification enabled - Incus has ACME certificate
           server_name: '${var.incus_metrics_server_name}'
-%{ else ~}
+%{else~}
           # SECURITY NOTE: Server certificate verification is disabled because Incus
           # uses a self-signed certificate. Set 'incus_metrics_server_name' to the
           # ACME domain (from 'incus config get acme.domain') to enable verification.
@@ -218,7 +218,7 @@ module "prometheus01" {
           # - Traffic is internal (management network only)
           # - mTLS client authentication is still enforced (Incus validates our cert)
           insecure_skip_verify: true
-%{ endif ~}
+%{endif~}
 
     # Alerting rules for infrastructure monitoring
     rule_files:
