@@ -53,27 +53,6 @@ variable "retry_count" {
   }
 }
 
-variable "username" {
-  description = "Username for Loki authentication (optional)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "password" {
-  description = "Password for Loki authentication (optional)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "ca_cert" {
-  description = "CA certificate for TLS verification (optional, for HTTPS connections)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 variable "lifecycle_types" {
   description = "Comma-separated list of instance types for lifecycle events (empty for all)"
   type        = string

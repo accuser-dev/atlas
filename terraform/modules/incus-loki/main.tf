@@ -15,15 +15,6 @@ locals {
     var.instance_name != "" ? {
       "logging.${var.logging_name}.target.instance" = var.instance_name
     } : {},
-    var.username != "" ? {
-      "logging.${var.logging_name}.target.username" = var.username
-    } : {},
-    var.password != "" ? {
-      "logging.${var.logging_name}.target.password" = var.password
-    } : {},
-    var.ca_cert != "" ? {
-      "logging.${var.logging_name}.target.ca_cert" = var.ca_cert
-    } : {},
     var.lifecycle_types != "" ? {
       "logging.${var.logging_name}.lifecycle.types" = var.lifecycle_types
     } : {},
