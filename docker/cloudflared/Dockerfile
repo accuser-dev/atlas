@@ -1,11 +1,12 @@
 # Cloudflare Tunnel client for secure remote access
-# Uses the official cloudflared image
-FROM cloudflare/cloudflared:latest
+# Pinned to specific version for reproducibility
+FROM cloudflare/cloudflared:2025.11.1
 
 # OCI metadata labels for container management
 LABEL maintainer="hello@accuser.dev"
 LABEL description="Cloudflare Tunnel client for secure remote access via Zero Trust"
 LABEL org.opencontainers.image.source="https://github.com/accuser/atlas"
+LABEL org.opencontainers.image.version="2025.11.1"
 LABEL org.opencontainers.image.title="Atlas Cloudflared"
 LABEL org.opencontainers.image.description="Cloudflare Tunnel client for Zero Trust remote access"
 LABEL org.opencontainers.image.vendor="accuser"
