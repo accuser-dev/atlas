@@ -193,6 +193,20 @@ module "prometheus01" {
               service: 'node-exporter'
               instance: 'node-exporter01'
 
+      # Incus container metrics (mTLS authentication required)
+      - job_name: 'incus'
+        metrics_path: '/1.0/metrics'
+        scheme: 'https'
+        static_configs:
+          - targets: ['${var.incus_metrics_address}']
+            labels:
+              service: 'incus'
+              instance: 'incus-host'
+        tls_config:
+          cert_file: '/etc/prometheus/tls/metrics.crt'
+          key_file: '/etc/prometheus/tls/metrics.key'
+          insecure_skip_verify: true
+
     # Alerting rules for infrastructure monitoring
     rule_files:
       - '/etc/prometheus/alerts/*.yml'
@@ -206,6 +220,10 @@ module "prometheus01" {
   # Alert rules for OOM and container restart detection (optional)
   alert_rules = fileexists("${path.module}/prometheus-alerts.yml") ? file("${path.module}/prometheus-alerts.yml") : ""
 
+  # Incus metrics certificate (for mTLS authentication to Incus API)
+  incus_metrics_certificate = var.enable_incus_metrics ? module.incus_metrics[0].metrics_certificate_pem : ""
+  incus_metrics_private_key = var.enable_incus_metrics ? module.incus_metrics[0].metrics_private_key_pem : ""
+
   # Enable persistent storage for metrics data
   enable_data_persistence = true
   data_volume_name        = "prometheus01-data"
@@ -215,13 +233,14 @@ module "prometheus01" {
   cpu_limit    = "2"
   memory_limit = "2GB"
 
-  # Ensure networks are created before the container
+  # Ensure networks and incus-metrics module are created before the container
   depends_on = [
     incus_network.development,
     incus_network.testing,
     incus_network.staging,
     incus_network.production,
-    incus_network.management
+    incus_network.management,
+    module.incus_metrics
   ]
 }
 
@@ -391,4 +410,14 @@ module "cloudflared01" {
     incus_network.production,
     incus_network.management
   ]
+}
+
+module "incus_metrics" {
+  source = "./modules/incus-metrics"
+
+  count = var.enable_incus_metrics ? 1 : 0
+
+  certificate_name        = "prometheus-metrics"
+  certificate_description = "Metrics certificate for Prometheus to scrape Incus container metrics"
+  incus_server_address    = var.incus_metrics_address
 }

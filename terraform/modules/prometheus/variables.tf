@@ -153,3 +153,18 @@ variable "retention_size" {
     error_message = "Retention size must be empty or in format like '50GB' or '90GB'"
   }
 }
+
+# Incus Metrics Configuration
+variable "incus_metrics_certificate" {
+  description = "PEM-encoded certificate for scraping Incus metrics (from incus-metrics module)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "incus_metrics_private_key" {
+  description = "PEM-encoded private key for scraping Incus metrics (from incus-metrics module)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
