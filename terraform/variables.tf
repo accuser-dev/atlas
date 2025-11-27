@@ -216,3 +216,9 @@ variable "enable_incus_metrics" {
   type        = bool
   default     = true
 }
+
+variable "enable_incus_loki" {
+  description = "Enable native Incus logging to Loki (sends lifecycle and logging events)"
+  type        = bool
+  default     = true
+}

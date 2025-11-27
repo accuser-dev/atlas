@@ -47,6 +47,7 @@ atlas/
 │   │   ├── caddy/
 │   │   ├── cloudflared/
 │   │   ├── grafana/
+│   │   ├── incus-loki/
 │   │   ├── incus-metrics/
 │   │   ├── loki/
 │   │   ├── mosquitto/
@@ -511,6 +512,20 @@ The project uses Terraform modules for scalability and reusability:
     - Certificate validity: 10 years (3650 days)
     - Conditionally deployed: Only created when `enable_incus_metrics` is true (default)
     - Provides container-level metrics: CPU, memory, disk, network, processes
+
+21. **Incus Loki Module** ([terraform/modules/incus-loki/](terraform/modules/incus-loki/))
+    - Configures native Incus logging to Loki (no Promtail required)
+    - Pushes lifecycle events (instance start/stop, create, delete)
+    - Pushes logging events (container and VM log output)
+    - Uses Incus server-level configuration
+    - No Docker image required (server configuration only)
+
+22. **Incus Loki** (instantiated in [terraform/main.tf](terraform/main.tf))
+    - Logging name: `loki01`
+    - Target address: `http://loki01.incus:3100`
+    - Event types: `lifecycle,logging`
+    - Conditionally deployed: Only created when `enable_incus_loki` is true (default)
+    - Logs queryable in Grafana via Loki datasource
 
 ### External TCP Service Pattern (Proxy Devices)
 
@@ -1253,3 +1268,5 @@ After applying, use `cd terraform && tofu output` to view:
 - `cloudflared_instance_status` - Cloudflared instance status (if enabled)
 - `incus_metrics_endpoint` - Incus metrics endpoint URL being scraped by Prometheus
 - `incus_metrics_certificate_fingerprint` - Fingerprint of the metrics certificate registered with Incus
+- `incus_loki_logging_name` - Name of the Incus logging configuration for Loki
+- `incus_loki_address` - Loki address configured for Incus logging

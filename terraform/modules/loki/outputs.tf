@@ -19,8 +19,18 @@ output "storage_volume_name" {
 }
 
 output "loki_endpoint" {
-  description = "Loki endpoint URL for internal use"
+  description = "Loki endpoint URL for internal use (using .incus DNS)"
   value       = "${var.enable_tls ? "https" : "http"}://${var.instance_name}.incus:${var.loki_port}"
+}
+
+output "loki_endpoint_ip" {
+  description = "Loki endpoint URL using IP address (for host-level access)"
+  value       = "${var.enable_tls ? "https" : "http"}://${incus_instance.loki.ipv4_address}:${var.loki_port}"
+}
+
+output "ipv4_address" {
+  description = "IPv4 address of the Loki instance"
+  value       = incus_instance.loki.ipv4_address
 }
 
 output "tls_enabled" {
