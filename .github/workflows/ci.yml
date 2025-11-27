@@ -115,13 +115,16 @@ jobs:
             step_ca:
               - 'docker/step-ca/**'
               - 'test/docker/step-ca_test.sh'
+            node_exporter:
+              - 'docker/node-exporter/**'
+              - 'test/docker/node-exporter_test.sh'
 
       - name: Build matrix
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             # PRs: Build all images for full validation
-            echo 'matrix=["alertmanager","caddy","cloudflared","grafana","loki","mosquitto","prometheus","step-ca"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["alertmanager","caddy","cloudflared","grafana","loki","mosquitto","node-exporter","prometheus","step-ca"]' >> $GITHUB_OUTPUT
             echo 'has_changes=true' >> $GITHUB_OUTPUT
             echo "📋 PR detected - will build all images"
           else
@@ -135,6 +138,7 @@ jobs:
             if [ "${{ steps.filter.outputs.mosquitto }}" == "true" ]; then SERVICES+=("mosquitto"); fi
             if [ "${{ steps.filter.outputs.prometheus }}" == "true" ]; then SERVICES+=("prometheus"); fi
             if [ "${{ steps.filter.outputs.step_ca }}" == "true" ]; then SERVICES+=("step-ca"); fi
+            if [ "${{ steps.filter.outputs.node_exporter }}" == "true" ]; then SERVICES+=("node-exporter"); fi
 
             if [ ${#SERVICES[@]} -eq 0 ]; then
               echo 'matrix=[]' >> $GITHUB_OUTPUT
@@ -169,6 +173,7 @@ jobs:
             echo "| mosquitto | ${{ steps.filter.outputs.mosquitto == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
             echo "| prometheus | ${{ steps.filter.outputs.prometheus == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
             echo "| step-ca | ${{ steps.filter.outputs.step_ca == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| node-exporter | ${{ steps.filter.outputs.node_exporter == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           fi
 
   # =============================================================================
