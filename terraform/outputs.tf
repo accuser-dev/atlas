@@ -70,3 +70,13 @@ output "incus_metrics_certificate_fingerprint" {
   description = "Fingerprint of the metrics certificate registered with Incus"
   value       = var.enable_incus_metrics ? module.incus_metrics[0].certificate_fingerprint : null
 }
+
+output "incus_loki_logging_name" {
+  description = "Name of the Incus logging configuration for Loki"
+  value       = var.enable_incus_loki ? module.incus_loki[0].logging_name : null
+}
+
+output "incus_loki_address" {
+  description = "Loki address configured for Incus logging"
+  value       = var.enable_incus_loki ? module.incus_loki[0].loki_address : null
+}

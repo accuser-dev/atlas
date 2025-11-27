@@ -421,3 +421,19 @@ module "incus_metrics" {
   certificate_description = "Metrics certificate for Prometheus to scrape Incus container metrics"
   incus_server_address    = var.incus_metrics_address
 }
+
+module "incus_loki" {
+  source = "./modules/incus-loki"
+
+  count = var.enable_incus_loki ? 1 : 0
+
+  logging_name = "loki01"
+  # Use IP-based endpoint because Incus daemon runs on host and cannot resolve .incus DNS
+  loki_address = module.loki01.loki_endpoint_ip
+
+  # Send lifecycle and logging events to Loki
+  log_types = "lifecycle,logging"
+
+  # Ensure Loki is running before configuring logging
+  depends_on = [module.loki01]
+}
