@@ -648,6 +648,7 @@ Each service with persistent storage uses Incus storage volumes:
 - Configurable size and name
 - Mounted to service-specific paths in containers
 - Survives container restarts and updates
+- Optional automatic snapshots via `enable_snapshots = true`
 
 **Current storage volumes:**
 - `grafana01-data` - 10GB - `/var/lib/grafana`
@@ -696,6 +697,36 @@ module "loki01" {
 | 14 days  | `14d`      | `336h` |
 | 30 days  | `30d`      | `720h` |
 | 90 days  | `90d`      | `2160h` |
+
+### Snapshot Scheduling
+
+All modules with persistent storage support automatic snapshots via Incus native scheduling. Snapshots are disabled by default.
+
+**Enabling snapshots:**
+
+```hcl
+module "grafana01" {
+  # ... existing config ...
+
+  enable_snapshots   = true
+  snapshot_schedule  = "@daily"    # or cron: "0 2 * * *"
+  snapshot_expiry    = "7d"        # Keep for 7 days
+  snapshot_pattern   = "auto-{{creation_date}}"
+}
+```
+
+**Default schedules by service:**
+
+| Service | Default Schedule | Default Retention |
+|---------|-----------------|-------------------|
+| Grafana | @daily | 7d |
+| Alertmanager | @daily | 7d |
+| Mosquitto | @daily | 7d |
+| Prometheus | @weekly | 2w |
+| Loki | @weekly | 2w |
+| step-ca | @weekly | 4w |
+
+See [BACKUP.md](BACKUP.md) for detailed backup procedures and disaster recovery playbooks.
 
 ### TLS Configuration
 
