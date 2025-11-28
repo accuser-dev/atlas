@@ -1,9 +1,57 @@
+# =============================================================================
+# Base Infrastructure
+# =============================================================================
+# Provides networks and base profiles for all containers
+
+module "base" {
+  source = "./modules/base-infrastructure"
+
+  storage_pool = "local"
+
+  # Network configuration - pass through from root variables
+  development_network_ipv4     = var.development_network_ipv4
+  development_network_nat      = var.development_network_nat
+  development_network_ipv6     = var.development_network_ipv6
+  development_network_ipv6_nat = var.development_network_ipv6_nat
+
+  testing_network_ipv4     = var.testing_network_ipv4
+  testing_network_nat      = var.testing_network_nat
+  testing_network_ipv6     = var.testing_network_ipv6
+  testing_network_ipv6_nat = var.testing_network_ipv6_nat
+
+  staging_network_ipv4     = var.staging_network_ipv4
+  staging_network_nat      = var.staging_network_nat
+  staging_network_ipv6     = var.staging_network_ipv6
+  staging_network_ipv6_nat = var.staging_network_ipv6_nat
+
+  production_network_ipv4     = var.production_network_ipv4
+  production_network_nat      = var.production_network_nat
+  production_network_ipv6     = var.production_network_ipv6
+  production_network_ipv6_nat = var.production_network_ipv6_nat
+
+  management_network_ipv4     = var.management_network_ipv4
+  management_network_nat      = var.management_network_nat
+  management_network_ipv6     = var.management_network_ipv6
+  management_network_ipv6_nat = var.management_network_ipv6_nat
+}
+
+# =============================================================================
+# Services
+# =============================================================================
+
 module "caddy01" {
   source = "./modules/caddy"
 
   instance_name        = "caddy01"
   profile_name         = "caddy"
   cloudflare_api_token = var.cloudflare_api_token
+
+  # Profile composition - base profile provides root disk
+  # Caddy manages its own multi-network setup (production, management, external)
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+  ]
 
   # Service blocks from all modules
   service_blocks = [
@@ -12,8 +60,9 @@ module "caddy01" {
   ]
 
   # Network configuration - reference managed networks
-  production_network = incus_network.production.name
-  management_network = incus_network.management.name
+  # Caddy has special multi-network setup for reverse proxy functionality
+  production_network = module.base.production_network.name
+  management_network = module.base.management_network.name
   external_network   = "incusbr0"
 
   # Resource limits (from centralized service config)
@@ -29,8 +78,12 @@ module "grafana01" {
   instance_name = "grafana01"
   profile_name  = "grafana"
 
-  # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  # Profile composition - base profiles provide root disk and network
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
 
   # Domain configuration for reverse proxy
   domain           = "grafana.accuser.dev"
@@ -70,9 +123,6 @@ module "grafana01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.grafana.cpu
   memory_limit = local.services.grafana.memory
-
-  # Network dependency is implicit through network_name reference
-  # Module dependencies are implicit through datasources referencing prometheus/loki endpoints
 }
 
 module "loki01" {
@@ -81,8 +131,12 @@ module "loki01" {
   instance_name = "loki01"
   profile_name  = "loki"
 
-  # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  # Profile composition - base profiles provide root disk and network
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
 
   # Loki configuration
   loki_port = "3100"
@@ -95,8 +149,6 @@ module "loki01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.loki.cpu
   memory_limit = local.services.loki.memory
-
-  # Network dependency is implicit through network_name reference
 }
 
 module "prometheus01" {
@@ -105,8 +157,12 @@ module "prometheus01" {
   instance_name = "prometheus01"
   profile_name  = "prometheus"
 
-  # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  # Profile composition - base profiles provide root disk and network
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
 
   # Prometheus configuration
   prometheus_port = "9090"
@@ -222,9 +278,6 @@ module "prometheus01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.prometheus.cpu
   memory_limit = local.services.prometheus.memory
-
-  # Network dependency is implicit through network_name reference
-  # incus_metrics dependency is implicit through certificate/key references
 }
 
 module "step_ca01" {
@@ -233,10 +286,12 @@ module "step_ca01" {
   instance_name = "step-ca01"
   profile_name  = "step-ca"
 
-  # Uses ghcr.io image by default (ghcr:accuser/atlas/step-ca:latest)
-
-  # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  # Profile composition - base profiles provide root disk and network
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
 
   # CA configuration
   ca_name      = "Atlas Internal CA"
@@ -256,8 +311,6 @@ module "step_ca01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.step_ca.cpu
   memory_limit = local.services.step_ca.memory
-
-  # Network dependency is implicit through network_name reference
 }
 
 module "node_exporter01" {
@@ -266,8 +319,12 @@ module "node_exporter01" {
   instance_name = "node-exporter01"
   profile_name  = "node-exporter"
 
-  # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  # Profile composition - base profiles provide root disk and network
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
 
   # Node Exporter configuration
   node_exporter_port = "9100"
@@ -275,8 +332,6 @@ module "node_exporter01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.node_exporter.cpu
   memory_limit = local.services.node_exporter.memory
-
-  # Network dependency is implicit through network_name reference
 }
 
 module "alertmanager01" {
@@ -285,8 +340,12 @@ module "alertmanager01" {
   instance_name = "alertmanager01"
   profile_name  = "alertmanager"
 
-  # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  # Profile composition - base profiles provide root disk and network
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
 
   # Alertmanager configuration
   alertmanager_port = "9093"
@@ -299,8 +358,6 @@ module "alertmanager01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.alertmanager.cpu
   memory_limit = local.services.alertmanager.memory
-
-  # Network dependency is implicit through network_name reference
 }
 
 module "mosquitto01" {
@@ -309,8 +366,13 @@ module "mosquitto01" {
   instance_name = "mosquitto01"
   profile_name  = "mosquitto"
 
-  # Network configuration - use production network for externally-accessible services
-  network_name = incus_network.production.name
+  # Profile composition - base profiles provide root disk and network
+  # Note: mosquitto uses production network for external access
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+    module.base.production_network_profile.name,
+  ]
 
   # MQTT port configuration
   mqtt_port  = "1883"
@@ -335,8 +397,6 @@ module "mosquitto01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.mosquitto.cpu
   memory_limit = local.services.mosquitto.memory
-
-  # Network dependency is implicit through network_name reference
 }
 
 module "cloudflared01" {
@@ -347,8 +407,12 @@ module "cloudflared01" {
   instance_name = "cloudflared01"
   profile_name  = "cloudflared"
 
-  # Network configuration - use management network to access internal services
-  network_name = incus_network.management.name
+  # Profile composition - base profiles provide root disk and network
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
 
   # Tunnel token from Cloudflare Zero Trust dashboard
   tunnel_token = var.cloudflared_tunnel_token
@@ -356,8 +420,6 @@ module "cloudflared01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.cloudflared.cpu
   memory_limit = local.services.cloudflared.memory
-
-  # Network dependency is implicit through network_name reference
 }
 
 module "incus_metrics" {

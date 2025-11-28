@@ -16,6 +16,9 @@ resource "incus_storage_volume" "prometheus_data" {
   content_type = "filesystem"
 }
 
+# Service-specific profile
+# Contains only resource limits and service-specific devices (data volume)
+# Base infrastructure (root disk, network) is provided by profiles passed via var.profiles
 resource "incus_profile" "prometheus" {
   name = var.profile_name
 
@@ -23,24 +26,6 @@ resource "incus_profile" "prometheus" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
-    "boot.autorestart"      = "true"
-  }
-
-  device {
-    name = "root"
-    type = "disk"
-    properties = {
-      path = "/"
-      pool = var.storage_pool
-    }
-  }
-
-  device {
-    name = "eth0"
-    type = "nic"
-    properties = {
-      network = var.network_name
-    }
   }
 
   dynamic "device" {
@@ -81,7 +66,7 @@ resource "incus_instance" "prometheus" {
   name     = var.instance_name
   image    = var.image
   type     = "container"
-  profiles = ["default", incus_profile.prometheus.name]
+  profiles = concat(var.profiles, [incus_profile.prometheus.name])
 
   config = merge(
     { for k, v in var.environment_variables : "environment.${k}" => v },

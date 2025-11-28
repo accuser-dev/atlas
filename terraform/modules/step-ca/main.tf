@@ -26,7 +26,9 @@ resource "incus_storage_volume" "step_ca_data" {
   content_type = "filesystem"
 }
 
-# Profile for step-ca container
+# Service-specific profile
+# Contains only resource limits and service-specific devices (data volume)
+# Base infrastructure (root disk, network) is provided by profiles passed via var.profiles
 resource "incus_profile" "step_ca" {
   name = var.profile_name
 
@@ -34,24 +36,6 @@ resource "incus_profile" "step_ca" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
-    "boot.autorestart"      = "true"
-  }
-
-  device {
-    name = "root"
-    type = "disk"
-    properties = {
-      path = "/"
-      pool = var.storage_pool
-    }
-  }
-
-  device {
-    name = "eth0"
-    type = "nic"
-    properties = {
-      network = var.network_name
-    }
   }
 
   # Mount persistent volume for CA data
@@ -79,7 +63,7 @@ resource "incus_instance" "step_ca" {
   image = var.image
   type  = "container"
 
-  profiles = ["default", incus_profile.step_ca.name]
+  profiles = concat(var.profiles, [incus_profile.step_ca.name])
 
   config = {
     # Environment variables for CA configuration

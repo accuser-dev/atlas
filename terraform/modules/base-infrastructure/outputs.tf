@@ -1,0 +1,79 @@
+# =============================================================================
+# Network Outputs
+# =============================================================================
+# Full resource references for dependency tracking
+
+output "development_network" {
+  description = "Development network resource"
+  value       = incus_network.development
+}
+
+output "testing_network" {
+  description = "Testing network resource"
+  value       = incus_network.testing
+}
+
+output "staging_network" {
+  description = "Staging network resource"
+  value       = incus_network.staging
+}
+
+output "production_network" {
+  description = "Production network resource"
+  value       = incus_network.production
+}
+
+output "management_network" {
+  description = "Management network resource"
+  value       = incus_network.management
+}
+
+# Convenience output for management network gateway IP
+output "management_network_gateway" {
+  description = "Management network gateway IP address (for metrics endpoint)"
+  value       = split("/", var.management_network_ipv4)[0]
+}
+
+# =============================================================================
+# Profile Outputs
+# =============================================================================
+# Full resource references for dependency tracking
+
+output "docker_base_profile" {
+  description = "Docker base profile resource (boot.autorestart, root disk)"
+  value       = incus_profile.docker_base
+}
+
+output "management_network_profile" {
+  description = "Management network profile resource (eth0 on management network)"
+  value       = incus_profile.management_network
+}
+
+output "production_network_profile" {
+  description = "Production network profile resource (eth0 on production network)"
+  value       = incus_profile.production_network
+}
+
+output "development_network_profile" {
+  description = "Development network profile resource (eth0 on development network)"
+  value       = incus_profile.development_network
+}
+
+output "testing_network_profile" {
+  description = "Testing network profile resource (eth0 on testing network)"
+  value       = incus_profile.testing_network
+}
+
+output "staging_network_profile" {
+  description = "Staging network profile resource (eth0 on staging network)"
+  value       = incus_profile.staging_network
+}
+
+# =============================================================================
+# External Network Output
+# =============================================================================
+
+output "external_network" {
+  description = "External network name (typically incusbr0)"
+  value       = var.external_network
+}
