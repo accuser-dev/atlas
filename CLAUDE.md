@@ -10,6 +10,73 @@ The project is organized into two main directories:
 - **`docker/`** - Custom Docker images for each service
 - **`terraform/`** - Infrastructure as Code using Terraform
 
+## Resource Requirements
+
+### Compute Resources
+
+| Service | CPU (cores) | Memory | Purpose |
+|---------|-------------|--------|---------|
+| Caddy | 2 | 1GB | Reverse proxy, TLS termination |
+| Grafana | 2 | 1GB | Dashboards, visualization |
+| Prometheus | 2 | 2GB | Metrics storage |
+| Loki | 2 | 2GB | Log aggregation |
+| Alertmanager | 1 | 256MB | Alert routing |
+| step-ca | 1 | 512MB | Certificate authority |
+| Node Exporter | 1 | 128MB | Host metrics |
+| Mosquitto | 1 | 256MB | MQTT broker |
+| Cloudflared | 1 | 256MB | Tunnel client (optional) |
+| **Total** | **13** | **7.4GB** | |
+
+**Notes:**
+- Resource limits are enforced with hard memory limits (OOM kill on exceed)
+- CPU values are soft limits (can burst if host has capacity)
+- Cloudflared is conditionally deployed (only when tunnel token is set)
+
+### Storage Requirements
+
+| Volume | Default Size | Growth Rate | Purpose |
+|--------|--------------|-------------|---------|
+| prometheus01-data | 100GB | ~1GB/day* | Metrics retention (30d default) |
+| loki01-data | 50GB | ~500MB/day* | Log retention (30d default) |
+| grafana01-data | 10GB | Minimal | Dashboards, plugins |
+| alertmanager01-data | 1GB | Minimal | Silences, notifications |
+| step-ca01-data | 1GB | Minimal | CA certificates, database |
+| mosquitto01-data | 5GB | Variable | Retained MQTT messages |
+| **Total** | **167GB** | | |
+
+*Growth rates vary significantly based on workload. Adjust retention settings to control storage usage.
+
+### Network Requirements
+
+| Network | CIDR | Purpose |
+|---------|------|---------|
+| development | 10.10.0.0/24 | Development workloads |
+| testing | 10.20.0.0/24 | Testing workloads |
+| staging | 10.30.0.0/24 | Staging workloads |
+| production | 10.40.0.0/24 | Production applications |
+| management | 10.50.0.0/24 | Internal services (monitoring) |
+
+**External Access:**
+- Caddy: Ports 80, 443 (HTTP/HTTPS)
+- Mosquitto: Ports 1883, 8883 (MQTT/MQTTS)
+- Cloudflared: Outbound only (no inbound ports)
+
+### Minimum Host Requirements
+
+For a complete deployment with all services:
+
+| Resource | Minimum | Recommended |
+|----------|---------|-------------|
+| CPU | 4 cores | 8+ cores |
+| RAM | 8GB | 16GB |
+| Storage | 200GB | 500GB |
+| Network | 1 interface | 1 interface |
+
+**Notes:**
+- Containers share host resources; minimums assume light workload
+- Production deployments should size based on expected metrics/log volume
+- Storage should be on SSD for Prometheus/Loki performance
+
 ## Project Structure
 
 ```
