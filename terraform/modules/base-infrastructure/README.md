@@ -6,7 +6,7 @@ This module provides the foundational infrastructure for all Atlas services, inc
 
 - **Five Environment Networks**: Development, Testing, Staging, Production, Management
 - **Docker Base Profile**: Root disk and auto-restart configuration
-- **Network Profiles**: Pre-configured eth0 devices for each network
+- **Network Profiles**: Semantic NIC devices for each network (prod, mgmt, dev, test, stage)
 - **IPv4 and IPv6 Support**: Optional dual-stack networking
 - **NAT Configuration**: Configurable NAT for each network
 - **Profile Composition**: Enables service modules to compose base + service profiles
@@ -66,7 +66,7 @@ module "grafana01" {
 │   │   └─────────────────────────────────────────────────┘│  │
 │   │                                                       │  │
 │   │   *-network ────────────────────────────────────────┐│  │
-│   │   │  eth0 device attached to network                ││  │
+│   │   │  Semantic NIC device (prod, mgmt, dev, etc.)    ││  │
 │   │   │  (one profile per network)                      ││  │
 │   │   └─────────────────────────────────────────────────┘│  │
 │   │                                                       │  │
@@ -85,7 +85,7 @@ profiles = concat(var.profiles, [incus_profile.service.name])
 # Results in ordered profiles:
 # 1. "default"                 - Incus default profile
 # 2. "docker-base"             - Root disk + auto-restart
-# 3. "management-network"      - eth0 on management network
+# 3. "management-network"      - mgmt NIC on management network
 # 4. "grafana" (service-specific) - CPU/memory limits, data volume
 ```
 
@@ -206,11 +206,11 @@ module "base" {
 | Name | Description |
 |------|-------------|
 | `docker_base_profile` | Docker base profile (boot.autorestart, root disk) |
-| `development_network_profile` | Development network profile (eth0) |
-| `testing_network_profile` | Testing network profile (eth0) |
-| `staging_network_profile` | Staging network profile (eth0) |
-| `production_network_profile` | Production network profile (eth0) |
-| `management_network_profile` | Management network profile (eth0) |
+| `development_network_profile` | Development network profile (dev NIC) |
+| `testing_network_profile` | Testing network profile (test NIC) |
+| `staging_network_profile` | Staging network profile (stage NIC) |
+| `production_network_profile` | Production network profile (prod NIC) |
+| `management_network_profile` | Management network profile (mgmt NIC) |
 
 ## Troubleshooting
 

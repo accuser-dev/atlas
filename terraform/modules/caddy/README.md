@@ -98,17 +98,17 @@ Caddy has **three network interfaces** for different types of traffic:
 ┌─────────────────────────────┐
 │         Caddy               │
 │                             │
-│  eth0: Production Network   │──> Public-facing services
-│  eth1: Management Network   │──> Internal services (Grafana, etc.)
-│  eth2: External Bridge      │──> Internet access (HTTPS, DNS)
+│  prod: Production Network   │──> Public-facing services
+│  mgmt: Management Network   │──> Internal services (Grafana, etc.)
+│  eth0: External Bridge      │──> Internet access (HTTPS, DNS)
 └─────────────────────────────┘
 ```
 
 ### Network Usage
 
-- **eth0 (Production)**: Routes to services on production network
-- **eth1 (Management)**: Routes to monitoring services (Grafana, Prometheus, Loki)
-- **eth2 (External)**: Outbound HTTPS for Let's Encrypt, DNS for Cloudflare
+- **prod**: Routes to services on production network
+- **mgmt**: Routes to monitoring services (Grafana, Prometheus, Loki)
+- **eth0**: Outbound HTTPS for Let's Encrypt, DNS for Cloudflare (overrides default profile)
 
 ## Dynamic Configuration
 
