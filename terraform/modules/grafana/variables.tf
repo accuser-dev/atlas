@@ -208,3 +208,10 @@ variable "login_rate_limit_window" {
     error_message = "Login rate limit window must be in format like '1m', '30s', or '1h'"
   }
 }
+
+# Dashboard Provisioning
+variable "enable_default_dashboards" {
+  description = "Enable provisioning of default Atlas dashboards (health monitoring)"
+  type        = bool
+  default     = true
+}

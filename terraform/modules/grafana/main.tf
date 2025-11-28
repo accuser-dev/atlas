@@ -93,4 +93,24 @@ resource "incus_instance" "grafana" {
       mode        = "0644"
     }
   }
+
+  # Provision dashboard provider configuration
+  dynamic "file" {
+    for_each = var.enable_default_dashboards ? [1] : []
+    content {
+      content     = file("${path.module}/templates/dashboards.yaml.tftpl")
+      target_path = "/etc/grafana/provisioning/dashboards/dashboards.yaml"
+      mode        = "0644"
+    }
+  }
+
+  # Provision Atlas Health dashboard
+  dynamic "file" {
+    for_each = var.enable_default_dashboards ? [1] : []
+    content {
+      content     = file("${path.module}/dashboards/atlas-health.json")
+      target_path = "/etc/grafana/provisioning/dashboards/json/atlas-health.json"
+      mode        = "0644"
+    }
+  }
 }
