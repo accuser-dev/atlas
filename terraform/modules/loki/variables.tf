@@ -67,13 +67,21 @@ variable "data_volume_name" {
 }
 
 variable "data_volume_size" {
-  description = "Size of the storage volume (e.g., 50GB)"
+  description = "Size of the storage volume (e.g., 50GB). Minimum recommended: 10GB"
   type        = string
   default     = "50GB"
 
   validation {
     condition     = can(regex("^[0-9]+(MB|GB|TB)$", var.data_volume_size))
     error_message = "Volume size must be in format like '50GB' or '100MB'"
+  }
+
+  validation {
+    condition = (
+      can(regex("TB$", var.data_volume_size)) ||
+      (can(regex("GB$", var.data_volume_size)) && tonumber(regex("^[0-9]+", var.data_volume_size)) >= 10)
+    )
+    error_message = "Loki volume size must be at least 10GB for log storage"
   }
 }
 
