@@ -67,13 +67,22 @@ variable "data_volume_name" {
 }
 
 variable "data_volume_size" {
-  description = "Size of the storage volume (e.g., 10GB)"
+  description = "Size of the storage volume (e.g., 10GB). Minimum recommended: 1GB"
   type        = string
   default     = "10GB"
 
   validation {
     condition     = can(regex("^[0-9]+(MB|GB|TB)$", var.data_volume_size))
     error_message = "Volume size must be in format like '10GB' or '100MB'"
+  }
+
+  validation {
+    condition = (
+      can(regex("TB$", var.data_volume_size)) ||
+      (can(regex("GB$", var.data_volume_size)) && tonumber(regex("^[0-9]+", var.data_volume_size)) >= 1) ||
+      (can(regex("MB$", var.data_volume_size)) && tonumber(regex("^[0-9]+", var.data_volume_size)) >= 1024)
+    )
+    error_message = "Grafana volume size must be at least 1GB (or 1024MB) for reliable operation"
   }
 }
 

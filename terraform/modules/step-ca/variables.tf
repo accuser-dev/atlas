@@ -91,13 +91,21 @@ variable "data_volume_name" {
 }
 
 variable "data_volume_size" {
-  description = "Size of the storage volume (e.g., 1GB)"
+  description = "Size of the storage volume (e.g., 1GB). Minimum recommended: 100MB"
   type        = string
   default     = "1GB"
 
   validation {
     condition     = can(regex("^[0-9]+(MB|GB)$", var.data_volume_size))
     error_message = "Volume size must be in format like '1GB' or '500MB'"
+  }
+
+  validation {
+    condition = (
+      can(regex("GB$", var.data_volume_size)) ||
+      (can(regex("MB$", var.data_volume_size)) && tonumber(regex("^[0-9]+", var.data_volume_size)) >= 100)
+    )
+    error_message = "step-ca volume size must be at least 100MB for CA data and certificates"
   }
 }
 
