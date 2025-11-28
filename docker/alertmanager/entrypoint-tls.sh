@@ -1,69 +1,116 @@
 #!/bin/sh
 # TLS-aware entrypoint for Alertmanager
 # Requests certificate from step-ca and configures TLS if enabled
-set -e
+set -eu
 
+# =============================================================================
+# Logging Functions
+# =============================================================================
+log_info()  { echo "INFO:  $*"; }
+log_warn()  { echo "WARN:  $*" >&2; }
+log_error() { echo "ERROR: $*" >&2; }
+
+# =============================================================================
+# Configuration
+# =============================================================================
 TLS_DIR="/etc/alertmanager/tls"
 CERT_FILE="${TLS_DIR}/alertmanager.crt"
 KEY_FILE="${TLS_DIR}/alertmanager.key"
 CA_FILE="${TLS_DIR}/ca.crt"
 
-# Function to request certificate from step-ca
+# =============================================================================
+# Functions
+# =============================================================================
+
+# Request certificate from step-ca
 request_certificate() {
-    echo "Requesting certificate from step-ca..."
+    log_info "Requesting certificate from step-ca..."
 
     # Bootstrap trust to the CA
-    step ca bootstrap --ca-url "${STEPCA_URL}" --fingerprint "${STEPCA_FINGERPRINT}" --force
+    if ! step ca bootstrap --ca-url "${STEPCA_URL}" --fingerprint "${STEPCA_FINGERPRINT}" --force; then
+        log_error "Failed to bootstrap CA trust"
+        return 1
+    fi
 
     # Get hostname for certificate
     HOSTNAME=$(hostname)
+    log_info "Requesting certificate for hostname: ${HOSTNAME}"
 
     # Request certificate using ACME
-    step ca certificate "${HOSTNAME}" "${CERT_FILE}" "${KEY_FILE}" \
+    if ! step ca certificate "${HOSTNAME}" "${CERT_FILE}" "${KEY_FILE}" \
         --ca-url "${STEPCA_URL}" \
         --provisioner acme \
-        --not-after "${CERT_DURATION}" \
-        --force
+        --not-after "${CERT_DURATION:-24h}" \
+        --force; then
+        log_error "Failed to obtain certificate"
+        return 1
+    fi
 
     # Copy root CA for client verification
-    cp "$(step path)/certs/root_ca.crt" "${CA_FILE}"
+    if ! cp "$(step path)/certs/root_ca.crt" "${CA_FILE}"; then
+        log_error "Failed to copy root CA certificate"
+        return 1
+    fi
 
-    echo "Certificate obtained successfully"
+    log_info "Certificate obtained successfully"
 }
 
-# Main logic
-if [ "${ENABLE_TLS}" = "true" ]; then
-    echo "TLS mode enabled"
+# Validate required TLS environment variables
+validate_tls_config() {
+    local valid=true
 
-    # Validate required environment variables
-    if [ -z "${STEPCA_URL}" ]; then
-        echo "ERROR: STEPCA_URL is required when ENABLE_TLS=true"
-        exit 1
+    if [ -z "${STEPCA_URL:-}" ]; then
+        log_error "STEPCA_URL is required when ENABLE_TLS=true"
+        valid=false
     fi
 
-    if [ -z "${STEPCA_FINGERPRINT}" ]; then
-        echo "ERROR: STEPCA_FINGERPRINT is required when ENABLE_TLS=true"
-        exit 1
+    if [ -z "${STEPCA_FINGERPRINT:-}" ]; then
+        log_error "STEPCA_FINGERPRINT is required when ENABLE_TLS=true"
+        valid=false
     fi
 
-    # Request certificate
-    request_certificate
+    if [ "${valid}" = "false" ]; then
+        return 1
+    fi
+}
 
-    # Start Alertmanager with TLS
-    echo "Starting Alertmanager with TLS..."
-    exec /bin/alertmanager \
-        --config.file=/etc/alertmanager/alertmanager.yml \
-        --storage.path=/alertmanager \
-        --web.listen-address=:9093 \
-        --web.config.file="" \
-        --cluster.listen-address="" \
-        "$@"
-else
-    echo "TLS mode disabled, starting Alertmanager normally..."
-    exec /bin/alertmanager \
-        --config.file=/etc/alertmanager/alertmanager.yml \
-        --storage.path=/alertmanager \
-        --web.listen-address=:9093 \
-        --cluster.listen-address="" \
-        "$@"
-fi
+# =============================================================================
+# Main
+# =============================================================================
+main() {
+    if [ "${ENABLE_TLS:-false}" = "true" ]; then
+        log_info "TLS mode enabled"
+
+        # Validate configuration
+        if ! validate_tls_config; then
+            log_error "TLS configuration validation failed"
+            exit 1
+        fi
+
+        # Request certificate
+        if ! request_certificate; then
+            log_error "Certificate request failed"
+            exit 1
+        fi
+
+        # Start Alertmanager with TLS
+        log_info "Starting Alertmanager with TLS..."
+        exec /bin/alertmanager \
+            --config.file=/etc/alertmanager/alertmanager.yml \
+            --storage.path=/alertmanager \
+            --web.listen-address=:9093 \
+            --web.config.file="" \
+            --cluster.listen-address="" \
+            "$@"
+    else
+        log_info "TLS mode disabled, starting Alertmanager normally..."
+        exec /bin/alertmanager \
+            --config.file=/etc/alertmanager/alertmanager.yml \
+            --storage.path=/alertmanager \
+            --web.listen-address=:9093 \
+            --cluster.listen-address="" \
+            "$@"
+    fi
+}
+
+main "$@"
