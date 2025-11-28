@@ -353,6 +353,30 @@ incus storage info local
    incus storage volume snapshot delete local prometheus01-data snap0
    ```
 
+### Automated Snapshot Issues
+
+**Symptoms:**
+- Scheduled snapshots not being created
+- Snapshots not expiring as configured
+
+**Diagnosis:**
+```bash
+# Check volume snapshot configuration
+incus storage volume show local prometheus01-data | grep snapshot
+
+# Verify Terraform configuration
+cd terraform && tofu show | grep -A5 "enable_snapshots"
+```
+
+**Solutions:**
+1. Verify `enable_snapshots = true` in the module configuration
+2. Check schedule format is valid (e.g., `@daily`, `@weekly`, or cron expression)
+3. Verify expiry format (e.g., `7d`, `4w`, `3m`)
+4. Re-apply Terraform to update volume configuration:
+   ```bash
+   tofu apply
+   ```
+
 ---
 
 ## Service-Specific Issues

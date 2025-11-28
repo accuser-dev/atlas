@@ -227,7 +227,7 @@ See [CLAUDE.md](CLAUDE.md#adding-new-service-modules) for detailed instructions 
 - **Modular Design** - Reusable service modules
 - **CI/CD Integration** - Automated image builds via GitHub Actions
 - **Custom Images** - Published to GitHub Container Registry
-- **Persistent Storage** - Data survives container restarts
+- **Persistent Storage** - Data survives container restarts with optional automated snapshots
 - **Automatic HTTPS** - Let's Encrypt via Cloudflare DNS
 - **Network Isolation** - Separate networks for different environments
 - **Dynamic Configuration** - Auto-generated reverse proxy configs
@@ -283,6 +283,8 @@ Persistent storage for each service:
 - `alertmanager01-data` (1GB) - Silences and state
 - `step-ca01-data` (1GB) - CA keys and database
 - `mosquitto01-data` (5GB) - MQTT retained messages
+
+All volumes support optional automated snapshot scheduling via Terraform variables. See [BACKUP.md](BACKUP.md) for details.
 
 ## CI/CD
 

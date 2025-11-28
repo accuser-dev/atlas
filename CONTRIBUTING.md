@@ -120,6 +120,7 @@ Once approved and CI passes:
 - Use meaningful variable names and descriptions
 - Add comments for complex logic
 - Follow module structure conventions
+- For new modules with persistent storage, include snapshot scheduling variables (see existing modules for pattern)
 
 **Docker:**
 - Pin base image versions (no `:latest`)
