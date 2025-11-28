@@ -352,6 +352,21 @@ resource "incus_storage_volume" "grafana_data" {
 }
 ```
 
+### Automated Snapshot Scheduling
+
+All storage volumes support automated snapshots for data protection:
+
+```hcl
+module "grafana01" {
+  # ...
+  enable_snapshots   = true
+  snapshot_schedule  = "@daily"
+  snapshot_expiry    = "7d"
+}
+```
+
+Snapshots are disabled by default (`enable_snapshots = false`). See [BACKUP.md](BACKUP.md) for configuration details.
+
 ### Resource Limits
 
 All containers enforce hard resource limits:
