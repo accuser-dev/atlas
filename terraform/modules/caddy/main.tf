@@ -11,27 +11,28 @@ resource "incus_profile" "caddy" {
   }
 
   # Caddy has a special multi-network setup for reverse proxy functionality
-  # eth0: Production network (public-facing applications)
+  # Production network (public-facing applications)
   device {
-    name = "eth0"
+    name = "prod"
     type = "nic"
     properties = {
       network = var.production_network
     }
   }
 
-  # eth1: Management network (internal services like monitoring)
+  # Management network (internal services like monitoring)
   device {
-    name = "eth1"
+    name = "mgmt"
     type = "nic"
     properties = {
       network = var.management_network
     }
   }
 
-  # eth2: External network (for external access, typically incusbr0)
+  # External network (for external access, typically incusbr0)
+  # Named "eth0" to override the default profile's NIC on incusbr0
   device {
-    name = "eth2"
+    name = "eth0"
     type = "nic"
     properties = {
       network = var.external_network

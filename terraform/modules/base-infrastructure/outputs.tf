@@ -45,27 +45,27 @@ output "docker_base_profile" {
 }
 
 output "management_network_profile" {
-  description = "Management network profile resource (eth0 on management network)"
+  description = "Management network profile resource (mgmt NIC on management network)"
   value       = incus_profile.management_network
 }
 
 output "production_network_profile" {
-  description = "Production network profile resource (eth0 on production network)"
+  description = "Production network profile resource (prod NIC on production network)"
   value       = incus_profile.production_network
 }
 
 output "development_network_profile" {
-  description = "Development network profile resource (eth0 on development network)"
+  description = "Development network profile resource (dev NIC on development network)"
   value       = incus_profile.development_network
 }
 
 output "testing_network_profile" {
-  description = "Testing network profile resource (eth0 on testing network)"
+  description = "Testing network profile resource (test NIC on testing network)"
   value       = incus_profile.testing_network
 }
 
 output "staging_network_profile" {
-  description = "Staging network profile resource (eth0 on staging network)"
+  description = "Staging network profile resource (stage NIC on staging network)"
   value       = incus_profile.staging_network
 }
 

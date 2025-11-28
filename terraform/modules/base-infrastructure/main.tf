@@ -129,7 +129,7 @@ resource "incus_profile" "management_network" {
   name = "management-network"
 
   device {
-    name = "eth0"
+    name = "mgmt"
     type = "nic"
     properties = {
       network = incus_network.management.name
@@ -142,7 +142,7 @@ resource "incus_profile" "production_network" {
   name = "production-network"
 
   device {
-    name = "eth0"
+    name = "prod"
     type = "nic"
     properties = {
       network = incus_network.production.name
@@ -155,7 +155,7 @@ resource "incus_profile" "development_network" {
   name = "development-network"
 
   device {
-    name = "eth0"
+    name = "dev"
     type = "nic"
     properties = {
       network = incus_network.development.name
@@ -168,7 +168,7 @@ resource "incus_profile" "testing_network" {
   name = "testing-network"
 
   device {
-    name = "eth0"
+    name = "test"
     type = "nic"
     properties = {
       network = incus_network.testing.name
@@ -181,7 +181,7 @@ resource "incus_profile" "staging_network" {
   name = "staging-network"
 
   device {
-    name = "eth0"
+    name = "stage"
     type = "nic"
     properties = {
       network = incus_network.staging.name
