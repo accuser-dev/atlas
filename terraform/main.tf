@@ -34,7 +34,7 @@ module "grafana01" {
 
   # Domain configuration for reverse proxy
   domain           = "grafana.accuser.dev"
-  allowed_ip_range = "192.168.68.0/22"
+  allowed_ip_range = var.allowed_ip_range
   grafana_port     = "3000"
 
   # Environment variables for Grafana configuration
