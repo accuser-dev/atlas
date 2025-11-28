@@ -17,6 +17,14 @@ cloudflare_api_token = "your-cloudflare-api-token-here"
 grafana_admin_password = "your-secure-grafana-password-here"
 
 # ============================================================================
+# ACCESS CONTROL
+# ============================================================================
+# IP range allowed to access public services (Grafana, etc.)
+# Set to your home/office network CIDR for security
+# Default: 0.0.0.0/0 (allow all - NOT recommended for production)
+# allowed_ip_range = "192.168.1.0/24"
+
+# ============================================================================
 # OPTIONAL NETWORK CONFIGURATION
 # ============================================================================
 # Override these if you need different network ranges

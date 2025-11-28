@@ -9,6 +9,18 @@ variable "cloudflare_api_token" {
   }
 }
 
+# Access Control
+variable "allowed_ip_range" {
+  description = "IP range allowed to access public services (CIDR notation). Set to your home/office network for security, or 0.0.0.0/0 to allow all."
+  type        = string
+  default     = "0.0.0.0/0"
+
+  validation {
+    condition     = can(cidrhost(var.allowed_ip_range, 0))
+    error_message = "Must be valid CIDR notation (e.g., 192.168.1.0/24 or 0.0.0.0/0)"
+  }
+}
+
 # Grafana Configuration
 variable "grafana_admin_password" {
   description = "Grafana admin password (should be strong and unique)"
