@@ -209,14 +209,9 @@ module "prometheus01" {
               service: 'caddy'
               instance: 'caddy01'
 
-      # step-ca health monitoring
-      - job_name: 'step-ca'
-        metrics_path: '/health'
-        static_configs:
-          - targets: ['step-ca01.incus:9000']
-            labels:
-              service: 'step-ca'
-              instance: 'step-ca01'
+      # NOTE: step-ca does not expose Prometheus metrics.
+      # The /health endpoint returns JSON, not Prometheus format.
+      # Health monitoring for step-ca should use blackbox exporter or external probes.
 
       # Node Exporter for host metrics
       - job_name: 'node'
