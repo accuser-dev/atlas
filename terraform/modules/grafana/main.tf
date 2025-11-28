@@ -109,7 +109,7 @@ resource "incus_instance" "grafana" {
     for_each = var.enable_default_dashboards ? [1] : []
     content {
       content     = file("${path.module}/dashboards/atlas-health.json")
-      target_path = "/etc/grafana/provisioning/dashboards/json/atlas-health.json"
+      target_path = "/etc/grafana/provisioning/dashboards/atlas-health.json"
       mode        = "0644"
     }
   }
