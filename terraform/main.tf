@@ -1,3 +1,44 @@
+# =============================================================================
+# Base Infrastructure
+# =============================================================================
+# Provides networks and base profiles for all containers
+
+module "base" {
+  source = "./modules/base-infrastructure"
+
+  storage_pool = "local"
+
+  # Network configuration - pass through from root variables
+  development_network_ipv4     = var.development_network_ipv4
+  development_network_nat      = var.development_network_nat
+  development_network_ipv6     = var.development_network_ipv6
+  development_network_ipv6_nat = var.development_network_ipv6_nat
+
+  testing_network_ipv4     = var.testing_network_ipv4
+  testing_network_nat      = var.testing_network_nat
+  testing_network_ipv6     = var.testing_network_ipv6
+  testing_network_ipv6_nat = var.testing_network_ipv6_nat
+
+  staging_network_ipv4     = var.staging_network_ipv4
+  staging_network_nat      = var.staging_network_nat
+  staging_network_ipv6     = var.staging_network_ipv6
+  staging_network_ipv6_nat = var.staging_network_ipv6_nat
+
+  production_network_ipv4     = var.production_network_ipv4
+  production_network_nat      = var.production_network_nat
+  production_network_ipv6     = var.production_network_ipv6
+  production_network_ipv6_nat = var.production_network_ipv6_nat
+
+  management_network_ipv4     = var.management_network_ipv4
+  management_network_nat      = var.management_network_nat
+  management_network_ipv6     = var.management_network_ipv6
+  management_network_ipv6_nat = var.management_network_ipv6_nat
+}
+
+# =============================================================================
+# Services
+# =============================================================================
+
 module "caddy01" {
   source = "./modules/caddy"
 
@@ -12,8 +53,8 @@ module "caddy01" {
   ]
 
   # Network configuration - reference managed networks
-  production_network = incus_network.production.name
-  management_network = incus_network.management.name
+  production_network = module.base.production_network.name
+  management_network = module.base.management_network.name
   external_network   = "incusbr0"
 
   # Resource limits (from centralized service config)
@@ -30,7 +71,7 @@ module "grafana01" {
   profile_name  = "grafana"
 
   # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  network_name = module.base.management_network.name
 
   # Domain configuration for reverse proxy
   domain           = "grafana.accuser.dev"
@@ -82,7 +123,7 @@ module "loki01" {
   profile_name  = "loki"
 
   # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  network_name = module.base.management_network.name
 
   # Loki configuration
   loki_port = "3100"
@@ -106,7 +147,7 @@ module "prometheus01" {
   profile_name  = "prometheus"
 
   # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  network_name = module.base.management_network.name
 
   # Prometheus configuration
   prometheus_port = "9090"
@@ -236,7 +277,7 @@ module "step_ca01" {
   # Uses ghcr.io image by default (ghcr:accuser/atlas/step-ca:latest)
 
   # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  network_name = module.base.management_network.name
 
   # CA configuration
   ca_name      = "Atlas Internal CA"
@@ -267,7 +308,7 @@ module "node_exporter01" {
   profile_name  = "node-exporter"
 
   # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  network_name = module.base.management_network.name
 
   # Node Exporter configuration
   node_exporter_port = "9100"
@@ -286,7 +327,7 @@ module "alertmanager01" {
   profile_name  = "alertmanager"
 
   # Network configuration - use management network for internal services
-  network_name = incus_network.management.name
+  network_name = module.base.management_network.name
 
   # Alertmanager configuration
   alertmanager_port = "9093"
@@ -310,7 +351,7 @@ module "mosquitto01" {
   profile_name  = "mosquitto"
 
   # Network configuration - use production network for externally-accessible services
-  network_name = incus_network.production.name
+  network_name = module.base.production_network.name
 
   # MQTT port configuration
   mqtt_port  = "1883"
@@ -347,8 +388,12 @@ module "cloudflared01" {
   instance_name = "cloudflared01"
   profile_name  = "cloudflared"
 
-  # Network configuration - use management network to access internal services
-  network_name = incus_network.management.name
+  # Profile composition - base profiles provide root disk and network
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
 
   # Tunnel token from Cloudflare Zero Trust dashboard
   tunnel_token = var.cloudflared_tunnel_token
@@ -356,8 +401,6 @@ module "cloudflared01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.cloudflared.cpu
   memory_limit = local.services.cloudflared.memory
-
-  # Network dependency is implicit through network_name reference
 }
 
 module "incus_metrics" {
