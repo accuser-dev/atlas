@@ -1,4 +1,15 @@
 # =============================================================================
+# Resource Summary
+# =============================================================================
+# Total CPU:     13 cores (soft limits)
+# Total Memory:  7.4GB (hard limits)
+# Total Storage: 167GB (default volumes)
+# Networks:      5 internal + 1 external bridge
+#
+# See CLAUDE.md "Resource Requirements" section for detailed breakdown.
+# =============================================================================
+
+# =============================================================================
 # Base Infrastructure
 # =============================================================================
 # Provides networks and base profiles for all containers
