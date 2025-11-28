@@ -20,14 +20,7 @@ module "caddy01" {
   cpu_limit    = local.services.caddy.cpu
   memory_limit = local.services.caddy.memory
 
-  # Ensure networks are created before the container
-  depends_on = [
-    incus_network.development,
-    incus_network.testing,
-    incus_network.staging,
-    incus_network.production,
-    incus_network.management
-  ]
+  # Network dependencies are implicit through production_network and management_network references
 }
 
 module "grafana01" {
@@ -78,16 +71,8 @@ module "grafana01" {
   cpu_limit    = local.services.grafana.cpu
   memory_limit = local.services.grafana.memory
 
-  # Ensure networks and dependencies are created
-  depends_on = [
-    incus_network.development,
-    incus_network.testing,
-    incus_network.staging,
-    incus_network.production,
-    incus_network.management,
-    module.prometheus01,
-    module.loki01
-  ]
+  # Network dependency is implicit through network_name reference
+  # Module dependencies are implicit through datasources referencing prometheus/loki endpoints
 }
 
 module "loki01" {
@@ -111,14 +96,7 @@ module "loki01" {
   cpu_limit    = local.services.loki.cpu
   memory_limit = local.services.loki.memory
 
-  # Ensure networks are created before the container
-  depends_on = [
-    incus_network.development,
-    incus_network.testing,
-    incus_network.staging,
-    incus_network.production,
-    incus_network.management
-  ]
+  # Network dependency is implicit through network_name reference
 }
 
 module "prometheus01" {
@@ -245,15 +223,8 @@ module "prometheus01" {
   cpu_limit    = local.services.prometheus.cpu
   memory_limit = local.services.prometheus.memory
 
-  # Ensure networks and incus-metrics module are created before the container
-  depends_on = [
-    incus_network.development,
-    incus_network.testing,
-    incus_network.staging,
-    incus_network.production,
-    incus_network.management,
-    module.incus_metrics
-  ]
+  # Network dependency is implicit through network_name reference
+  # incus_metrics dependency is implicit through certificate/key references
 }
 
 module "step_ca01" {
@@ -286,14 +257,7 @@ module "step_ca01" {
   cpu_limit    = local.services.step_ca.cpu
   memory_limit = local.services.step_ca.memory
 
-  # Ensure networks are created before the container
-  depends_on = [
-    incus_network.development,
-    incus_network.testing,
-    incus_network.staging,
-    incus_network.production,
-    incus_network.management
-  ]
+  # Network dependency is implicit through network_name reference
 }
 
 module "node_exporter01" {
@@ -312,14 +276,7 @@ module "node_exporter01" {
   cpu_limit    = local.services.node_exporter.cpu
   memory_limit = local.services.node_exporter.memory
 
-  # Ensure networks are created before the container
-  depends_on = [
-    incus_network.development,
-    incus_network.testing,
-    incus_network.staging,
-    incus_network.production,
-    incus_network.management
-  ]
+  # Network dependency is implicit through network_name reference
 }
 
 module "alertmanager01" {
@@ -343,14 +300,7 @@ module "alertmanager01" {
   cpu_limit    = local.services.alertmanager.cpu
   memory_limit = local.services.alertmanager.memory
 
-  # Ensure networks are created before the container
-  depends_on = [
-    incus_network.development,
-    incus_network.testing,
-    incus_network.staging,
-    incus_network.production,
-    incus_network.management
-  ]
+  # Network dependency is implicit through network_name reference
 }
 
 module "mosquitto01" {
@@ -386,14 +336,7 @@ module "mosquitto01" {
   cpu_limit    = local.services.mosquitto.cpu
   memory_limit = local.services.mosquitto.memory
 
-  # Ensure networks are created before the container
-  depends_on = [
-    incus_network.development,
-    incus_network.testing,
-    incus_network.staging,
-    incus_network.production,
-    incus_network.management
-  ]
+  # Network dependency is implicit through network_name reference
 }
 
 module "cloudflared01" {
@@ -414,14 +357,7 @@ module "cloudflared01" {
   cpu_limit    = local.services.cloudflared.cpu
   memory_limit = local.services.cloudflared.memory
 
-  # Ensure networks are created before the container
-  depends_on = [
-    incus_network.development,
-    incus_network.testing,
-    incus_network.staging,
-    incus_network.production,
-    incus_network.management
-  ]
+  # Network dependency is implicit through network_name reference
 }
 
 module "incus_metrics" {
@@ -446,6 +382,5 @@ module "incus_loki" {
   # Send lifecycle and logging events to Loki
   log_types = "lifecycle,logging"
 
-  # Ensure Loki is running before configuring logging
-  depends_on = [module.loki01]
+  # Loki dependency is implicit through loki_address reference
 }
