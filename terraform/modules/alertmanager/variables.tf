@@ -133,3 +133,38 @@ variable "cert_duration" {
     error_message = "Certificate duration must be in hours format (e.g., '24h', '168h')"
   }
 }
+
+# Snapshot Scheduling
+variable "enable_snapshots" {
+  description = "Enable automatic snapshots for the data volume"
+  type        = bool
+  default     = false
+}
+
+variable "snapshot_schedule" {
+  description = "Cron expression or shorthand (@hourly, @daily, @weekly) for snapshot schedule"
+  type        = string
+  default     = "@daily"
+
+  validation {
+    condition     = can(regex("^(@(hourly|daily|weekly|monthly)|[0-9*,/-]+\\s+[0-9*,/-]+\\s+[0-9*,/-]+\\s+[0-9*,/-]+\\s+[0-9*,/-]+)$", var.snapshot_schedule))
+    error_message = "Must be a valid cron expression or shorthand (@hourly, @daily, @weekly, @monthly)"
+  }
+}
+
+variable "snapshot_expiry" {
+  description = "How long to keep snapshots (e.g., 7d, 4w, 3m)"
+  type        = string
+  default     = "7d"
+
+  validation {
+    condition     = can(regex("^[0-9]+(d|w|m)$", var.snapshot_expiry))
+    error_message = "Must be in format like '7d' (days), '4w' (weeks), or '3m' (months)"
+  }
+}
+
+variable "snapshot_pattern" {
+  description = "Naming pattern for snapshots (supports {{creation_date}})"
+  type        = string
+  default     = "auto-{{creation_date}}"
+}
