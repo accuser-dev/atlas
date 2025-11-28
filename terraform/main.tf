@@ -16,6 +16,10 @@ module "caddy01" {
   management_network = incus_network.management.name
   external_network   = "incusbr0"
 
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.caddy.cpu
+  memory_limit = local.services.caddy.memory
+
   # Ensure networks are created before the container
   depends_on = [
     incus_network.development,
@@ -24,11 +28,6 @@ module "caddy01" {
     incus_network.production,
     incus_network.management
   ]
-
-  # Optional: Override defaults if needed
-  # cpu_limit            = "2"
-  # memory_limit         = "1GB"
-  # storage_pool         = "default"
 }
 
 module "grafana01" {
@@ -75,9 +74,9 @@ module "grafana01" {
   data_volume_name        = "grafana01-data"
   data_volume_size        = "10GB"
 
-  # Resource limits
-  cpu_limit    = "2"
-  memory_limit = "1GB"
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.grafana.cpu
+  memory_limit = local.services.grafana.memory
 
   # Ensure networks and dependencies are created
   depends_on = [
@@ -108,9 +107,9 @@ module "loki01" {
   data_volume_name        = "loki01-data"
   data_volume_size        = "50GB"
 
-  # Resource limits - Loki needs more memory for log processing
-  cpu_limit    = "2"
-  memory_limit = "2GB"
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.loki.cpu
+  memory_limit = local.services.loki.memory
 
   # Ensure networks are created before the container
   depends_on = [
@@ -242,9 +241,9 @@ module "prometheus01" {
   data_volume_name        = "prometheus01-data"
   data_volume_size        = "100GB"
 
-  # Resource limits - Prometheus needs memory for time-series data
-  cpu_limit    = "2"
-  memory_limit = "2GB"
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.prometheus.cpu
+  memory_limit = local.services.prometheus.memory
 
   # Ensure networks and incus-metrics module are created before the container
   depends_on = [
@@ -283,9 +282,9 @@ module "step_ca01" {
   data_volume_name        = "step-ca01-data"
   data_volume_size        = "1GB"
 
-  # Resource limits - step-ca is lightweight
-  cpu_limit    = "1"
-  memory_limit = "512MB"
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.step_ca.cpu
+  memory_limit = local.services.step_ca.memory
 
   # Ensure networks are created before the container
   depends_on = [
@@ -309,9 +308,9 @@ module "node_exporter01" {
   # Node Exporter configuration
   node_exporter_port = "9100"
 
-  # Resource limits - Node Exporter is very lightweight
-  cpu_limit    = "1"
-  memory_limit = "128MB"
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.node_exporter.cpu
+  memory_limit = local.services.node_exporter.memory
 
   # Ensure networks are created before the container
   depends_on = [
@@ -340,9 +339,9 @@ module "alertmanager01" {
   data_volume_name        = "alertmanager01-data"
   data_volume_size        = "1GB"
 
-  # Resource limits - Alertmanager is lightweight
-  cpu_limit    = "1"
-  memory_limit = "256MB"
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.alertmanager.cpu
+  memory_limit = local.services.alertmanager.memory
 
   # Ensure networks are created before the container
   depends_on = [
@@ -383,9 +382,9 @@ module "mosquitto01" {
   data_volume_name        = "mosquitto01-data"
   data_volume_size        = "5GB"
 
-  # Resource limits - Mosquitto is lightweight
-  cpu_limit    = "1"
-  memory_limit = "256MB"
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.mosquitto.cpu
+  memory_limit = local.services.mosquitto.memory
 
   # Ensure networks are created before the container
   depends_on = [
@@ -411,9 +410,9 @@ module "cloudflared01" {
   # Tunnel token from Cloudflare Zero Trust dashboard
   tunnel_token = var.cloudflared_tunnel_token
 
-  # Resource limits - cloudflared is lightweight
-  cpu_limit    = "1"
-  memory_limit = "256MB"
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.cloudflared.cpu
+  memory_limit = local.services.cloudflared.memory
 
   # Ensure networks are created before the container
   depends_on = [
