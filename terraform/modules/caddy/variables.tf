@@ -36,10 +36,10 @@ variable "memory_limit" {
   }
 }
 
-variable "storage_pool" {
-  description = "Storage pool for the root disk"
-  type        = string
-  default     = "local"
+variable "profiles" {
+  description = "List of Incus profile names to apply (should include base profiles for root disk)"
+  type        = list(string)
+  default     = ["default"]
 }
 
 variable "production_network" {

@@ -1,3 +1,6 @@
+# Service-specific profile
+# Contains only resource limits and service-specific devices (multi-network setup)
+# Base infrastructure (root disk, boot config) is provided by profiles passed via var.profiles
 resource "incus_profile" "caddy" {
   name = var.profile_name
 
@@ -5,18 +8,10 @@ resource "incus_profile" "caddy" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
-    "boot.autorestart"      = "true"
   }
 
-  device {
-    name = "root"
-    type = "disk"
-    properties = {
-      path = "/"
-      pool = var.storage_pool
-    }
-  }
-
+  # Caddy has a special multi-network setup for reverse proxy functionality
+  # eth0: Production network (public-facing applications)
   device {
     name = "eth0"
     type = "nic"
@@ -25,6 +20,7 @@ resource "incus_profile" "caddy" {
     }
   }
 
+  # eth1: Management network (internal services like monitoring)
   device {
     name = "eth1"
     type = "nic"
@@ -33,6 +29,7 @@ resource "incus_profile" "caddy" {
     }
   }
 
+  # eth2: External network (for external access, typically incusbr0)
   device {
     name = "eth2"
     type = "nic"
@@ -46,7 +43,7 @@ resource "incus_instance" "caddy" {
   name     = var.instance_name
   image    = var.image
   type     = "container"
-  profiles = ["default", incus_profile.caddy.name]
+  profiles = concat(var.profiles, [incus_profile.caddy.name])
 
   # Cloudflare API token injected as file for security
   # File-based injection prevents token exposure via `incus info`

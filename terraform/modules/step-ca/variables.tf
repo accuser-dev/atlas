@@ -37,15 +37,15 @@ variable "memory_limit" {
 }
 
 variable "storage_pool" {
-  description = "Storage pool for the root disk"
+  description = "Storage pool for the data volume"
   type        = string
   default     = "local"
 }
 
-variable "network_name" {
-  description = "Network name to connect the container to"
-  type        = string
-  default     = "management"
+variable "profiles" {
+  description = "List of Incus profile names to apply (should include base profiles for root disk and network)"
+  type        = list(string)
+  default     = ["default"]
 }
 
 variable "ca_name" {
