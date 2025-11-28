@@ -14,6 +14,9 @@ This document describes backup procedures and disaster recovery playbooks for th
   - [Single Service Recovery](#single-service-recovery)
   - [Data Restoration](#data-restoration)
 - [Backup Schedule Recommendations](#backup-schedule-recommendations)
+- [Automated Snapshot Scheduling](#automated-snapshot-scheduling)
+  - [Terraform-Managed Snapshots](#terraform-managed-snapshots-recommended)
+  - [Manual Backup Script](#manual-backup-script-alternative)
 - [Testing and Verification](#testing-and-verification)
 
 ## Overview
@@ -360,9 +363,71 @@ If the CA private key is compromised, you must regenerate (not restore):
 | Mosquitto | Daily | 7 days | Snapshot |
 | Terraform state | Daily | 30 days | Bucket export |
 
-### Automated Backup Script
+## Automated Snapshot Scheduling
 
-Create a cron job for automated backups:
+### Terraform-Managed Snapshots (Recommended)
+
+Each module supports automatic snapshot scheduling via Incus native features. Snapshots are managed declaratively in Terraform and disabled by default.
+
+#### Enabling Snapshots
+
+Add snapshot configuration to module instances in `terraform/main.tf`:
+
+```hcl
+module "grafana01" {
+  source = "./modules/grafana"
+
+  # ... existing configuration ...
+
+  # Enable automatic snapshots
+  enable_snapshots   = true
+  snapshot_schedule  = "@daily"    # or cron: "0 2 * * *"
+  snapshot_expiry    = "7d"        # Keep for 7 days
+  snapshot_pattern   = "auto-{{creation_date}}"
+}
+```
+
+#### Default Schedules by Service
+
+| Service | Default Schedule | Default Retention | Rationale |
+|---------|-----------------|-------------------|-----------|
+| Grafana | @daily | 7d | Dashboards and user preferences |
+| Alertmanager | @daily | 7d | Silences and notification state |
+| Mosquitto | @daily | 7d | Retained messages |
+| Prometheus | @weekly | 2w | Large volume, data regenerable |
+| Loki | @weekly | 2w | Large volume, logs regenerable |
+| step-ca | @weekly | 4w | Critical CA data, longer retention |
+
+#### Schedule Formats
+
+- `@hourly` - Every hour
+- `@daily` - Every day at midnight
+- `@weekly` - Every week on Sunday
+- `@monthly` - First day of each month
+- Cron expressions: `"0 2 * * *"` (2 AM daily)
+
+#### Expiry Formats
+
+- `7d` - 7 days
+- `4w` - 4 weeks
+- `3m` - 3 months
+
+#### Verifying Snapshots
+
+```bash
+# List snapshots for a volume
+incus storage volume info local grafana01-data
+
+# List all snapshots across volumes
+for vol in grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data; do
+  echo "=== $vol ==="
+  incus storage volume show local "$vol" | grep -A5 "snapshots:"
+done
+```
+
+### Manual Backup Script (Alternative)
+
+For environments where Terraform-managed snapshots aren't suitable, use a cron job:
 
 ```bash
 #!/bin/bash
