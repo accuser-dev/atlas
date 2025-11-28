@@ -5,7 +5,7 @@
         list-images \
         bootstrap bootstrap-init bootstrap-plan bootstrap-apply \
         init plan apply destroy import clean-incus clean-images \
-        deploy clean clean-docker clean-tofu clean-bootstrap format \
+        deploy validate clean clean-docker clean-tofu clean-bootstrap format \
         backup-snapshot backup-export backup-list
 
 # Default target
@@ -39,6 +39,7 @@ help:
 	@echo "  make clean-images      - Remove Atlas images from Incus cache"
 	@echo ""
 	@echo "Deployment Commands:"
+	@echo "  make validate          - Run pre-deployment validation checks"
 	@echo "  make deploy            - Apply OpenTofu (pulls images from ghcr.io)"
 	@echo ""
 	@echo "Backup Commands:"
@@ -291,6 +292,10 @@ clean-incus:
 	done
 	@echo ""
 	@echo "Cleanup complete. Run 'make deploy' for a fresh deployment."
+
+# Pre-deployment validation
+validate:
+	@terraform/scripts/validate.sh
 
 # Combined deployment
 deploy: apply
