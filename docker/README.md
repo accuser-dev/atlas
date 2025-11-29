@@ -14,9 +14,13 @@ The Atlas project uses custom Docker images that are:
 
 All production images are published to GitHub Container Registry:
 
+- **Alertmanager**: `ghcr.io/accuser/atlas/alertmanager:latest`
 - **Caddy**: `ghcr.io/accuser/atlas/caddy:latest`
+- **Cloudflared**: `ghcr.io/accuser/atlas/cloudflared:latest`
 - **Grafana**: `ghcr.io/accuser/atlas/grafana:latest`
 - **Loki**: `ghcr.io/accuser/atlas/loki:latest`
+- **Mosquitto**: `ghcr.io/accuser/atlas/mosquitto:latest`
+- **Node Exporter**: `ghcr.io/accuser/atlas/node-exporter:latest`
 - **Prometheus**: `ghcr.io/accuser/atlas/prometheus:latest`
 - **step-ca**: `ghcr.io/accuser/atlas/step-ca:latest`
 
@@ -33,9 +37,13 @@ For testing and development, you can build images locally:
 make build-all
 
 # Or build individually
+make build-alertmanager
 make build-caddy
+make build-cloudflared
 make build-grafana
 make build-loki
+make build-mosquitto
+make build-node-exporter
 make build-prometheus
 make build-step-ca
 ```
@@ -59,7 +67,7 @@ docker images | grep atlas
 When you push code to GitHub:
 
 1. **GitHub Actions triggers** on push to `main` branch
-2. **Docker images are built** in parallel (all five services)
+2. **Docker images are built** in parallel (all nine services)
 3. **Images are published** to ghcr.io with appropriate tags
 4. **Images are cached** for faster subsequent builds
 
@@ -75,7 +83,7 @@ Published images receive multiple tags:
 After the first push, images default to private. To make them public:
 
 1. Visit: `https://github.com/accuser/atlas/packages`
-2. Click on each package (caddy, grafana, loki, prometheus, step-ca)
+2. Click on each package (alertmanager, caddy, cloudflared, grafana, loki, mosquitto, node-exporter, prometheus, step-ca)
 3. Go to "Package settings"
 4. Scroll to "Danger Zone"
 5. Click "Change visibility" → "Public"
@@ -346,12 +354,16 @@ If you prefer Docker Hub over ghcr.io:
 
 ## See Also
 
-- [GitHub Actions Workflow](../.github/workflows/terraform-ci.yml) - CI/CD configuration
+- [GitHub Actions Workflow](../.github/workflows/release.yml) - CI/CD configuration
 - [Makefile](../Makefile) - Build automation
 - [CLAUDE.md](../CLAUDE.md) - Project architecture and documentation
 - Individual service READMEs:
+  - [alertmanager/README.md](alertmanager/README.md) - Alertmanager notification routing
   - [caddy/README.md](caddy/README.md) - Caddy reverse proxy customization
+  - [cloudflared/README.md](cloudflared/README.md) - Cloudflare Tunnel client
   - [grafana/README.md](grafana/README.md) - Grafana plugins and provisioning
   - [loki/README.md](loki/README.md) - Loki configuration
+  - [mosquitto/README.md](mosquitto/README.md) - Mosquitto MQTT broker
+  - [node-exporter/README.md](node-exporter/README.md) - Node Exporter host metrics
   - [prometheus/README.md](prometheus/README.md) - Prometheus rules and configuration
   - [step-ca/README.md](step-ca/README.md) - step-ca internal PKI configuration
