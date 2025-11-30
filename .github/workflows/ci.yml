@@ -48,9 +48,10 @@ jobs:
           THRESHOLD="${{ github.event_name == 'pull_request' && 'warning' || 'error' }}"
           echo "Running hadolint with failure-threshold: $THRESHOLD"
           echo ""
+          # Ignore DL3018 (Pin versions in apk add) - we want latest security patches
           find docker -name Dockerfile | while read -r dockerfile; do
             echo "Checking: $dockerfile"
-            ./hadolint --failure-threshold "$THRESHOLD" "$dockerfile"
+            ./hadolint --failure-threshold "$THRESHOLD" --ignore DL3018 "$dockerfile"
           done
 
       - name: Summary
