@@ -38,16 +38,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install hadolint
+        run: |
+          wget -qO hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          chmod +x hadolint
+
       - name: Run hadolint
-        uses: hadolint/hadolint-action@v3.1.0
-        with:
-          # Use recursive mode to find all Dockerfiles in docker/ subdirectories
-          dockerfile: docker
-          recursive: true
-          # Treat warnings as errors in PRs, allow in feature branches
-          failure-threshold: ${{ github.event_name == 'pull_request' && 'warning' || 'error' }}
-          # Ignore specific rules if needed (comma-separated)
-          # ignore: DL3008,DL3013
+        run: |
+          THRESHOLD="${{ github.event_name == 'pull_request' && 'warning' || 'error' }}"
+          echo "Running hadolint with failure-threshold: $THRESHOLD"
+          echo ""
+          find docker -name Dockerfile | while read -r dockerfile; do
+            echo "Checking: $dockerfile"
+            ./hadolint --failure-threshold "$THRESHOLD" "$dockerfile"
+          done
 
       - name: Summary
         if: always()
