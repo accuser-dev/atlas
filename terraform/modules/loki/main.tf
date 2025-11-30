@@ -80,4 +80,11 @@ resource "incus_instance" "loki" {
     { for k, v in local.tls_env_vars : "environment.${k}" => v },
     { for k, v in local.retention_env_vars : "environment.${k}" => v if v != "" },
   )
+
+  lifecycle {
+    precondition {
+      condition     = !var.enable_tls || (var.stepca_url != "" && var.stepca_fingerprint != "")
+      error_message = "When enable_tls is true, both stepca_url and stepca_fingerprint must be provided."
+    }
+  }
 }
