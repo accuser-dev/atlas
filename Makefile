@@ -65,6 +65,24 @@ help:
 # Docker image configuration
 IMAGE_TAG ?= latest
 
+# =============================================================================
+# Service Configuration
+# =============================================================================
+# NOTE: When adding new services, update these lists:
+#   - ATLAS_SERVICES: All container instance names
+#   - ATLAS_VOLUMES: All storage volume names
+#   - ATLAS_PROFILES: All profile names (generic, not instance-specific)
+#   - ATLAS_NETWORKS: All network names
+#
+# The import and clean-incus targets use module name mappings defined inline
+# due to Terraform naming conventions (e.g., step-ca -> step_ca01).
+# =============================================================================
+
+ATLAS_NETWORKS := development testing staging production management
+ATLAS_PROFILES := caddy grafana loki prometheus step-ca node-exporter alertmanager mosquitto cloudflared
+ATLAS_SERVICES := caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter01 alertmanager01 mosquitto01 cloudflared01
+ATLAS_VOLUMES := grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data
+
 # Docker image names (local builds for testing)
 CADDY_IMAGE := atlas/caddy:$(IMAGE_TAG)
 GRAFANA_IMAGE := atlas/grafana:$(IMAGE_TAG)
@@ -173,7 +191,7 @@ destroy:
 	@echo "=========================================="
 	@echo ""
 	@echo "This will DESTROY all infrastructure managed by OpenTofu:"
-	@echo "  - All containers (caddy01, grafana01, loki01, prometheus01, step-ca01, node-exporter01)"
+	@echo "  - All containers ($(ATLAS_SERVICES))"
 	@echo "  - All storage volumes (data will be DELETED)"
 	@echo "  - All profiles"
 	@echo "  - All networks"
@@ -204,52 +222,43 @@ clean-images:
 	fi
 
 # Import existing resources into state
+# Note: Module names use underscores (step_ca01) while Incus uses hyphens (step-ca01)
 import:
 	@echo "Importing existing Incus resources into OpenTofu state..."
 	@echo "This will import networks, profiles, volumes, and instances that already exist."
 	@echo ""
 	@cd terraform && \
-	for net in development testing staging production management; do \
+	for net in $(ATLAS_NETWORKS); do \
 		if incus network show $$net >/dev/null 2>&1; then \
 			echo "Importing network: $$net"; \
 			tofu import "incus_network.$$net" "$$net" 2>/dev/null || true; \
 		fi; \
-	done; \
-	for svc in caddy grafana loki prometheus step-ca node-exporter; do \
-		if incus profile show $$svc >/dev/null 2>&1; then \
-			echo "Importing profile: $$svc"; \
-			case $$svc in \
-				caddy) tofu import "module.caddy01.incus_profile.caddy" "$$svc" 2>/dev/null || true ;; \
-				grafana) tofu import "module.grafana01.incus_profile.grafana" "$$svc" 2>/dev/null || true ;; \
-				loki) tofu import "module.loki01.incus_profile.loki" "$$svc" 2>/dev/null || true ;; \
-				prometheus) tofu import "module.prometheus01.incus_profile.prometheus" "$$svc" 2>/dev/null || true ;; \
-				step-ca) tofu import "module.step_ca01.incus_profile.step_ca" "$$svc" 2>/dev/null || true ;; \
-				node-exporter) tofu import "module.node_exporter01.incus_profile.node_exporter" "$$svc" 2>/dev/null || true ;; \
-			esac; \
+	done
+	@cd terraform && \
+	for profile in $(ATLAS_PROFILES); do \
+		if incus profile show $$profile >/dev/null 2>&1; then \
+			echo "Importing profile: $$profile"; \
+			module=$$(echo $$profile | tr '-' '_'); \
+			tofu import "module.$${module}01.incus_profile.$$module" "$$profile" 2>/dev/null || true; \
 		fi; \
-	done; \
-	for vol in grafana01-data loki01-data prometheus01-data step-ca01-data; do \
+	done
+	@cd terraform && \
+	for vol in $(ATLAS_VOLUMES); do \
 		if incus storage volume show local $$vol >/dev/null 2>&1; then \
 			echo "Importing volume: $$vol"; \
-			case $$vol in \
-				grafana01-data) tofu import "module.grafana01.incus_storage_volume.grafana_data[0]" "local/$$vol" 2>/dev/null || true ;; \
-				loki01-data) tofu import "module.loki01.incus_storage_volume.loki_data[0]" "local/$$vol" 2>/dev/null || true ;; \
-				prometheus01-data) tofu import "module.prometheus01.incus_storage_volume.prometheus_data[0]" "local/$$vol" 2>/dev/null || true ;; \
-				step-ca01-data) tofu import "module.step_ca01.incus_storage_volume.step_ca_data[0]" "local/$$vol" 2>/dev/null || true ;; \
-			esac; \
+			base=$$(echo $$vol | sed 's/-data$$//'); \
+			module=$$(echo $$base | tr '-' '_'); \
+			resource=$$(echo $$base | sed 's/01$$//' | tr '-' '_'); \
+			tofu import "module.$$module.incus_storage_volume.$${resource}_data[0]" "local/$$vol" 2>/dev/null || true; \
 		fi; \
-	done; \
-	for inst in caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter01; do \
+	done
+	@cd terraform && \
+	for inst in $(ATLAS_SERVICES); do \
 		if incus info $$inst >/dev/null 2>&1; then \
 			echo "Importing instance: $$inst"; \
-			case $$inst in \
-				caddy01) tofu import "module.caddy01.incus_instance.caddy" "$$inst" 2>/dev/null || true ;; \
-				grafana01) tofu import "module.grafana01.incus_instance.grafana" "$$inst" 2>/dev/null || true ;; \
-				loki01) tofu import "module.loki01.incus_instance.loki" "$$inst" 2>/dev/null || true ;; \
-				prometheus01) tofu import "module.prometheus01.incus_instance.prometheus" "$$inst" 2>/dev/null || true ;; \
-				step-ca01) tofu import "module.step_ca01.incus_instance.step_ca" "$$inst" 2>/dev/null || true ;; \
-				node-exporter01) tofu import "module.node_exporter01.incus_instance.node_exporter" "$$inst" 2>/dev/null || true ;; \
-			esac; \
+			module=$$(echo $$inst | tr '-' '_'); \
+			resource=$$(echo $$inst | sed 's/01$$//' | tr '-' '_'); \
+			tofu import "module.$$module.incus_instance.$$resource" "$$inst" 2>/dev/null || true; \
 		fi; \
 	done
 	@echo ""
@@ -264,35 +273,28 @@ clean-incus:
 	@sleep 5
 	@echo ""
 	@echo "Stopping and removing instances..."
-	@for inst in caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter01; do \
+	@for inst in $(ATLAS_SERVICES); do \
 		if incus info $$inst >/dev/null 2>&1; then \
 			echo "  Removing instance: $$inst"; \
 			incus delete $$inst --force 2>/dev/null || true; \
 		fi; \
 	done
-	@echo "Removing old-style profiles (instance-specific names)..."
-	@for profile in caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter01; do \
-		if incus profile show $$profile >/dev/null 2>&1; then \
-			echo "  Removing profile: $$profile"; \
-			incus profile delete $$profile 2>/dev/null || true; \
-		fi; \
-	done
-	@echo "Removing new-style profiles (generic names)..."
-	@for profile in caddy grafana loki prometheus step-ca node-exporter; do \
+	@echo "Removing profiles..."
+	@for profile in $(ATLAS_PROFILES); do \
 		if incus profile show $$profile >/dev/null 2>&1; then \
 			echo "  Removing profile: $$profile"; \
 			incus profile delete $$profile 2>/dev/null || true; \
 		fi; \
 	done
 	@echo "Removing storage volumes..."
-	@for vol in grafana01-data loki01-data prometheus01-data step-ca01-data; do \
+	@for vol in $(ATLAS_VOLUMES); do \
 		if incus storage volume show local $$vol >/dev/null 2>&1; then \
 			echo "  Removing volume: $$vol"; \
 			incus storage volume delete local $$vol 2>/dev/null || true; \
 		fi; \
 	done
 	@echo "Removing networks..."
-	@for net in development testing staging production management; do \
+	@for net in $(ATLAS_NETWORKS); do \
 		if incus network show $$net >/dev/null 2>&1; then \
 			echo "  Removing network: $$net"; \
 			incus network delete $$net 2>/dev/null || true; \
@@ -338,9 +340,6 @@ format:
 	cd terraform && tofu fmt -recursive
 
 # Backup commands
-ATLAS_VOLUMES := grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data
-ATLAS_SERVICES := grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01
-
 backup-snapshot:
 	@echo "Creating snapshots of all Atlas storage volumes..."
 	@TIMESTAMP=$$(date +%Y%m%d-%H%M%S); \
