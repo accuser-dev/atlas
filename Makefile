@@ -6,7 +6,8 @@
         bootstrap bootstrap-init bootstrap-plan bootstrap-apply \
         init plan apply destroy import clean-incus clean-images \
         deploy validate clean clean-docker clean-tofu clean-bootstrap format \
-        backup-snapshot backup-export backup-list
+        backup-snapshot backup-export backup-list \
+        test test-health test-connectivity test-storage test-network
 
 # Default target
 help:
@@ -46,6 +47,13 @@ help:
 	@echo "  make backup-snapshot   - Create snapshots of all storage volumes"
 	@echo "  make backup-export     - Export all volumes to tarballs (stops services)"
 	@echo "  make backup-list       - List all volume snapshots"
+	@echo ""
+	@echo "Test Commands:"
+	@echo "  make test              - Run all integration tests"
+	@echo "  make test-health       - Run service health tests"
+	@echo "  make test-connectivity - Run service connectivity tests"
+	@echo "  make test-storage      - Run storage tests"
+	@echo "  make test-network      - Run network isolation tests"
 	@echo ""
 	@echo "Utility Commands:"
 	@echo "  make format            - Format OpenTofu files"
@@ -387,3 +395,19 @@ backup-list:
 			incus storage volume info local $$vol 2>/dev/null | grep -A 100 "Snapshots:" | grep -E "^\s+-\s+|^\s+name:" | head -20 || echo "  (no snapshots)"; \
 		fi; \
 	done
+
+# Integration test targets
+test:
+	@./test/integration/run-tests.sh
+
+test-health:
+	@./test/integration/run-tests.sh health
+
+test-connectivity:
+	@./test/integration/run-tests.sh connectivity
+
+test-storage:
+	@./test/integration/run-tests.sh storage
+
+test-network:
+	@./test/integration/run-tests.sh network
