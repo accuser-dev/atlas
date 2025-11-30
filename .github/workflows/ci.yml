@@ -41,7 +41,9 @@ jobs:
       - name: Run hadolint
         uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile: "docker/*/Dockerfile"
+          # Use recursive mode to find all Dockerfiles in docker/ subdirectories
+          dockerfile: docker
+          recursive: true
           # Treat warnings as errors in PRs, allow in feature branches
           failure-threshold: ${{ github.event_name == 'pull_request' && 'warning' || 'error' }}
           # Ignore specific rules if needed (comma-separated)
@@ -74,7 +76,12 @@ jobs:
           # Check specific directories
           additional_files: 'docker/*/entrypoint.sh docker/*/*.sh test/integration/*.sh terraform/*.sh'
         env:
-          SHELLCHECK_OPTS: -e SC1091  # Ignore "not following sourced file"
+          # Ignore specific rules:
+          # SC1091 - Not following sourced file (common for container scripts)
+          # SC3043 - 'local' is undefined in POSIX sh (scripts run in bash/ash)
+          # SC2034 - Variable appears unused (often used in sourced context)
+          # SC2174 - mkdir -p -m only applies to deepest dir (intentional)
+          SHELLCHECK_OPTS: -e SC1091 -e SC3043 -e SC2034 -e SC2174
 
       - name: Summary
         if: always()
