@@ -1295,6 +1295,24 @@ These images are:
 - Extended from official images with custom plugins and configuration
 - Publicly accessible (no authentication required)
 
+**Image Reference Format (ghcr: vs ghcr.io/)**
+
+Terraform modules use `ghcr:` prefix (e.g., `ghcr:accuser/atlas/grafana:latest`) which references an **Incus remote** named "ghcr" that points to `https://ghcr.io`. This is not a typo - it's Incus-specific syntax.
+
+The bootstrap process (`make bootstrap`) automatically configures these OCI remotes:
+- `ghcr` → `https://ghcr.io` (GitHub Container Registry)
+- `docker` → `https://docker.io` (Docker Hub)
+
+You can verify remotes are configured with:
+```bash
+incus remote list
+```
+
+To manually add a remote (if not using bootstrap):
+```bash
+incus remote add ghcr https://ghcr.io --protocol=oci --public
+```
+
 **CI/CD Pipeline:**
 
 The pipeline is split into two workflows:

@@ -5,11 +5,12 @@ This Terraform project bootstraps the prerequisites for the main Atlas infrastru
 ## Purpose
 
 The bootstrap project creates:
-1. Incus storage buckets configuration
-2. Storage pool for Terraform state
-3. Storage bucket for Terraform state
-4. S3 access credentials
-5. Backend configuration file for main project
+1. OCI remotes for container registries (ghcr, docker)
+2. Incus storage buckets configuration
+3. Storage pool for Terraform state
+4. Storage bucket for Terraform state
+5. S3 access credentials
+6. Backend configuration file for main project
 
 ## When to Use
 
@@ -161,19 +162,30 @@ tofu apply
 
 ## What It Creates
 
-### 1. Storage Buckets Configuration
+### 1. OCI Remotes
+Configures Incus remotes for pulling container images from OCI registries:
+- `ghcr` → `https://ghcr.io` (GitHub Container Registry)
+- `docker` → `https://docker.io` (Docker Hub)
+
+These enable pulling images using the `ghcr:` and `docker:` prefixes in Terraform:
+```hcl
+image = "ghcr:accuser/atlas/grafana:latest"  # Pulls from ghcr.io
+image = "docker:grafana/grafana:latest"      # Pulls from Docker Hub
+```
+
+### 2. Storage Buckets Configuration
 Sets `core.storage_buckets_address` in Incus to enable S3 API (default: `:8555`)
 
-### 2. Storage Pool
+### 3. Storage Pool
 Creates a storage pool named `terraform-state` (default driver: `dir`)
 
-### 3. Storage Bucket
+### 4. Storage Bucket
 Creates a bucket named `atlas-terraform-state` for Terraform state files
 
-### 4. S3 Credentials
+### 5. S3 Credentials
 Generates access key and secret key for S3 authentication
 
-### 5. Backend Configuration
+### 6. Backend Configuration
 Creates `terraform/backend.hcl` with:
 - Bucket name
 - Endpoint URL
