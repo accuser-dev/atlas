@@ -1047,7 +1047,7 @@ module "grafana02" {
   network_name = incus_network.management.name
 
   domain           = "grafana-dev.accuser.dev"
-  allowed_ip_range = "192.168.68.0/22"
+  allowed_ip_range = "192.168.68.0/22"  # Required: Set to your network CIDR
 
   # Uses ghcr.io image by default (ghcr:accuser/atlas/grafana:latest)
   # Optional: Override to use official image
@@ -1362,7 +1362,7 @@ module "grafana01" {
 - The `terraform/terraform.tfvars` file is gitignored and must be created manually with required secrets
 - All services use custom images published to GitHub Container Registry (ghcr.io) by default
 - Images are automatically built and published by the Release workflow on push to main
-- Access to services is restricted to the 192.168.68.0/22 subnet by default
+- Access to services requires explicit `allowed_ip_range` configuration (no default for security)
 - All services use the `production` network for connectivity
 - Storage volumes use the `local` storage pool and are created automatically when modules are applied
 - Each module has a `versions.tf` specifying the Incus provider requirement

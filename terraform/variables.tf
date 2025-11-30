@@ -11,9 +11,9 @@ variable "cloudflare_api_token" {
 
 # Access Control
 variable "allowed_ip_range" {
-  description = "IP range allowed to access public services (CIDR notation). Set to your home/office network for security, or 0.0.0.0/0 to allow all."
+  description = "IP range allowed to access public services (CIDR notation). Set to your home/office network for security. Required - no default for security reasons."
   type        = string
-  default     = "0.0.0.0/0"
+  # No default - must be explicitly set for security
 
   validation {
     condition     = can(cidrhost(var.allowed_ip_range, 0))
