@@ -66,10 +66,48 @@ locals {
   detected_endpoint = var.storage_buckets_endpoint != "http://localhost:8555" ? var.storage_buckets_endpoint : "${data.external.incus_remote.result.protocol}://${data.external.incus_remote.result.host}:8555"
 }
 
+# Configure OCI remotes for container image registries
+# This adds ghcr (GitHub Container Registry) and docker (Docker Hub) as image sources
+# Note: The Incus provider doesn't yet support remote configuration
+resource "null_resource" "configure_oci_remotes" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Add GitHub Container Registry remote if not exists
+      if incus remote list --format csv | grep -q "^ghcr,"; then
+        echo "Remote 'ghcr' already exists"
+      else
+        echo "Adding remote 'ghcr' (GitHub Container Registry)..."
+        incus remote add ghcr https://ghcr.io --protocol=oci --public
+        echo "Remote 'ghcr' added"
+      fi
+
+      # Add Docker Hub remote if not exists
+      if incus remote list --format csv | grep -q "^docker,"; then
+        echo "Remote 'docker' already exists"
+      else
+        echo "Adding remote 'docker' (Docker Hub)..."
+        incus remote add docker https://docker.io --protocol=oci --public
+        echo "Remote 'docker' added"
+      fi
+    EOT
+
+    environment = var.incus_remote != "" ? {
+      INCUS_REMOTE = var.incus_remote
+    } : {}
+  }
+
+  triggers = {
+    # Re-run if remotes need to be configured
+    remotes = "ghcr,docker"
+    remote  = var.incus_remote
+  }
+}
+
 # Configure Incus storage buckets address via local-exec
 # Note: The Incus provider doesn't yet support server config resources
 # The incus command will use INCUS_REMOTE env var or default remote
 resource "null_resource" "configure_storage_buckets" {
+  depends_on = [null_resource.configure_oci_remotes]
   provisioner "local-exec" {
     command = <<-EOT
       incus config get core.storage_buckets_address || \
