@@ -14,7 +14,7 @@ RUN apk add --no-cache curl tar && \
     chmod +x /usr/local/bin/step
 
 # Extract Loki binary from official image
-FROM grafana/loki:3.6.1 AS loki-bin
+FROM grafana/loki:3.6.2 AS loki-bin
 
 # Final stage: Alpine-based image with shell support for TLS
 FROM alpine:3.22
