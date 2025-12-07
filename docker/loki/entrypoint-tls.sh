@@ -143,6 +143,7 @@ schema_config:
 
 ruler:
   alertmanager_url: http://localhost:9093
+
 $(generate_retention_config)
 
 analytics:
@@ -207,6 +208,7 @@ schema_config:
 
 ruler:
   alertmanager_url: http://localhost:9093
+
 $(generate_retention_config)
 
 analytics:
