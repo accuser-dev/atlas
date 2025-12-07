@@ -66,7 +66,7 @@ request_certificate() {
 # Generate retention config section
 generate_retention_config() {
     if [ -n "${RETENTION_PERIOD}" ]; then
-        log_info "Retention enabled: ${RETENTION_PERIOD}"
+        log_info "Retention enabled: ${RETENTION_PERIOD}" >&2
         cat <<EOF
 
 # Retention configuration
@@ -86,7 +86,7 @@ compactor:
   delete_request_store: filesystem
 EOF
     else
-        log_info "Retention disabled (no RETENTION_PERIOD set)"
+        log_info "Retention disabled (no RETENTION_PERIOD set)" >&2
         cat <<EOF
 
 limits_config:
