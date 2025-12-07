@@ -74,5 +74,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
 # Run as non-root user
 USER loki
 
-# Use TLS-aware entrypoint
+# Use TLS-aware entrypoint (includes YAML config generation fix)
 ENTRYPOINT ["/usr/local/bin/entrypoint-tls.sh"]
