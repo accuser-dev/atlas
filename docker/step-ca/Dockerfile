@@ -1,6 +1,6 @@
 # Step-CA - Internal ACME Certificate Authority
 # Provides automated certificate management for internal services
-FROM smallstep/step-ca:0.28.4
+FROM smallstep/step-ca:0.29.0
 
 # Labels for container identification
 LABEL org.opencontainers.image.source="https://github.com/accuser-dev/atlas"
