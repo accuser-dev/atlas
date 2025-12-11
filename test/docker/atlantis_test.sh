@@ -57,7 +57,11 @@ echo "✅ ${TF_VERSION}"
 # Test 5: Running as non-root user
 echo ""
 echo "Test 5: Non-root user..."
-CONTAINER_USER=$(docker run --rm "${IMAGE}" whoami 2>/dev/null || docker run --rm "${IMAGE}" id -un)
+# Filter out entrypoint messages that appear before command output
+CONTAINER_USER=$(docker run --rm "${IMAGE}" whoami 2>/dev/null | grep -v "docker-entrypoint" | tail -1)
+if [ -z "${CONTAINER_USER}" ]; then
+  CONTAINER_USER=$(docker run --rm "${IMAGE}" id -un | grep -v "docker-entrypoint" | tail -1)
+fi
 if [ "${CONTAINER_USER}" = "root" ]; then
   echo "❌ Container is running as root"
   exit 1
@@ -67,7 +71,8 @@ echo "✅ Running as non-root user: ${CONTAINER_USER}"
 # Test 6: Working directory is set correctly
 echo ""
 echo "Test 6: Working directory..."
-WORKDIR=$(docker run --rm "${IMAGE}" pwd)
+# Filter out entrypoint messages that appear before command output
+WORKDIR=$(docker run --rm "${IMAGE}" pwd | grep -v "docker-entrypoint" | tail -1)
 if [ "${WORKDIR}" != "/home/atlantis" ]; then
   echo "❌ Working directory is ${WORKDIR}, expected /home/atlantis"
   exit 1
