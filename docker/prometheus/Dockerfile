@@ -1,6 +1,6 @@
 # Custom Prometheus with TLS support via step-ca
 # Pinned to v3.7.3 for reproducibility and security
-FROM prom/prometheus:v3.7.3 AS base
+FROM prom/prometheus:v3.8.0 AS base
 
 # Build stage: Download step CLI
 FROM alpine:3.23 AS step-cli
