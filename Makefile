@@ -1,7 +1,7 @@
 # Atlas Infrastructure Makefile
 # Manages Docker image builds and OpenTofu deployments
 
-.PHONY: help build-all build-caddy build-grafana build-loki build-prometheus \
+.PHONY: help build-all build-atlantis build-caddy build-grafana build-loki build-prometheus \
         list-images \
         bootstrap bootstrap-init bootstrap-plan bootstrap-apply \
         init plan apply destroy import clean-incus clean-images \
@@ -21,6 +21,7 @@ help:
 	@echo ""
 	@echo "Docker Commands:"
 	@echo "  make build-all         - Build all Docker images locally (for testing)"
+	@echo "  make build-atlantis    - Build Atlantis image"
 	@echo "  make build-caddy       - Build Caddy image"
 	@echo "  make build-grafana     - Build Grafana image"
 	@echo "  make build-loki        - Build Loki image"
@@ -84,16 +85,22 @@ ATLAS_SERVICES := caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter0
 ATLAS_VOLUMES := grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data
 
 # Docker image names (local builds for testing)
+ATLANTIS_IMAGE := atlas/atlantis:$(IMAGE_TAG)
 CADDY_IMAGE := atlas/caddy:$(IMAGE_TAG)
 GRAFANA_IMAGE := atlas/grafana:$(IMAGE_TAG)
 LOKI_IMAGE := atlas/loki:$(IMAGE_TAG)
 PROMETHEUS_IMAGE := atlas/prometheus:$(IMAGE_TAG)
 
 # Build all Docker images
-build-all: build-caddy build-grafana build-loki build-prometheus
+build-all: build-atlantis build-caddy build-grafana build-loki build-prometheus
 	@echo "All images built successfully"
 
 # Build individual Docker images
+build-atlantis:
+	@echo "Building Atlantis image..."
+	docker build -t $(ATLANTIS_IMAGE) docker/atlantis/
+	@echo "Atlantis image built: $(ATLANTIS_IMAGE)"
+
 build-caddy:
 	@echo "Building Caddy image..."
 	docker build -t $(CADDY_IMAGE) docker/caddy/
