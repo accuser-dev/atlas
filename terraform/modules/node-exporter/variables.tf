@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use"
   type        = string
-  default     = "ghcr:accuser/atlas/node-exporter:latest"
+  default     = "ghcr:accuser-dev/atlas/node-exporter:latest"
 }
 
 variable "cpu_limit" {

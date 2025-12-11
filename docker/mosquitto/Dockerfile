@@ -38,7 +38,7 @@ ENV MQTTS_PORT="8883"
 # OCI metadata labels for container management
 LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Mosquitto MQTT broker with TLS support via step-ca"
-LABEL org.opencontainers.image.source="https://github.com/accuser/atlas"
+LABEL org.opencontainers.image.source="https://github.com/accuser-dev/atlas"
 LABEL org.opencontainers.image.version="2.0.21"
 LABEL org.opencontainers.image.title="Atlas Mosquitto"
 LABEL org.opencontainers.image.description="Eclipse Mosquitto MQTT broker for IoT messaging with TLS support"

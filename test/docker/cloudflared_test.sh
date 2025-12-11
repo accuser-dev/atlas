@@ -4,7 +4,7 @@
 # Note: Cannot test tunnel connection without valid token
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/accuser/atlas/cloudflared:latest}"
+IMAGE="${IMAGE:-ghcr.io/accuser-dev/atlas/cloudflared:latest}"
 CONTAINER_NAME="cloudflared-test-${GITHUB_RUN_ID:-local}"
 
 cleanup() {

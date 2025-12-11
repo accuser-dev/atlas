@@ -162,7 +162,7 @@ Prometheus is designed for internal use only (no public exposure). It will be ac
 
 ## Production Deployment
 
-Images are automatically built and published to `ghcr.io/accuser/atlas/prometheus:latest` by GitHub Actions when code is pushed to the `main` branch.
+Images are automatically built and published to `ghcr.io/accuser-dev/atlas/prometheus:latest` by GitHub Actions when code is pushed to the `main` branch.
 
 For local development:
 ```bash

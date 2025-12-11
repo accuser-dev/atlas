@@ -79,7 +79,7 @@ Test 5: Working directory...
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `IMAGE` | Docker image to test | `ghcr.io/accuser/atlas/<service>:latest` |
+| `IMAGE` | Docker image to test | `ghcr.io/accuser-dev/atlas/<service>:latest` |
 | `GITHUB_RUN_ID` | Unique ID for container naming (set by CI) | `local` |
 
 ### CI/CD Integration
@@ -106,7 +106,7 @@ The workflow uses a matrix strategy to test all services in parallel.
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/accuser/atlas/<service>:latest}"
+IMAGE="${IMAGE:-ghcr.io/accuser-dev/atlas/<service>:latest}"
 CONTAINER_NAME="<service>-test-${GITHUB_RUN_ID:-local}"
 
 cleanup() {

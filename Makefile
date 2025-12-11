@@ -28,7 +28,7 @@ help:
 	@echo "  make list-images       - List Docker images"
 	@echo ""
 	@echo "Note: Production images are built and published via GitHub Actions"
-	@echo "      Images are published to ghcr.io/accuser/atlas/*:latest"
+	@echo "      Images are published to ghcr.io/accuser-dev/atlas/*:latest"
 	@echo ""
 	@echo "OpenTofu Commands:"
 	@echo "  make init              - Initialize OpenTofu with remote backend"
@@ -208,7 +208,7 @@ destroy:
 clean-images:
 	@echo "Removing Atlas container images from Incus cache..."
 	@echo ""
-	@images=$$(incus image list --format csv 2>/dev/null | grep -E "ghcr.io/accuser/atlas" | cut -d',' -f2); \
+	@images=$$(incus image list --format csv 2>/dev/null | grep -E "ghcr.io/accuser-dev/atlas" | cut -d',' -f2); \
 	if [ -z "$$images" ]; then \
 		echo "No Atlas images found in cache."; \
 	else \

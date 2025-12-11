@@ -11,7 +11,7 @@ locals {
 
   # Image registry configuration
   # All custom images are published to GitHub Container Registry
-  image_registry = "ghcr.io/accuser/atlas"
+  image_registry = "ghcr.io/accuser-dev/atlas"
 
   # Service configurations with default resource limits and ports
   # These can be overridden per-module if needed

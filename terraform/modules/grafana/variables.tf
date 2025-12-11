@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use"
   type        = string
-  default     = "ghcr:accuser/atlas/grafana:latest"
+  default     = "ghcr:accuser-dev/atlas/grafana:latest"
 }
 
 variable "cpu_limit" {

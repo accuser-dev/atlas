@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use"
   type        = string
-  default     = "ghcr:accuser/atlas/caddy:latest"
+  default     = "ghcr:accuser-dev/atlas/caddy:latest"
 }
 
 variable "cpu_limit" {

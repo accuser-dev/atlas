@@ -169,7 +169,7 @@ Configures Incus remotes for pulling container images from OCI registries:
 
 These enable pulling images using the `ghcr:` and `docker:` prefixes in Terraform:
 ```hcl
-image = "ghcr:accuser/atlas/grafana:latest"  # Pulls from ghcr.io
+image = "ghcr:accuser-dev/atlas/grafana:latest"  # Pulls from ghcr.io
 image = "docker:grafana/grafana:latest"      # Pulls from Docker Hub
 ```
 

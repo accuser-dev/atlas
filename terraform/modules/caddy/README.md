@@ -147,7 +147,7 @@ Each service block contains:
 | `external_network` | External network name | `string` | `"incusbr0"` | no |
 | `cloudflare_api_token` | Cloudflare API token for DNS | `string` | n/a | yes (sensitive) |
 | `service_blocks` | List of Caddyfile service blocks | `list(string)` | n/a | yes |
-| `image` | Docker image to use | `string` | `"ghcr:accuser/atlas/caddy:latest"` | no |
+| `image` | Docker image to use | `string` | `"ghcr:accuser-dev/atlas/caddy:latest"` | no |
 | `cpu_limit` | CPU limit | `number` | `2` | no |
 | `memory_limit` | Memory limit | `string` | `"1GB"` | no |
 | `storage_pool` | Storage pool for root disk | `string` | `"local"` | no |

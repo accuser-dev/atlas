@@ -3,7 +3,7 @@
 # Tests: startup, health check, non-root user
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/accuser/atlas/caddy:latest}"
+IMAGE="${IMAGE:-ghcr.io/accuser-dev/atlas/caddy:latest}"
 CONTAINER_NAME="caddy-test-${GITHUB_RUN_ID:-local}"
 
 cleanup() {

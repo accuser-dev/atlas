@@ -37,7 +37,7 @@ ENV CERT_RENEW_BEFORE="1h"
 # OCI metadata labels for container management
 LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Alertmanager with TLS support via step-ca"
-LABEL org.opencontainers.image.source="https://github.com/accuser/atlas"
+LABEL org.opencontainers.image.source="https://github.com/accuser-dev/atlas"
 LABEL org.opencontainers.image.version="0.28.0"
 LABEL org.opencontainers.image.title="Atlas Alertmanager"
 LABEL org.opencontainers.image.description="Alertmanager for alert routing and notification management with TLS support"

@@ -558,7 +558,7 @@ Caddy runs as root to bind to ports 80 and 443. This is mitigated by:
 
 4. **Enable container image signing** with Cosign
    ```bash
-   cosign sign ghcr.io/accuser/atlas/grafana:latest
+   cosign sign ghcr.io/accuser-dev/atlas/grafana:latest
    ```
 
 5. **Add host-based intrusion detection** (AIDE, OSSEC)

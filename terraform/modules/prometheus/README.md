@@ -198,7 +198,7 @@ module "prometheus01" {
 | `instance_name` | Name of the Prometheus instance | `string` | n/a | yes |
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser/atlas/prometheus:latest"` | no |
+| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/prometheus:latest"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"2"` | no |
 | `memory_limit` | Memory limit (e.g., "2GB") | `string` | `"2GB"` | no |
 | `storage_pool` | Storage pool for the data volume | `string` | `"local"` | no |

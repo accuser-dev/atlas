@@ -3,7 +3,7 @@
 # Tests: startup, MQTT connectivity, port listening
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/accuser/atlas/mosquitto:latest}"
+IMAGE="${IMAGE:-ghcr.io/accuser-dev/atlas/mosquitto:latest}"
 CONTAINER_NAME="mosquitto-test-${GITHUB_RUN_ID:-local}"
 
 cleanup() {

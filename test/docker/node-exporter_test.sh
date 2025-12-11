@@ -3,7 +3,7 @@
 # Tests: image inspection, startup, version, labels
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/accuser/atlas/node-exporter:latest}"
+IMAGE="${IMAGE:-ghcr.io/accuser-dev/atlas/node-exporter:latest}"
 CONTAINER_NAME="node-exporter-test-${GITHUB_RUN_ID:-local}"
 
 cleanup() {

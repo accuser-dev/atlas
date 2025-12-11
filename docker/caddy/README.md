@@ -110,7 +110,7 @@ See the main project README for integration details.
 
 ## Production Deployment
 
-Images are automatically built and published to `ghcr.io/accuser/atlas/caddy:latest` by GitHub Actions when code is pushed to the `main` branch.
+Images are automatically built and published to `ghcr.io/accuser-dev/atlas/caddy:latest` by GitHub Actions when code is pushed to the `main` branch.
 
 For local development:
 ```bash

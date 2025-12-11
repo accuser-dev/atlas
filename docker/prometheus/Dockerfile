@@ -34,7 +34,7 @@ ENV CERT_RENEW_BEFORE="1h"
 # OCI metadata labels for container management
 LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Prometheus with TLS support via step-ca"
-LABEL org.opencontainers.image.source="https://github.com/accuser/atlas"
+LABEL org.opencontainers.image.source="https://github.com/accuser-dev/atlas"
 LABEL org.opencontainers.image.version="3.7.3"
 LABEL org.opencontainers.image.title="Atlas Prometheus"
 LABEL org.opencontainers.image.description="Prometheus metrics collection for internal monitoring stack with TLS support"

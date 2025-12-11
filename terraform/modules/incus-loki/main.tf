@@ -4,7 +4,7 @@ locals {
   # IMPORTANT: Incus does not persist config values that match their defaults.
   # If we send default values, Incus accepts them but doesn't return them via
   # the API, causing Terraform to report "element has vanished" errors.
-  # See: https://github.com/accuser/atlas/issues/135
+  # See: https://github.com/accuser-dev/atlas/issues/135
   #
   # Incus defaults:
   #   - logging.NAME.types = "lifecycle,logging"

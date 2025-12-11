@@ -140,7 +140,7 @@ When adding new workflows:
 
 GitHub packages default to private. To allow Incus to pull images without authentication:
 
-1. Go to https://github.com/accuser/atlas/packages
+1. Go to https://github.com/accuser-dev/atlas/packages
 2. Click on each package (caddy, grafana, loki, prometheus, step-ca)
 3. Go to "Package settings"
 4. Under "Danger Zone", change visibility to "Public"

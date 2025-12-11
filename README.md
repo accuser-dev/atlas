@@ -74,7 +74,7 @@ atlas/
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/accuser/atlas.git
+   git clone https://github.com/accuser-dev/atlas.git
    cd atlas
    ```
 
@@ -116,14 +116,14 @@ atlas/
 
 All services use custom images automatically built and published by GitHub Actions:
 
-- **Alertmanager**: `ghcr.io/accuser/atlas/alertmanager:latest`
-- **Caddy**: `ghcr.io/accuser/atlas/caddy:latest`
-- **Cloudflared**: `ghcr.io/accuser/atlas/cloudflared:latest`
-- **Grafana**: `ghcr.io/accuser/atlas/grafana:latest`
-- **Loki**: `ghcr.io/accuser/atlas/loki:latest`
-- **Mosquitto**: `ghcr.io/accuser/atlas/mosquitto:latest`
-- **Prometheus**: `ghcr.io/accuser/atlas/prometheus:latest`
-- **step-ca**: `ghcr.io/accuser/atlas/step-ca:latest`
+- **Alertmanager**: `ghcr.io/accuser-dev/atlas/alertmanager:latest`
+- **Caddy**: `ghcr.io/accuser-dev/atlas/caddy:latest`
+- **Cloudflared**: `ghcr.io/accuser-dev/atlas/cloudflared:latest`
+- **Grafana**: `ghcr.io/accuser-dev/atlas/grafana:latest`
+- **Loki**: `ghcr.io/accuser-dev/atlas/loki:latest`
+- **Mosquitto**: `ghcr.io/accuser-dev/atlas/mosquitto:latest`
+- **Prometheus**: `ghcr.io/accuser-dev/atlas/prometheus:latest`
+- **step-ca**: `ghcr.io/accuser-dev/atlas/step-ca:latest`
 
 Images are:
 - Built on every push to `main`
@@ -312,12 +312,12 @@ The project uses separate workflows for validation and releases:
 
 Images are published to GitHub Container Registry:
 - **Registry**: `ghcr.io`
-- **Organization**: `accuser/atlas`
-- **Format**: `ghcr.io/accuser/atlas/<service>:<tag>`
+- **Organization**: `accuser-dev/atlas`
+- **Format**: `ghcr.io/accuser-dev/atlas/<service>:<tag>`
 - **Tags**: `latest` (main branch), commit SHA
 
 **Making images public:**
-After the first push, visit `https://github.com/accuser/atlas/packages` and change each package visibility to public.
+After the first push, visit `https://github.com/accuser-dev/atlas/packages` and change each package visibility to public.
 
 ## Development
 
@@ -402,7 +402,7 @@ incus exec caddy01 -- cat /var/log/caddy.log
 If Incus can't pull images from ghcr.io:
 1. Verify images are public in GitHub packages settings
 2. Check image names match expected format
-3. Test pull manually: `incus launch ghcr:accuser/atlas/grafana:latest test`
+3. Test pull manually: `incus launch ghcr:accuser-dev/atlas/grafana:latest test`
 
 ## Contributing
 

@@ -3,7 +3,7 @@
 FROM smallstep/step-ca:0.28.4
 
 # Labels for container identification
-LABEL org.opencontainers.image.source="https://github.com/accuser/atlas"
+LABEL org.opencontainers.image.source="https://github.com/accuser-dev/atlas"
 LABEL org.opencontainers.image.description="Internal ACME CA for Atlas infrastructure"
 LABEL org.opencontainers.image.licenses="MIT"
 

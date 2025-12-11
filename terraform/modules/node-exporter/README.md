@@ -85,7 +85,7 @@ scrape_configs:
 | `instance_name` | Name of the Node Exporter instance | `string` | n/a | yes |
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser/atlas/node-exporter:latest"` | no |
+| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/node-exporter:latest"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit (e.g., "256MB") | `string` | `"256MB"` | no |
 | `node_exporter_port` | Port Node Exporter listens on | `string` | `"9100"` | no |

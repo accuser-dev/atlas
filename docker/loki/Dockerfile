@@ -54,7 +54,7 @@ ENV CERT_RENEW_BEFORE="1h"
 # OCI metadata labels for container management
 LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Loki with TLS support via step-ca"
-LABEL org.opencontainers.image.source="https://github.com/accuser/atlas"
+LABEL org.opencontainers.image.source="https://github.com/accuser-dev/atlas"
 LABEL org.opencontainers.image.version="3.6.1"
 LABEL org.opencontainers.image.title="Atlas Loki"
 LABEL org.opencontainers.image.description="Loki log aggregation for internal monitoring stack with TLS support"

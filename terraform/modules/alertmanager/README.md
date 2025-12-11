@@ -113,7 +113,7 @@ alerting:
 | `instance_name` | Name of the Alertmanager instance | `string` | n/a | yes |
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser/atlas/alertmanager:latest"` | no |
+| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/alertmanager:latest"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit (e.g., "256MB") | `string` | `"256MB"` | no |
 | `storage_pool` | Storage pool for the data volume | `string` | `"local"` | no |

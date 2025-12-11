@@ -52,7 +52,7 @@ gh pr create --base main --title "Fix: Descriptive title" --body "Fixes #X
 Description of changes"
 
 # Or using web interface:
-# 1. Go to https://github.com/accuser/atlas/pulls
+# 1. Go to https://github.com/accuser-dev/atlas/pulls
 # 2. Click "New pull request"
 # 3. Set base: main, compare: your-branch
 # 4. Fill in title and description

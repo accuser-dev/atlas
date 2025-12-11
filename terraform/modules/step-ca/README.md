@@ -118,7 +118,7 @@ make deploy
 | `instance_name` | Name of the step-ca instance | `string` | n/a | yes |
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser/atlas/step-ca:latest"` | no |
+| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/step-ca:latest"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit (e.g., "512MB") | `string` | `"512MB"` | no |
 | `storage_pool` | Storage pool for the data volume | `string` | `"local"` | no |

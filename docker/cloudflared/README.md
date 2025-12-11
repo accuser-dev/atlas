@@ -41,7 +41,7 @@ IMAGE_TAG=dev make build-cloudflared
 docker run -d \
   --name cloudflared \
   -e TUNNEL_TOKEN="your-tunnel-token" \
-  ghcr.io/accuser/atlas/cloudflared:latest
+  ghcr.io/accuser-dev/atlas/cloudflared:latest
 ```
 
 ### Cloudflare Zero Trust Setup

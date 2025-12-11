@@ -3,7 +3,7 @@
 # Tests: startup, health endpoint, non-root user, port listening
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/accuser/atlas/grafana:latest}"
+IMAGE="${IMAGE:-ghcr.io/accuser-dev/atlas/grafana:latest}"
 CONTAINER_NAME="grafana-test-${GITHUB_RUN_ID:-local}"
 
 cleanup() {

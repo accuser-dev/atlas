@@ -552,7 +552,7 @@ tofu state list
 incus image list
 
 # Test image pull manually
-incus image copy ghcr:accuser/atlas/grafana:latest local: --alias test-grafana
+incus image copy ghcr:accuser-dev/atlas/grafana:latest local: --alias test-grafana
 ```
 
 **Solutions:**
@@ -774,7 +774,7 @@ If you can't resolve an issue:
 
 1. Check the [module READMEs](terraform/modules/) for service-specific documentation
 2. Review [BACKUP.md](BACKUP.md) for data recovery procedures
-3. Open an issue at https://github.com/accuser/atlas/issues with:
+3. Open an issue at https://github.com/accuser-dev/atlas/issues with:
    - Description of the problem
    - Steps to reproduce
    - Relevant logs and error messages

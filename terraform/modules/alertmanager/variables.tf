@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use"
   type        = string
-  default     = "ghcr:accuser/atlas/alertmanager:latest"
+  default     = "ghcr:accuser-dev/atlas/alertmanager:latest"
 }
 
 variable "cpu_limit" {

@@ -39,7 +39,7 @@ make build-mosquitto
 ```bash
 docker run -d \
   -p 1883:1883 \
-  ghcr.io/accuser/atlas/mosquitto:latest
+  ghcr.io/accuser-dev/atlas/mosquitto:latest
 ```
 
 ### With TLS
@@ -51,7 +51,7 @@ docker run -d \
   -e ENABLE_TLS=true \
   -e STEPCA_URL=https://step-ca01.incus:9000 \
   -e STEPCA_FINGERPRINT=abc123... \
-  ghcr.io/accuser/atlas/mosquitto:latest
+  ghcr.io/accuser-dev/atlas/mosquitto:latest
 ```
 
 ### With Authentication
@@ -68,7 +68,7 @@ docker run --rm -v $(pwd)/passwd:/mosquitto/config/passwd \
 docker run -d \
   -p 1883:1883 \
   -v $(pwd)/passwd:/mosquitto/config/passwd:ro \
-  ghcr.io/accuser/atlas/mosquitto:latest
+  ghcr.io/accuser-dev/atlas/mosquitto:latest
 ```
 
 ## Ports

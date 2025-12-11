@@ -137,7 +137,7 @@ Loki is designed for internal use only (no public exposure). It will be accessed
 
 ## Production Deployment
 
-Images are automatically built and published to `ghcr.io/accuser/atlas/loki:latest` by GitHub Actions when code is pushed to the `main` branch.
+Images are automatically built and published to `ghcr.io/accuser-dev/atlas/loki:latest` by GitHub Actions when code is pushed to the `main` branch.
 
 For local development:
 ```bash

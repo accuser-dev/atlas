@@ -14,15 +14,15 @@ The Atlas project uses custom Docker images that are:
 
 All production images are published to GitHub Container Registry:
 
-- **Alertmanager**: `ghcr.io/accuser/atlas/alertmanager:latest`
-- **Caddy**: `ghcr.io/accuser/atlas/caddy:latest`
-- **Cloudflared**: `ghcr.io/accuser/atlas/cloudflared:latest`
-- **Grafana**: `ghcr.io/accuser/atlas/grafana:latest`
-- **Loki**: `ghcr.io/accuser/atlas/loki:latest`
-- **Mosquitto**: `ghcr.io/accuser/atlas/mosquitto:latest`
-- **Node Exporter**: `ghcr.io/accuser/atlas/node-exporter:latest`
-- **Prometheus**: `ghcr.io/accuser/atlas/prometheus:latest`
-- **step-ca**: `ghcr.io/accuser/atlas/step-ca:latest`
+- **Alertmanager**: `ghcr.io/accuser-dev/atlas/alertmanager:latest`
+- **Caddy**: `ghcr.io/accuser-dev/atlas/caddy:latest`
+- **Cloudflared**: `ghcr.io/accuser-dev/atlas/cloudflared:latest`
+- **Grafana**: `ghcr.io/accuser-dev/atlas/grafana:latest`
+- **Loki**: `ghcr.io/accuser-dev/atlas/loki:latest`
+- **Mosquitto**: `ghcr.io/accuser-dev/atlas/mosquitto:latest`
+- **Node Exporter**: `ghcr.io/accuser-dev/atlas/node-exporter:latest`
+- **Prometheus**: `ghcr.io/accuser-dev/atlas/prometheus:latest`
+- **step-ca**: `ghcr.io/accuser-dev/atlas/step-ca:latest`
 
 These images are used by default in all OpenTofu modules.
 
@@ -82,7 +82,7 @@ Published images receive multiple tags:
 
 After the first push, images default to private. To make them public:
 
-1. Visit: `https://github.com/accuser/atlas/packages`
+1. Visit: `https://github.com/accuser-dev/atlas/packages`
 2. Click on each package (alertmanager, caddy, cloudflared, grafana, loki, mosquitto, node-exporter, prometheus, step-ca)
 3. Go to "Package settings"
 4. Scroll to "Danger Zone"
@@ -99,7 +99,7 @@ module "grafana01" {
   source = "./modules/grafana"
 
   # Default image (no override needed)
-  # image = "ghcr:accuser/atlas/grafana:latest"
+  # image = "ghcr:accuser-dev/atlas/grafana:latest"
 
   # ... other configuration
 }
@@ -114,7 +114,7 @@ module "grafana01" {
   source = "./modules/grafana"
 
   # Use specific commit
-  image = "ghcr:accuser/atlas/grafana:abc1234"
+  image = "ghcr:accuser-dev/atlas/grafana:abc1234"
 
   # ... other configuration
 }
@@ -196,7 +196,7 @@ tofu apply -replace='module.grafana01.incus_instance.grafana'
 incus restart grafana01
 
 # Option 3: Rebuild container with new image
-incus rebuild grafana01 ghcr:accuser/atlas/grafana:latest
+incus rebuild grafana01 ghcr:accuser-dev/atlas/grafana:latest
 ```
 
 ## How It Works
@@ -236,7 +236,7 @@ Error: Failed to create instance: Image not found
 1. **Verify image exists** on ghcr.io:
    ```bash
    # Check package page
-   open https://github.com/accuser/atlas/packages
+   open https://github.com/accuser-dev/atlas/packages
    ```
 
 2. **Verify image is public**:
@@ -245,7 +245,7 @@ Error: Failed to create instance: Image not found
 
 3. **Test pull manually**:
    ```bash
-   incus launch ghcr:accuser/atlas/grafana:latest test
+   incus launch ghcr:accuser-dev/atlas/grafana:latest test
    ```
 
 4. **Check image name** in Terraform module:
@@ -270,7 +270,7 @@ incus restart grafana01
 
 Check the workflow:
 
-1. Visit: `https://github.com/accuser/atlas/actions`
+1. Visit: `https://github.com/accuser-dev/atlas/actions`
 2. Click on the failed workflow run
 3. Review Docker build logs
 4. Fix issues in Dockerfile

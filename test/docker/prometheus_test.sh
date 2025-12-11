@@ -3,7 +3,7 @@
 # Tests: startup, ready endpoint, non-root user, port listening
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/accuser/atlas/prometheus:latest}"
+IMAGE="${IMAGE:-ghcr.io/accuser-dev/atlas/prometheus:latest}"
 CONTAINER_NAME="prometheus-test-${GITHUB_RUN_ID:-local}"
 
 cleanup() {

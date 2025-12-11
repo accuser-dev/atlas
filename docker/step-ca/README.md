@@ -19,7 +19,7 @@ docker run -d \
   --name step-ca \
   -p 9000:9000 \
   -v step-ca-data:/home/step \
-  ghcr.io/accuser/atlas/step-ca:latest
+  ghcr.io/accuser-dev/atlas/step-ca:latest
 ```
 
 ### Environment Variables

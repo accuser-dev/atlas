@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Question or Discussion
-    url: https://github.com/accuser/atlas/discussions
+    url: https://github.com/accuser-dev/atlas/discussions
     about: Ask questions or discuss ideas about the project
   - name: Documentation
-    url: https://github.com/accuser/atlas/blob/main/CLAUDE.md
+    url: https://github.com/accuser-dev/atlas/blob/main/CLAUDE.md
     about: Review project architecture and documentation

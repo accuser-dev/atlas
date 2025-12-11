@@ -3,7 +3,7 @@
 # Tests: startup, initialization, ACME endpoint, health check
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/accuser/atlas/step-ca:latest}"
+IMAGE="${IMAGE:-ghcr.io/accuser-dev/atlas/step-ca:latest}"
 CONTAINER_NAME="step-ca-test-${GITHUB_RUN_ID:-local}"
 
 cleanup() {

@@ -3,7 +3,7 @@
 # Tests: startup, ready endpoint, port listening
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/accuser/atlas/alertmanager:latest}"
+IMAGE="${IMAGE:-ghcr.io/accuser-dev/atlas/alertmanager:latest}"
 CONTAINER_NAME="alertmanager-test-${GITHUB_RUN_ID:-local}"
 
 cleanup() {

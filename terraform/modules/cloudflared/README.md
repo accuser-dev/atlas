@@ -95,7 +95,7 @@ In the Cloudflare dashboard, configure routes for your services:
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `tunnel_token` | Cloudflare Tunnel token (sensitive) | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser/atlas/cloudflared:latest"` | no |
+| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/cloudflared:latest"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit (e.g., "256MB") | `string` | `"256MB"` | no |
 | `metrics_port` | Port for metrics endpoint | `string` | `"2000"` | no |

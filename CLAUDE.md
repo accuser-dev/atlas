@@ -195,7 +195,7 @@ make backup-export       # Export all volumes to tarballs (stops services)
 make backup-list         # List all volume snapshots
 ```
 
-**Note:** Production images are built and published automatically via GitHub Actions to `ghcr.io/accuser/atlas/*:latest`. Local builds are only needed for development/testing.
+**Note:** Production images are built and published automatically via GitHub Actions to `ghcr.io/accuser-dev/atlas/*:latest`. Local builds are only needed for development/testing.
 
 For detailed backup procedures and disaster recovery playbooks, see [BACKUP.md](BACKUP.md).
 
@@ -298,13 +298,13 @@ tofu init -migrate-state
 **Production Images (GitHub Container Registry):**
 
 Images are automatically built and published by GitHub Actions when code is pushed to the `main` branch:
-- Caddy: `ghcr.io/accuser/atlas/caddy:latest`
-- Cloudflared: `ghcr.io/accuser/atlas/cloudflared:latest`
-- Grafana: `ghcr.io/accuser/atlas/grafana:latest`
-- Loki: `ghcr.io/accuser/atlas/loki:latest`
-- Mosquitto: `ghcr.io/accuser/atlas/mosquitto:latest`
-- Prometheus: `ghcr.io/accuser/atlas/prometheus:latest`
-- step-ca: `ghcr.io/accuser/atlas/step-ca:latest`
+- Caddy: `ghcr.io/accuser-dev/atlas/caddy:latest`
+- Cloudflared: `ghcr.io/accuser-dev/atlas/cloudflared:latest`
+- Grafana: `ghcr.io/accuser-dev/atlas/grafana:latest`
+- Loki: `ghcr.io/accuser-dev/atlas/loki:latest`
+- Mosquitto: `ghcr.io/accuser-dev/atlas/mosquitto:latest`
+- Prometheus: `ghcr.io/accuser-dev/atlas/prometheus:latest`
+- step-ca: `ghcr.io/accuser-dev/atlas/step-ca:latest`
 
 **Local Development:**
 ```bash
@@ -438,7 +438,7 @@ The project uses Terraform modules for scalability and reusability:
 
 4. **Caddy Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `caddy01`
-   - Image: `ghcr.io/accuser/atlas/caddy:latest` (published from [docker/caddy/](docker/caddy/))
+   - Image: `ghcr.io/accuser-dev/atlas/caddy:latest` (published from [docker/caddy/](docker/caddy/))
    - Resource limits: 2 CPUs, 1GB memory (configurable)
    - Triple network interfaces:
      - `eth0`: Connected to "production" network (public-facing apps)
@@ -457,7 +457,7 @@ The project uses Terraform modules for scalability and reusability:
 
 6. **Grafana Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `grafana01`
-   - Image: `ghcr.io/accuser/atlas/grafana:latest` (published from [docker/grafana/](docker/grafana/))
+   - Image: `ghcr.io/accuser-dev/atlas/grafana:latest` (published from [docker/grafana/](docker/grafana/))
    - Domain: `grafana.accuser.dev` (publicly accessible via Caddy)
    - Resource limits: 2 CPUs, 1GB memory
    - Storage: 10GB persistent volume for `/var/lib/grafana`
@@ -473,7 +473,7 @@ The project uses Terraform modules for scalability and reusability:
 
 8. **Loki Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `loki01`
-   - Image: `ghcr.io/accuser/atlas/loki:latest` (published from [docker/loki/](docker/loki/))
+   - Image: `ghcr.io/accuser-dev/atlas/loki:latest` (published from [docker/loki/](docker/loki/))
    - Internal endpoint: `http://loki01.incus:3100`
    - Resource limits: 2 CPUs, 2GB memory
    - Storage: 50GB persistent volume for `/loki`
@@ -491,7 +491,7 @@ The project uses Terraform modules for scalability and reusability:
 
 10. **Prometheus Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `prometheus01`
-    - Image: `ghcr.io/accuser/atlas/prometheus:latest` (published from [docker/prometheus/](docker/prometheus/))
+    - Image: `ghcr.io/accuser-dev/atlas/prometheus:latest` (published from [docker/prometheus/](docker/prometheus/))
     - Internal endpoint: `http://prometheus01.incus:9090`
     - Resource limits: 2 CPUs, 2GB memory
     - Storage: 100GB persistent volume for `/prometheus`
@@ -508,7 +508,7 @@ The project uses Terraform modules for scalability and reusability:
 
 12. **step-ca Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `step-ca01`
-    - Image: `ghcr.io/accuser/atlas/step-ca:latest` (published from [docker/step-ca/](docker/step-ca/))
+    - Image: `ghcr.io/accuser-dev/atlas/step-ca:latest` (published from [docker/step-ca/](docker/step-ca/))
     - CA name: "Atlas Internal CA"
     - DNS names: `step-ca01.incus,step-ca01,localhost`
     - ACME endpoint: `https://step-ca01.incus:9000`
@@ -527,7 +527,7 @@ The project uses Terraform modules for scalability and reusability:
 
 14. **Alertmanager Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `alertmanager01`
-    - Image: `ghcr.io/accuser/atlas/alertmanager:latest` (published from [docker/alertmanager/](docker/alertmanager/))
+    - Image: `ghcr.io/accuser-dev/atlas/alertmanager:latest` (published from [docker/alertmanager/](docker/alertmanager/))
     - Internal endpoint: `http://alertmanager01.incus:9093`
     - Resource limits: 1 CPU, 256MB memory
     - Storage: 1GB persistent volume for `/alertmanager`
@@ -544,7 +544,7 @@ The project uses Terraform modules for scalability and reusability:
 
 16. **Mosquitto Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `mosquitto01`
-    - Image: `ghcr.io/accuser/atlas/mosquitto:latest` (published from [docker/mosquitto/](docker/mosquitto/))
+    - Image: `ghcr.io/accuser-dev/atlas/mosquitto:latest` (published from [docker/mosquitto/](docker/mosquitto/))
     - Internal endpoint: `mqtt://mosquitto01.incus:1883`
     - External access: Host ports 1883 (MQTT) and 8883 (MQTTS) via proxy devices
     - Resource limits: 1 CPU, 256MB memory
@@ -560,7 +560,7 @@ The project uses Terraform modules for scalability and reusability:
 
 18. **Cloudflared Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `cloudflared01`
-    - Image: `ghcr.io/accuser/atlas/cloudflared:latest` (published from [docker/cloudflared/](docker/cloudflared/))
+    - Image: `ghcr.io/accuser-dev/atlas/cloudflared:latest` (published from [docker/cloudflared/](docker/cloudflared/))
     - Metrics endpoint: `http://cloudflared01.incus:2000`
     - Resource limits: 1 CPU, 256MB memory
     - Network: Connected to management network (internal access to all services)
@@ -1013,7 +1013,7 @@ This approach enables easy scaling - new instances reuse the proven profile patt
 2. Add service to GitHub Actions matrix in `.github/workflows/release.yml`
 3. Create Terraform module in `terraform/modules/yourservice/`
 4. Add `domain`, `allowed_ip_range`, and port variables to module
-5. Set default image to `ghcr:accuser/atlas/yourservice:latest`
+5. Set default image to `ghcr:accuser-dev/atlas/yourservice:latest`
 6. Create `templates/caddyfile.tftpl` for reverse proxy config
 7. Add `caddy_config_block` output using templatefile()
 8. Instantiate module in [terraform/main.tf](terraform/main.tf)
@@ -1025,7 +1025,7 @@ This approach enables easy scaling - new instances reuse the proven profile patt
 1. Create Docker image in `docker/yourservice/` with Dockerfile
 2. Add service to GitHub Actions matrix in `.github/workflows/release.yml`
 3. Create Terraform module in `terraform/modules/yourservice/`
-4. Set default image to `ghcr:accuser/atlas/yourservice:latest`
+4. Set default image to `ghcr:accuser-dev/atlas/yourservice:latest`
 5. Add storage and network configuration to module
 6. Add endpoint output for internal connectivity
 7. Instantiate module in [terraform/main.tf](terraform/main.tf)
@@ -1049,7 +1049,7 @@ module "grafana02" {
   domain           = "grafana-dev.accuser.dev"
   allowed_ip_range = "192.168.68.0/22"  # Required: Set to your network CIDR
 
-  # Uses ghcr.io image by default (ghcr:accuser/atlas/grafana:latest)
+  # Uses ghcr.io image by default (ghcr:accuser-dev/atlas/grafana:latest)
   # Optional: Override to use official image
   # image = "docker:grafana/grafana:latest"
 
@@ -1284,10 +1284,10 @@ All alerts include detailed annotations with current values and context.
 **Default: GitHub Container Registry Images**
 
 All modules are configured to use custom images published to GitHub Container Registry:
-- Caddy: `ghcr:accuser/atlas/caddy:latest`
-- Grafana: `ghcr:accuser/atlas/grafana:latest`
-- Loki: `ghcr:accuser/atlas/loki:latest`
-- Prometheus: `ghcr:accuser/atlas/prometheus:latest`
+- Caddy: `ghcr:accuser-dev/atlas/caddy:latest`
+- Grafana: `ghcr:accuser-dev/atlas/grafana:latest`
+- Loki: `ghcr:accuser-dev/atlas/loki:latest`
+- Prometheus: `ghcr:accuser-dev/atlas/prometheus:latest`
 
 These images are:
 - Built automatically by the Release workflow on push to main
@@ -1297,7 +1297,7 @@ These images are:
 
 **Image Reference Format (ghcr: vs ghcr.io/)**
 
-Terraform modules use `ghcr:` prefix (e.g., `ghcr:accuser/atlas/grafana:latest`) which references an **Incus remote** named "ghcr" that points to `https://ghcr.io`. This is not a typo - it's Incus-specific syntax.
+Terraform modules use `ghcr:` prefix (e.g., `ghcr:accuser-dev/atlas/grafana:latest`) which references an **Incus remote** named "ghcr" that points to `https://ghcr.io`. This is not a typo - it's Incus-specific syntax.
 
 The bootstrap process (`make bootstrap`) automatically configures these OCI remotes:
 - `ghcr` → `https://ghcr.io` (GitHub Container Registry)

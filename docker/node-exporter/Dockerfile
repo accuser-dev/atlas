@@ -5,7 +5,7 @@ FROM prom/node-exporter:v1.10.2
 # OCI metadata labels for container management
 LABEL maintainer="hello@accuser.dev"
 LABEL description="Node Exporter for host-level metrics collection"
-LABEL org.opencontainers.image.source="https://github.com/accuser/atlas"
+LABEL org.opencontainers.image.source="https://github.com/accuser-dev/atlas"
 LABEL org.opencontainers.image.version="1.10.2"
 LABEL org.opencontainers.image.title="Atlas Node Exporter"
 LABEL org.opencontainers.image.description="Prometheus node exporter for host system metrics (CPU, memory, disk, network)"

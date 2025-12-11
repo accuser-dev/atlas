@@ -112,7 +112,7 @@ By default, the Prometheus configuration uses `insecure_skip_verify: true` for t
 - mTLS client authentication is still enforced (Incus validates our certificate)
 - Risk: Vulnerable to MITM attacks on the internal network
 
-See [GitHub Issue #112](https://github.com/accuser/atlas/issues/112) for discussion.
+See [GitHub Issue #112](https://github.com/accuser-dev/atlas/issues/112) for discussion.
 
 ## Troubleshooting
 

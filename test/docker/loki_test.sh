@@ -4,7 +4,7 @@
 # Note: Loki uses a scratch-based image with no shell, so we test from outside
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/accuser/atlas/loki:latest}"
+IMAGE="${IMAGE:-ghcr.io/accuser-dev/atlas/loki:latest}"
 CONTAINER_NAME="loki-test-${GITHUB_RUN_ID:-local}"
 HELPER_IMAGE="busybox:latest"
 
