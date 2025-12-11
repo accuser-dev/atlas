@@ -1,0 +1,17 @@
+# Trivy ignore file for known upstream vulnerabilities
+# These CVEs exist in upstream base images that we cannot directly fix.
+# We document them here and track upstream fixes.
+#
+# Format: CVE-ID  # reason
+# See: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
+
+# CVE-2025-44005: Step CA Has Authorization Bypass in ACME and SCEP
+# Affects: smallstep/certificates < v0.29.0
+# Status: Fixed in our step-ca image via PR #189 (bump to v0.29.0)
+# Impact: Other images (alertmanager, caddy, grafana, loki, mosquitto, prometheus)
+#         include this library through their upstream base images.
+#         We cannot fix this until upstream releases new versions.
+# Mitigation: Only step-ca uses ACME functionality in our deployment.
+#             The vulnerability is an authorization bypass, not RCE.
+# Track: https://github.com/smallstep/certificates/releases
+CVE-2025-44005
