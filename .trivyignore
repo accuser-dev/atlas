@@ -26,3 +26,13 @@ CVE-2025-44005
 #             The vulnerability requires malicious server configuration.
 # Track: https://github.com/runatlantis/atlantis/releases
 CVE-2024-45337
+
+# CVE-2024-24790: golang: net/netip: Unexpected behavior from Is methods for IPv4-mapped IPv6 addresses
+# Affects: Go stdlib < 1.21.11 / 1.22.4
+# Status: Upstream issue - Atlantis is built with Go 1.22.1
+# Impact: Atlantis image contains binaries compiled with older Go runtime.
+#         We cannot fix this until Atlantis upstream rebuilds with newer Go.
+# Mitigation: This is an edge case in IPv6 handling, low practical impact
+#             for Atlantis which primarily handles Terraform/OpenTofu operations.
+# Track: https://github.com/runatlantis/atlantis/releases
+CVE-2024-24790
