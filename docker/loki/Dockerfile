@@ -5,7 +5,7 @@
 # We use Alpine as base to enable TLS certificate management.
 
 # Build stage: Download step CLI
-FROM alpine:3.22 AS step-cli
+FROM alpine:3.23 AS step-cli
 ARG STEP_VERSION=0.28.6
 RUN apk add --no-cache curl tar && \
     curl -sLO "https://github.com/smallstep/cli/releases/download/v${STEP_VERSION}/step_linux_${STEP_VERSION}_amd64.tar.gz" && \
@@ -17,7 +17,7 @@ RUN apk add --no-cache curl tar && \
 FROM grafana/loki:3.6.2 AS loki-bin
 
 # Final stage: Alpine-based image with shell support for TLS
-FROM alpine:3.22
+FROM alpine:3.23
 
 # Install runtime dependencies
 RUN apk add --no-cache ca-certificates tzdata libcap
