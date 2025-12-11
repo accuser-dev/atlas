@@ -58,6 +58,7 @@ resource "incus_profile" "mosquitto" {
       properties = {
         listen  = "tcp:0.0.0.0:${var.external_mqtt_port}"
         connect = "tcp:127.0.0.1:${var.mqtt_port}"
+        bind    = "host"
       }
     }
   }
@@ -71,6 +72,7 @@ resource "incus_profile" "mosquitto" {
       properties = {
         listen  = "tcp:0.0.0.0:${var.external_mqtts_port}"
         connect = "tcp:127.0.0.1:${var.mqtts_port}"
+        bind    = "host"
       }
     }
   }
