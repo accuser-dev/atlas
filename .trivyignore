@@ -15,3 +15,24 @@
 #             The vulnerability is an authorization bypass, not RCE.
 # Track: https://github.com/smallstep/certificates/releases
 CVE-2025-44005
+
+# CVE-2024-45337: golang.org/x/crypto/ssh: Misuse of ServerConfig.PublicKeyCallback
+# Affects: golang.org/x/crypto < v0.31.0
+# Status: Upstream issue - Atlantis uses older Go toolchain with vulnerable crypto
+# Impact: Atlantis image includes multiple Go binaries (terraform, git-lfs, etc.)
+#         with this vulnerability in their compiled dependencies.
+#         We cannot fix this until Atlantis upstream releases a new version.
+# Mitigation: Atlantis does not expose SSH server functionality using this code path.
+#             The vulnerability requires malicious server configuration.
+# Track: https://github.com/runatlantis/atlantis/releases
+CVE-2024-45337
+
+# CVE-2024-24790: golang: net/netip: Unexpected behavior from Is methods for IPv4-mapped IPv6 addresses
+# Affects: Go stdlib < 1.21.11 / 1.22.4
+# Status: Upstream issue - Atlantis is built with Go 1.22.1
+# Impact: Atlantis image contains binaries compiled with older Go runtime.
+#         We cannot fix this until Atlantis upstream rebuilds with newer Go.
+# Mitigation: This is an edge case in IPv6 handling, low practical impact
+#             for Atlantis which primarily handles Terraform/OpenTofu operations.
+# Track: https://github.com/runatlantis/atlantis/releases
+CVE-2024-24790
