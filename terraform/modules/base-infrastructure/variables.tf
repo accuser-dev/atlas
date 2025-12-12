@@ -180,7 +180,13 @@ variable "management_network_ipv6_nat" {
   default     = true
 }
 
-# GitOps Network Configuration
+# GitOps Configuration
+variable "enable_gitops" {
+  description = "Enable GitOps infrastructure (gitops network and profile)"
+  type        = bool
+  default     = false
+}
+
 variable "gitops_network_ipv4" {
   description = "IPv4 address for GitOps network (Atlantis, CI/CD automation)"
   type        = string

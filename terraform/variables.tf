@@ -276,9 +276,9 @@ variable "enable_incus_loki" {
   default     = true
 }
 
-# Atlantis Configuration
-variable "enable_atlantis" {
-  description = "Enable Atlantis GitOps controller deployment"
+# GitOps Configuration
+variable "enable_gitops" {
+  description = "Enable GitOps infrastructure (gitops network, caddy-gitops, and Atlantis)"
   type        = bool
   default     = false
 }
@@ -290,20 +290,20 @@ variable "atlantis_domain" {
 }
 
 variable "atlantis_github_user" {
-  description = "GitHub username for Atlantis (required if enable_atlantis is true)"
+  description = "GitHub username for Atlantis (required if enable_gitops is true)"
   type        = string
   default     = ""
 }
 
 variable "atlantis_github_token" {
-  description = "GitHub personal access token for Atlantis (required if enable_atlantis is true)"
+  description = "GitHub personal access token for Atlantis (required if enable_gitops is true)"
   type        = string
   sensitive   = true
   default     = ""
 }
 
 variable "atlantis_github_webhook_secret" {
-  description = "Webhook secret for GitHub webhooks (required if enable_atlantis is true)"
+  description = "Webhook secret for GitHub webhooks (required if enable_gitops is true)"
   type        = string
   sensitive   = true
   default     = ""

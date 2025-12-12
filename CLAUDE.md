@@ -613,7 +613,7 @@ The project uses Terraform modules for scalability and reusability:
     - Resource limits: 2 CPUs, 1GB memory
     - Storage: 10GB persistent volume for `/atlantis-data`
     - Network: Connected to gitops network (10.60.0.0/24)
-    - Conditionally deployed: Only created when `enable_atlantis` is true (default: false)
+    - Conditionally deployed: Only created when `enable_gitops` is true (default: false)
     - See [GITOPS.md](GITOPS.md) for setup and usage instructions
 
 25. **Caddy GitOps Module** ([terraform/modules/caddy-gitops/](terraform/modules/caddy-gitops/))
@@ -628,7 +628,7 @@ The project uses Terraform modules for scalability and reusability:
     - Image: `ghcr.io/accuser-dev/atlas/caddy:latest`
     - Resource limits: 1 CPU, 256MB memory
     - Network: Connected to gitops network + external (incusbr0)
-    - Conditionally deployed: Only created when `enable_atlantis` is true
+    - Conditionally deployed: Only created when `enable_gitops` is true
 
 ### External TCP Service Pattern (Proxy Devices)
 

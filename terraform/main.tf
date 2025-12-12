@@ -45,6 +45,8 @@ module "base" {
   management_network_ipv6     = var.management_network_ipv6
   management_network_ipv6_nat = var.management_network_ipv6_nat
 
+  # GitOps infrastructure (conditional)
+  enable_gitops           = var.enable_gitops
   gitops_network_ipv4     = var.gitops_network_ipv4
   gitops_network_nat      = var.gitops_network_nat
   gitops_network_ipv6     = var.gitops_network_ipv6
@@ -462,7 +464,7 @@ module "incus_loki" {
 module "atlantis01" {
   source = "./modules/atlantis"
 
-  count = var.enable_atlantis ? 1 : 0
+  count = var.enable_gitops ? 1 : 0
 
   instance_name = "atlantis01"
   profile_name  = "atlantis"
@@ -501,7 +503,7 @@ module "atlantis01" {
 module "caddy_gitops01" {
   source = "./modules/caddy-gitops"
 
-  count = var.enable_atlantis ? 1 : 0
+  count = var.enable_gitops ? 1 : 0
 
   instance_name        = "caddy-gitops01"
   profile_name         = "caddy-gitops"

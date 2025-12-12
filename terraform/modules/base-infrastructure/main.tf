@@ -98,6 +98,8 @@ resource "incus_network" "management" {
 }
 
 resource "incus_network" "gitops" {
+  count = var.enable_gitops ? 1 : 0
+
   name        = "gitops"
   description = "GitOps network for Atlantis and CI/CD automation"
   type        = "bridge"
@@ -210,13 +212,15 @@ resource "incus_profile" "staging_network" {
 
 # Profile for containers on the GitOps network
 resource "incus_profile" "gitops_network" {
+  count = var.enable_gitops ? 1 : 0
+
   name = "gitops-network"
 
   device {
     name = "gitops"
     type = "nic"
     properties = {
-      network = incus_network.gitops.name
+      network = incus_network.gitops[0].name
     }
   }
 }

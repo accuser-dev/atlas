@@ -67,8 +67,8 @@ These IPs are configured in `var.atlantis_allowed_ip_range`.
 Add to `terraform.tfvars`:
 
 ```hcl
-# Enable Atlantis
-enable_atlantis = true
+# Enable GitOps infrastructure (network, caddy-gitops, and Atlantis)
+enable_gitops = true
 
 # Domain for webhook endpoint
 atlantis_domain = "atlantis.example.com"
@@ -205,9 +205,9 @@ workflows:
 
 ### Atlantis Not Receiving Webhooks
 
-1. **Check Caddy logs:**
+1. **Check Caddy GitOps logs:**
    ```bash
-   incus exec caddy01 -- tail -f /var/log/caddy/atlantis-access.log
+   incus exec caddy-gitops01 -- docker logs caddy
    ```
 
 2. **Check Atlantis logs:**

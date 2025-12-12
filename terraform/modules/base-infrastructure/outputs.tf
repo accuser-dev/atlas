@@ -29,8 +29,8 @@ output "management_network" {
 }
 
 output "gitops_network" {
-  description = "GitOps network resource"
-  value       = incus_network.gitops
+  description = "GitOps network resource (null if enable_gitops is false)"
+  value       = var.enable_gitops ? incus_network.gitops[0] : null
 }
 
 # Convenience output for management network gateway IP
@@ -75,8 +75,8 @@ output "staging_network_profile" {
 }
 
 output "gitops_network_profile" {
-  description = "GitOps network profile resource (gitops NIC on gitops network)"
-  value       = incus_profile.gitops_network
+  description = "GitOps network profile resource (null if enable_gitops is false)"
+  value       = var.enable_gitops ? incus_profile.gitops_network[0] : null
 }
 
 # =============================================================================
