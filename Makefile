@@ -65,6 +65,7 @@ help:
 
 # Docker image configuration
 IMAGE_TAG ?= latest
+STEP_VERSION := $(shell cat .step-version 2>/dev/null || echo "0.28.6")
 
 # =============================================================================
 # Service Configuration
@@ -107,18 +108,18 @@ build-caddy:
 	@echo "Caddy image built: $(CADDY_IMAGE)"
 
 build-grafana:
-	@echo "Building Grafana image..."
-	docker build -t $(GRAFANA_IMAGE) docker/grafana/
+	@echo "Building Grafana image (Step CLI v$(STEP_VERSION))..."
+	docker build --build-arg STEP_VERSION=$(STEP_VERSION) -t $(GRAFANA_IMAGE) docker/grafana/
 	@echo "Grafana image built: $(GRAFANA_IMAGE)"
 
 build-loki:
-	@echo "Building Loki image..."
-	docker build -t $(LOKI_IMAGE) docker/loki/
+	@echo "Building Loki image (Step CLI v$(STEP_VERSION))..."
+	docker build --build-arg STEP_VERSION=$(STEP_VERSION) -t $(LOKI_IMAGE) docker/loki/
 	@echo "Loki image built: $(LOKI_IMAGE)"
 
 build-prometheus:
-	@echo "Building Prometheus image..."
-	docker build -t $(PROMETHEUS_IMAGE) docker/prometheus/
+	@echo "Building Prometheus image (Step CLI v$(STEP_VERSION))..."
+	docker build --build-arg STEP_VERSION=$(STEP_VERSION) -t $(PROMETHEUS_IMAGE) docker/prometheus/
 	@echo "Prometheus image built: $(PROMETHEUS_IMAGE)"
 
 # List Docker images

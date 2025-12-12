@@ -10,11 +10,13 @@ on:
       - 'docker/**/Dockerfile'
       - 'docker/**/*.sh'
       - '.github/workflows/release.yml'
+      - '.step-version'
 
 env:
   TOFU_VERSION: '1.9.0'
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+  # Step CLI version is read from .step-version file in each job that needs it
 
 jobs:
   # =============================================================================
@@ -69,6 +71,7 @@ jobs:
           filters: |
             alertmanager:
               - 'docker/alertmanager/**'
+              - '.step-version'
             atlantis:
               - 'docker/atlantis/**'
             caddy:
@@ -77,14 +80,18 @@ jobs:
               - 'docker/cloudflared/**'
             grafana:
               - 'docker/grafana/**'
+              - '.step-version'
             loki:
               - 'docker/loki/**'
+              - '.step-version'
             mosquitto:
               - 'docker/mosquitto/**'
+              - '.step-version'
             node_exporter:
               - 'docker/node-exporter/**'
             prometheus:
               - 'docker/prometheus/**'
+              - '.step-version'
             step_ca:
               - 'docker/step-ca/**'
             release_workflow:
@@ -175,6 +182,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Read Step CLI version
+        id: step-version
+        run: |
+          if [ -f .step-version ]; then
+            echo "version=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
+          else
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -193,6 +209,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          build-args: |
+            STEP_VERSION=${{ steps.step-version.outputs.version }}
 
       - name: Summary
         run: |

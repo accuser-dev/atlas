@@ -53,10 +53,10 @@ inhibit_rules:
 ## Building
 
 ```bash
-# Build locally
-docker build -t alertmanager:latest .
+# Build locally (STEP_VERSION is required)
+docker build --build-arg STEP_VERSION=$(cat ../../.step-version) -t alertmanager:latest .
 
-# Build with custom step CLI version
+# Build with specific step CLI version
 docker build --build-arg STEP_VERSION=0.28.6 -t alertmanager:latest .
 ```
 

@@ -4,7 +4,8 @@ FROM prom/prometheus:v3.8.0 AS base
 
 # Build stage: Download step CLI
 FROM alpine:3.23 AS step-cli
-ARG STEP_VERSION=0.28.6
+ARG STEP_VERSION
+RUN test -n "$STEP_VERSION" || (echo "ERROR: STEP_VERSION build arg is required" && exit 1)
 RUN apk add --no-cache curl tar && \
     curl -sLO "https://github.com/smallstep/cli/releases/download/v${STEP_VERSION}/step_linux_${STEP_VERSION}_amd64.tar.gz" && \
     tar -xzf "step_linux_${STEP_VERSION}_amd64.tar.gz" && \
