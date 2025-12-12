@@ -8,6 +8,7 @@ on:
       - 'terraform/**/*.tf'
       - 'terraform/**/*.tftpl'
       - 'docker/**/Dockerfile'
+      - 'docker/**/*.sh'
       - '.github/workflows/release.yml'
 
 env:
@@ -45,18 +46,119 @@ jobs:
           echo "✅ OpenTofu configuration is valid" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
+  # Detect Changed Docker Images
+  # =============================================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_docker_changes: ${{ steps.set-matrix.outputs.has_docker_changes }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          base: ${{ github.event.before }}
+          filters: |
+            alertmanager:
+              - 'docker/alertmanager/**'
+            atlantis:
+              - 'docker/atlantis/**'
+            caddy:
+              - 'docker/caddy/**'
+            cloudflared:
+              - 'docker/cloudflared/**'
+            grafana:
+              - 'docker/grafana/**'
+            loki:
+              - 'docker/loki/**'
+            mosquitto:
+              - 'docker/mosquitto/**'
+            node_exporter:
+              - 'docker/node-exporter/**'
+            prometheus:
+              - 'docker/prometheus/**'
+            step_ca:
+              - 'docker/step-ca/**'
+            release_workflow:
+              - '.github/workflows/release.yml'
+
+      - name: Build matrix
+        id: set-matrix
+        run: |
+          # Check if release workflow itself changed - if so, build all images
+          if [ "${{ steps.filter.outputs.release_workflow }}" == "true" ]; then
+            echo 'matrix=["alertmanager","atlantis","caddy","cloudflared","grafana","loki","mosquitto","node-exporter","prometheus","step-ca"]' >> $GITHUB_OUTPUT
+            echo 'has_docker_changes=true' >> $GITHUB_OUTPUT
+            echo "📋 Release workflow changed - will build all images"
+          else
+            # Build only changed images
+            SERVICES=()
+            if [ "${{ steps.filter.outputs.alertmanager }}" == "true" ]; then SERVICES+=("alertmanager"); fi
+            if [ "${{ steps.filter.outputs.atlantis }}" == "true" ]; then SERVICES+=("atlantis"); fi
+            if [ "${{ steps.filter.outputs.caddy }}" == "true" ]; then SERVICES+=("caddy"); fi
+            if [ "${{ steps.filter.outputs.cloudflared }}" == "true" ]; then SERVICES+=("cloudflared"); fi
+            if [ "${{ steps.filter.outputs.grafana }}" == "true" ]; then SERVICES+=("grafana"); fi
+            if [ "${{ steps.filter.outputs.loki }}" == "true" ]; then SERVICES+=("loki"); fi
+            if [ "${{ steps.filter.outputs.mosquitto }}" == "true" ]; then SERVICES+=("mosquitto"); fi
+            if [ "${{ steps.filter.outputs.node_exporter }}" == "true" ]; then SERVICES+=("node-exporter"); fi
+            if [ "${{ steps.filter.outputs.prometheus }}" == "true" ]; then SERVICES+=("prometheus"); fi
+            if [ "${{ steps.filter.outputs.step_ca }}" == "true" ]; then SERVICES+=("step-ca"); fi
+
+            if [ ${#SERVICES[@]} -eq 0 ]; then
+              echo 'matrix=[]' >> $GITHUB_OUTPUT
+              echo 'has_docker_changes=false' >> $GITHUB_OUTPUT
+              echo "📋 No Docker changes detected (terraform-only change)"
+            else
+              JSON_ARRAY=$(printf '%s\n' "${SERVICES[@]}" | jq -R . | jq -s -c .)
+              echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
+              echo 'has_docker_changes=true' >> $GITHUB_OUTPUT
+              echo "📋 Changed services: ${SERVICES[*]}"
+            fi
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Change Detection" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.filter.outputs.release_workflow }}" == "true" ]; then
+            echo "⚠️ Release workflow changed - building all images" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "| Service | Changed |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| alertmanager | ${{ steps.filter.outputs.alertmanager == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| atlantis | ${{ steps.filter.outputs.atlantis == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| caddy | ${{ steps.filter.outputs.caddy == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| cloudflared | ${{ steps.filter.outputs.cloudflared == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| grafana | ${{ steps.filter.outputs.grafana == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| loki | ${{ steps.filter.outputs.loki == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| mosquitto | ${{ steps.filter.outputs.mosquitto == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| node-exporter | ${{ steps.filter.outputs.node_exporter == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| prometheus | ${{ steps.filter.outputs.prometheus == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| step-ca | ${{ steps.filter.outputs.step_ca == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
   # Build and Push Docker Images
   # =============================================================================
   docker-release:
     name: Release ${{ matrix.service }}
     runs-on: ubuntu-latest
-    needs: validate
+    needs: [validate, detect-changes]
+    if: needs.detect-changes.outputs.has_docker_changes == 'true'
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
-        service: [alertmanager, atlantis, caddy, cloudflared, grafana, loki, mosquitto, node-exporter, prometheus, step-ca]
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
       fail-fast: false
 
     steps:
@@ -109,7 +211,7 @@ jobs:
   release-summary:
     name: Release Summary
     runs-on: ubuntu-latest
-    needs: docker-release
+    needs: [detect-changes, docker-release]
     if: always()
 
     steps:
@@ -120,28 +222,32 @@ jobs:
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Published Images" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Service | Image | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| alertmanager | \`${{ env.IMAGE_PREFIX }}/alertmanager:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| atlantis | \`${{ env.IMAGE_PREFIX }}/atlantis:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| caddy | \`${{ env.IMAGE_PREFIX }}/caddy:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| cloudflared | \`${{ env.IMAGE_PREFIX }}/cloudflared:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| grafana | \`${{ env.IMAGE_PREFIX }}/grafana:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| loki | \`${{ env.IMAGE_PREFIX }}/loki:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| mosquitto | \`${{ env.IMAGE_PREFIX }}/mosquitto:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| node-exporter | \`${{ env.IMAGE_PREFIX }}/node-exporter:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| prometheus | \`${{ env.IMAGE_PREFIX }}/prometheus:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| step-ca | \`${{ env.IMAGE_PREFIX }}/step-ca:latest\` | ${{ needs.docker-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.docker-release.result }}" == "success" ]; then
-            echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.detect-changes.outputs.has_docker_changes }}" == "true" ]; then
+            echo "### Published Images" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "To deploy the updated images:" >> $GITHUB_STEP_SUMMARY
-            echo '```bash' >> $GITHUB_STEP_SUMMARY
-            echo "cd terraform && tofu apply" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+            # Parse the matrix to show which images were built
+            MATRIX='${{ needs.detect-changes.outputs.matrix }}'
+            for service in $(echo "$MATRIX" | jq -r '.[]'); do
+              echo "| $service | ${{ needs.docker-release.result == 'success' && '✅ Published' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ needs.docker-release.result }}" == "success" ]; then
+              echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "To deploy the updated images:" >> $GITHUB_STEP_SUMMARY
+              echo '```bash' >> $GITHUB_STEP_SUMMARY
+              echo "cd terraform && tofu apply" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "### No Docker Images Published" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This release only contained Terraform changes. No Docker images were rebuilt." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Existing images remain at their current versions." >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Fail if release failed
