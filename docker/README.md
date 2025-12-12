@@ -149,7 +149,7 @@ module "grafana01" {
 4. **Wait for build** to complete on GitHub Actions
 5. **Deploy updated image**:
    ```bash
-   make terraform-apply
+   make apply
    ```
 
 ### Example: Adding Grafana Plugin
@@ -326,7 +326,7 @@ git push origin add-grafana-plugin
 # 6. Wait for GitHub Actions to build and publish
 
 # 7. Deploy updated image
-make terraform-apply
+make apply
 
 # 8. Verify
 incus exec grafana01 -- grafana-cli plugins list

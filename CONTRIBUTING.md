@@ -40,7 +40,7 @@ git checkout -b fix/issue-4-shell-script-security
 - Make focused, logical commits
 - Write clear commit messages
 - Test your changes locally
-- Run Terraform validation: `make terraform-plan`
+- Run OpenTofu validation: `make plan`
 - Format your code: `make format`
 
 **Commit Message Format:**
@@ -147,7 +147,7 @@ make format
 cd terraform && tofu validate
 
 # Run OpenTofu plan (requires valid terraform.tfvars)
-make terraform-plan
+make plan
 
 # Build Docker images locally (optional)
 make build-all
@@ -212,8 +212,8 @@ gh pr checkout <pr-number>
 # Build the updated image locally
 make build-<service>
 
-# Test with Terraform
-make terraform-plan
+# Test with OpenTofu
+make plan
 ```
 
 **4. Merge strategy:**
