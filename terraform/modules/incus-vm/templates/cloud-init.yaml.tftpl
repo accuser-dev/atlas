@@ -1,0 +1,45 @@
+#cloud-config
+# =============================================================================
+# Cloud-init configuration for Incus VM testing environment
+# =============================================================================
+# This configuration bootstraps a VM with tools for testing Atlas infrastructure:
+# - OpenTofu for running Terraform configurations
+# - Incus for nested container/VM testing
+# - Git, curl, jq and other utilities
+
+hostname: ${hostname}
+manage_etc_hosts: true
+
+%{ if length(ssh_public_keys) > 0 ~}
+ssh_authorized_keys:
+%{ for key in ssh_public_keys ~}
+  - ${key}
+%{ endfor ~}
+%{ endif ~}
+
+package_update: true
+package_upgrade: true
+
+packages:
+%{ for pkg in packages ~}
+  - ${pkg}
+%{ endfor ~}
+
+runcmd:
+%{ if install_opentofu ~}
+  # Install OpenTofu for infrastructure testing
+  - curl -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh
+  - chmod +x /tmp/install-opentofu.sh
+  - /tmp/install-opentofu.sh --install-method standalone
+  - rm /tmp/install-opentofu.sh
+%{ endif ~}
+%{ if install_incus ~}
+  # Install Incus for nested container/VM testing
+  - curl -fsSL https://pkgs.zabbly.com/get/incus-stable | sh
+  # Initialize Incus with automatic configuration
+  - incus admin init --auto
+%{ endif ~}
+  # Signal cloud-init completion
+  - touch /var/lib/cloud/instance/boot-finished
+
+final_message: "Cloud-init completed in $UPTIME seconds"
