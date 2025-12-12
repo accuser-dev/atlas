@@ -8,6 +8,7 @@ This document describes the security architecture, controls, and best practices 
 - [Threat Model](#threat-model)
 - [Network Isolation](#network-isolation)
 - [Secret Management](#secret-management)
+- [Secret Rotation](#secret-rotation)
 - [TLS Configuration](#tls-configuration)
 - [Access Control](#access-control)
 - [Container Security](#container-security)
@@ -178,6 +179,322 @@ allowed_ip_range         = "192.168.1.0/24"     # Restrict access
 - Use environment variables in CI/CD: `TF_VAR_cloudflare_api_token`
 - Rotate credentials periodically
 - Use the minimum required permissions for API tokens
+
+---
+
+## Secret Rotation
+
+This section documents procedures for rotating each secret type in the infrastructure.
+
+### Rotation Schedule Recommendations
+
+| Secret Type | Recommended Frequency | Risk Level |
+|-------------|----------------------|------------|
+| Cloudflare API Token | 90 days | High |
+| Grafana Admin Password | 90 days | Medium |
+| Cloudflared Tunnel Token | On compromise only | High |
+| step-ca Root Certificate | 5-10 years | Critical |
+| Incus Metrics Certificate | 5-10 years | Low |
+| GitHub Token (Atlantis) | 90 days | High |
+| GitHub Webhook Secret | 90 days | Medium |
+| MQTT User Passwords | 90 days | Medium |
+
+### Cloudflare API Token
+
+**Impact:** Affects Caddy's ability to obtain/renew HTTPS certificates via DNS-01 challenge.
+
+**Rotation Procedure:**
+
+```bash
+# 1. Generate new token in Cloudflare dashboard
+#    https://dash.cloudflare.com/profile/api-tokens
+#    Permissions needed: Zone:DNS:Edit for your domain
+
+# 2. Test the new token (optional but recommended)
+curl -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+  -H "Authorization: Bearer NEW_TOKEN_HERE"
+
+# 3. Update terraform.tfvars
+cloudflare_api_token = "new-token-value"
+
+# 4. Apply the change (updates Caddy container)
+cd terraform && tofu apply
+
+# 5. Verify certificate renewal works
+incus exec caddy01 -- caddy reload --config /etc/caddy/Caddyfile
+
+# 6. Revoke old token in Cloudflare dashboard
+```
+
+**Verification:**
+```bash
+# Check Caddy logs for certificate operations
+incus exec caddy01 -- docker logs caddy 2>&1 | grep -i "certificate\|acme"
+```
+
+**Zero-downtime:** Yes - existing certificates remain valid during rotation.
+
+### Grafana Admin Password
+
+**Impact:** Admin access to Grafana dashboards and configuration.
+
+**Rotation Procedure:**
+
+```bash
+# Option A: Via Grafana UI (preferred)
+# 1. Log into Grafana as admin
+# 2. Navigate to Profile (bottom left) → Change Password
+# 3. Update terraform.tfvars for consistency:
+grafana_admin_password = "new-password"
+
+# Option B: Via Terraform (forces container recreation)
+# 1. Update terraform.tfvars
+grafana_admin_password = "new-password"
+
+# 2. Apply change
+cd terraform && tofu apply
+
+# Note: Option B may cause brief downtime as container is recreated
+```
+
+**Verification:**
+```bash
+# Test login with new password
+curl -u admin:new-password https://grafana.yourdomain.com/api/health
+```
+
+**Zero-downtime:** Option A: Yes. Option B: Brief downtime during container recreation.
+
+### Cloudflared Tunnel Token
+
+**Impact:** Cloudflare Tunnel connectivity - service will disconnect if token is invalid.
+
+**Rotation Procedure:**
+
+```bash
+# 1. In Cloudflare Zero Trust dashboard:
+#    https://one.dash.cloudflare.com/
+#    Navigate to: Access → Tunnels → Your Tunnel → Configure
+
+# 2. Generate new token (will invalidate old token immediately)
+#    Warning: This causes immediate disconnection!
+
+# 3. Update terraform.tfvars immediately
+cloudflared_tunnel_token = "new-token-value"
+
+# 4. Apply change as quickly as possible
+cd terraform && tofu apply
+
+# 5. Verify tunnel reconnects
+incus exec cloudflared01 -- docker logs cloudflared 2>&1 | tail -20
+```
+
+**Verification:**
+```bash
+# Check tunnel status in Cloudflare dashboard or:
+incus exec cloudflared01 -- docker logs cloudflared 2>&1 | grep -i "connected\|registered"
+```
+
+**Zero-downtime:** No - there will be a brief outage between token rotation and applying the new token. Plan for 1-5 minutes of downtime.
+
+### step-ca Root Certificate
+
+**Impact:** Critical - all internal TLS certificates depend on this CA.
+
+**Rotation Procedure:**
+
+⚠️ **Warning:** Rotating the root CA requires re-issuing ALL service certificates. This is a major operation.
+
+```bash
+# 1. Create backup of current CA data
+incus snapshot step-ca01 pre-rotation
+incus storage volume snapshot local step-ca01-data pre-rotation
+
+# 2. Plan maintenance window - all TLS-enabled services will need restart
+
+# 3. Delete step-ca data volume (will regenerate CA on restart)
+incus stop step-ca01
+incus storage volume delete local step-ca01-data
+incus start step-ca01
+
+# 4. Get new CA fingerprint
+NEW_FINGERPRINT=$(incus exec step-ca01 -- cat /home/step/fingerprint)
+echo "New fingerprint: $NEW_FINGERPRINT"
+
+# 5. Update all services with new fingerprint
+# Edit main.tf to update stepca_fingerprint for each TLS-enabled service
+
+# 6. Apply changes (restarts all TLS-enabled services)
+cd terraform && tofu apply
+
+# 7. Verify each service obtained new certificate
+for svc in grafana01 prometheus01 loki01; do
+  echo "=== $svc ==="
+  incus exec $svc -- docker logs $(incus exec $svc -- docker ps -q) 2>&1 | grep -i "certificate"
+done
+```
+
+**Verification:**
+```bash
+# Check CA health
+incus exec step-ca01 -- step ca health --ca-url https://localhost:9000 --root /home/step/certs/root_ca.crt
+
+# Verify certificate chain for a service
+incus exec grafana01 -- openssl s_client -connect localhost:3000 -CAfile /etc/grafana/tls/ca.crt
+```
+
+**Zero-downtime:** No - all TLS-enabled services require restart. Plan for 5-15 minutes of downtime.
+
+### Incus Metrics Certificate
+
+**Impact:** Prometheus will be unable to scrape Incus container metrics.
+
+**Rotation Procedure:**
+
+```bash
+# 1. Taint the certificate resources to force regeneration
+cd terraform
+tofu taint 'module.incus_metrics[0].tls_private_key.metrics'
+tofu taint 'module.incus_metrics[0].tls_self_signed_cert.metrics'
+
+# 2. Apply to generate new certificate
+tofu apply
+
+# 3. Verify Prometheus can scrape metrics
+incus exec prometheus01 -- wget -q -O- http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.labels.job=="incus")'
+```
+
+**Verification:**
+```bash
+# Check Prometheus targets page for incus job status
+curl -s http://prometheus01.incus:9090/api/v1/targets | jq '.data.activeTargets[] | select(.labels.job=="incus") | {health: .health, lastError: .lastError}'
+```
+
+**Zero-downtime:** Yes - brief gap in metrics during certificate rotation.
+
+### GitHub Token (Atlantis)
+
+**Impact:** Atlantis will be unable to post plan/apply comments or clone repositories.
+
+**Rotation Procedure:**
+
+```bash
+# 1. Generate new Personal Access Token in GitHub
+#    https://github.com/settings/tokens
+#    Required scopes: repo (full control)
+
+# 2. Update terraform.tfvars
+atlantis_github_token = "ghp_new_token_here"
+
+# 3. Apply change
+cd terraform && tofu apply
+
+# 4. Verify by opening a test PR or checking Atlantis logs
+incus exec atlantis01 -- docker logs atlantis 2>&1 | tail -20
+
+# 5. Revoke old token in GitHub
+#    https://github.com/settings/tokens
+```
+
+**Verification:**
+```bash
+# Test GitHub API access
+incus exec atlantis01 -- wget -q -O- \
+  --header="Authorization: token $(cat /atlantis-data/.atlantis/token)" \
+  https://api.github.com/user
+```
+
+**Zero-downtime:** Yes - existing operations continue until old token expires.
+
+### GitHub Webhook Secret (Atlantis)
+
+**Impact:** GitHub webhook deliveries will fail validation.
+
+**Rotation Procedure:**
+
+```bash
+# 1. Generate new secret
+NEW_SECRET=$(openssl rand -hex 32)
+echo "New webhook secret: $NEW_SECRET"
+
+# 2. Update terraform.tfvars
+atlantis_github_webhook_secret = "new-secret-value"
+
+# 3. Apply change to Atlantis
+cd terraform && tofu apply
+
+# 4. Update webhook in GitHub repository settings
+#    https://github.com/YOUR_ORG/YOUR_REPO/settings/hooks
+#    Edit the Atlantis webhook → Update secret
+
+# 5. Test by making a small commit or re-delivering a webhook
+```
+
+**Verification:**
+```bash
+# Check Atlantis logs for webhook validation
+incus exec atlantis01 -- docker logs atlantis 2>&1 | grep -i "webhook\|signature"
+```
+
+**Zero-downtime:** Brief gap - webhooks will fail between Atlantis update and GitHub webhook update. Update quickly.
+
+### MQTT User Passwords (Mosquitto)
+
+**Impact:** MQTT clients using rotated credentials will disconnect.
+
+**Rotation Procedure:**
+
+```bash
+# 1. Update terraform.tfvars with new passwords
+mqtt_users = {
+  "sensor1" = "new-secure-password"
+  "app1"    = "another-new-password"
+}
+
+# 2. Apply change
+cd terraform && tofu apply
+
+# 3. Update MQTT clients with new credentials
+# (application-specific)
+
+# 4. Verify connections
+incus exec mosquitto01 -- mosquitto_sub -h localhost -u sensor1 -P new-secure-password -t test -C 1
+```
+
+**Zero-downtime:** No - clients must be updated with new credentials.
+
+### Emergency Rotation (Compromised Secrets)
+
+If you suspect a secret has been compromised:
+
+```bash
+# 1. IMMEDIATELY rotate the affected secret using procedures above
+
+# 2. Check logs for unauthorized access
+# Grafana:
+incus exec grafana01 -- docker logs grafana 2>&1 | grep -i "login\|auth\|failed"
+
+# Caddy:
+incus exec caddy01 -- docker logs caddy 2>&1 | grep -i "error\|denied"
+
+# Atlantis:
+incus exec atlantis01 -- docker logs atlantis 2>&1 | grep -i "webhook\|unauthorized"
+
+# 3. Review Incus lifecycle logs in Loki/Grafana
+# Query: {job="incus"} |= "lifecycle"
+
+# 4. If GitHub token compromised:
+#    - Immediately revoke at https://github.com/settings/tokens
+#    - Review repository audit log: https://github.com/ORG/REPO/settings/security_analysis
+#    - Check for unauthorized commits, releases, or settings changes
+
+# 5. If Cloudflare token compromised:
+#    - Revoke immediately in dashboard
+#    - Review Cloudflare audit logs
+#    - Check for unauthorized DNS changes
+
+# 6. Document incident and update rotation schedule
+```
 
 ---
 
@@ -521,8 +838,8 @@ Events captured:
 4. **No image signing** - Images pulled without verification
    - Mitigation: Use digest pinning, enable Cosign
 
-5. **No secrets rotation** - Manual credential rotation required
-   - Mitigation: Implement HashiCorp Vault
+5. **Manual secrets rotation** - Rotation procedures documented but not automated
+   - Mitigation: See [Secret Rotation](#secret-rotation) section; consider HashiCorp Vault for automation
 
 6. **Limited audit logging** - No centralized audit trail
    - Mitigation: Enable host-level auditd
