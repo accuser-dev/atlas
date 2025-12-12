@@ -97,6 +97,33 @@ allowed_ip_range = "192.168.1.0/24"
 # enable_incus_loki = true
 
 # ============================================================================
+# OPTIONAL: GITOPS WITH ATLANTIS
+# ============================================================================
+# Enable PR-based infrastructure management with Atlantis
+# Atlantis runs on a dedicated network with GitHub webhook integration
+# See GITOPS.md for full setup instructions
+
+# Enable GitOps infrastructure (default: false)
+# enable_gitops = true
+
+# Domain for Atlantis webhook endpoint (required if enable_gitops = true)
+# atlantis_domain = "atlantis.example.com"
+
+# GitHub username or app ID for Atlantis
+# atlantis_github_user = "your-github-username"
+
+# GitHub Personal Access Token (PAT) with 'repo' scope
+# Create at: https://github.com/settings/tokens
+# atlantis_github_token = "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Webhook secret for validating GitHub webhook payloads
+# Generate with: openssl rand -hex 32
+# atlantis_github_webhook_secret = "your-generated-webhook-secret"
+
+# Repositories Atlantis is allowed to manage (default: ["github.com/accuser-dev/atlas"])
+# atlantis_repo_allowlist = ["github.com/your-org/your-repo"]
+
+# ============================================================================
 # USAGE INSTRUCTIONS
 # ============================================================================
 # 1. Copy this file: cp terraform.tfvars.example terraform.tfvars

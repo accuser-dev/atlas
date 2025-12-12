@@ -20,11 +20,11 @@ Developer → GitHub PR → Webhook → Caddy → Atlantis → Plan/Apply → In
 
 ### Network Isolation
 
-Atlantis runs on a dedicated `gitops` network (10.60.0.0/24) isolated from other workloads:
+Atlantis runs on a dedicated `gitops` network (10.30.0.0/24) isolated from other workloads:
 
 | Network | CIDR | Purpose |
 |---------|------|---------|
-| gitops | 10.60.0.0/24 | Atlantis and CI/CD automation |
+| gitops | 10.30.0.0/24 | Atlantis and CI/CD automation |
 
 A dedicated Caddy instance (`caddy-gitops01`) handles webhook traffic for the gitops network, separate from the main Caddy instance (`caddy01`) that serves production and management traffic. This follows the pattern of one Caddy instance per network for better isolation.
 
