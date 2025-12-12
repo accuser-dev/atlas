@@ -68,13 +68,18 @@ variable "ca_password" {
 }
 
 variable "cert_duration" {
-  description = "Default certificate duration (e.g., 24h, 168h)"
+  description = "Default certificate duration (e.g., 24h, 168h). Must be between 1h and 8760h (1 year)."
   type        = string
   default     = "24h"
 
   validation {
     condition     = can(regex("^[0-9]+h$", var.cert_duration))
-    error_message = "Certificate duration must be in hours format (e.g., '24h', '168h')"
+    error_message = "Certificate duration must be in hours format (e.g., '24h', '168h')."
+  }
+
+  validation {
+    condition     = tonumber(trimsuffix(var.cert_duration, "h")) >= 1 && tonumber(trimsuffix(var.cert_duration, "h")) <= 8760
+    error_message = "Certificate duration must be between 1h and 8760h (1 year)."
   }
 }
 
