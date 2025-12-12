@@ -6,9 +6,9 @@ This directory contains the OpenTofu configuration for the Atlas monitoring stac
 
 ```bash
 # From project root - recommended approach
-make terraform-init    # Initialize with backend configuration
-make terraform-plan    # Preview changes
-make terraform-apply   # Apply changes
+make init     # Initialize with backend configuration
+make plan     # Preview changes
+make apply    # Apply changes
 
 # Or use the init wrapper script
 ./terraform/init.sh    # Validates prerequisites and initializes
@@ -22,7 +22,7 @@ make terraform-apply   # Apply changes
 
 1. **Use the Makefile (recommended)**:
    ```bash
-   make terraform-init
+   make init
    ```
 
 2. **Use the init wrapper script**:
@@ -59,7 +59,7 @@ For a fresh installation:
 
 2. **Initialize OpenTofu**:
    ```bash
-   make terraform-init
+   make init
    ```
 
 3. **Deploy**:
@@ -76,19 +76,29 @@ terraform/
 ├── init.sh              # Initialization wrapper script
 ├── main.tf              # Module instantiations
 ├── variables.tf         # Variable definitions
-├── networks.tf          # Network configuration
+├── locals.tf            # Centralized service configuration
 ├── outputs.tf           # Output values
 ├── providers.tf         # Provider configuration
 ├── versions.tf          # Version constraints and backend
 ├── backend.hcl          # Backend credentials (gitignored)
 ├── backend.hcl.example  # Backend config template
 ├── terraform.tfvars     # Variable values (gitignored)
+├── prometheus-alerts.yml # Prometheus alert rules
 ├── BACKEND_SETUP.md     # Backend setup guide
 ├── bootstrap/           # Bootstrap project (local state)
 └── modules/             # Reusable OpenTofu modules
+    ├── alertmanager/
+    ├── atlantis/
+    ├── base-infrastructure/
     ├── caddy/
+    ├── caddy-gitops/
+    ├── cloudflared/
     ├── grafana/
+    ├── incus-loki/
+    ├── incus-metrics/
     ├── loki/
+    ├── mosquitto/
+    ├── node-exporter/
     ├── prometheus/
     └── step-ca/
 ```
@@ -97,11 +107,11 @@ terraform/
 
 ```bash
 # From project root
-make terraform-init      # Initialize with remote backend
-make terraform-plan      # Plan changes
-make terraform-apply     # Apply changes
-make terraform-destroy   # Destroy infrastructure
-make format              # Format Terraform files
+make init      # Initialize with remote backend
+make plan      # Plan changes
+make apply     # Apply changes
+make destroy   # Destroy infrastructure
+make format    # Format OpenTofu files
 
 # Direct OpenTofu commands (after initialization)
 cd terraform
@@ -139,7 +149,7 @@ endpoints = {
 
 ### "Error asking for input to configure backend"
 
-Run `make terraform-init` or `./init.sh` instead of `tofu init`.
+Run `make init` or `./init.sh` instead of `tofu init`.
 
 ### "backend.hcl not found"
 

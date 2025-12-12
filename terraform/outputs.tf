@@ -80,3 +80,29 @@ output "incus_loki_address" {
   description = "Loki address configured for Incus logging"
   value       = var.enable_incus_loki ? module.incus_loki[0].loki_address : null
 }
+
+# GitOps outputs
+output "atlantis_webhook_endpoint" {
+  description = "Atlantis webhook endpoint URL for GitHub webhooks"
+  value       = var.enable_gitops ? module.atlantis01[0].webhook_endpoint : null
+}
+
+output "atlantis_instance_status" {
+  description = "Atlantis instance status (if enabled)"
+  value       = var.enable_gitops ? module.atlantis01[0].instance_status : null
+}
+
+output "atlantis_caddy_config" {
+  description = "Generated Caddy configuration for Atlantis"
+  value       = var.enable_gitops ? module.atlantis01[0].caddy_config_block : null
+}
+
+output "caddy_gitops_instance_status" {
+  description = "Caddy GitOps instance status (if enabled)"
+  value       = var.enable_gitops ? module.caddy_gitops01[0].instance_status : null
+}
+
+output "caddy_gitops_metrics_endpoint" {
+  description = "Caddy GitOps metrics endpoint URL (if enabled)"
+  value       = var.enable_gitops ? module.caddy_gitops01[0].metrics_endpoint : null
+}

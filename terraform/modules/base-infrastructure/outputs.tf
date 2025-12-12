@@ -28,6 +28,11 @@ output "management_network" {
   value       = incus_network.management
 }
 
+output "gitops_network" {
+  description = "GitOps network resource (null if enable_gitops is false)"
+  value       = var.enable_gitops ? incus_network.gitops[0] : null
+}
+
 # Convenience output for management network gateway IP
 output "management_network_gateway" {
   description = "Management network gateway IP address (for metrics endpoint)"
@@ -67,6 +72,11 @@ output "testing_network_profile" {
 output "staging_network_profile" {
   description = "Staging network profile resource (stage NIC on staging network)"
   value       = incus_profile.staging_network
+}
+
+output "gitops_network_profile" {
+  description = "GitOps network profile resource (null if enable_gitops is false)"
+  value       = var.enable_gitops ? incus_profile.gitops_network[0] : null
 }
 
 # =============================================================================

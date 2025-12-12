@@ -97,6 +97,27 @@ resource "incus_network" "management" {
   )
 }
 
+resource "incus_network" "gitops" {
+  count = var.enable_gitops ? 1 : 0
+
+  name        = "gitops"
+  description = "GitOps network for Atlantis and CI/CD automation"
+  type        = "bridge"
+
+  config = merge(
+    {
+      "ipv4.address" = var.gitops_network_ipv4
+      "ipv4.nat"     = tostring(var.gitops_network_nat)
+    },
+    var.gitops_network_ipv6 != "" ? {
+      "ipv6.address" = var.gitops_network_ipv6
+      "ipv6.nat"     = tostring(var.gitops_network_ipv6_nat)
+      } : {
+      "ipv6.address" = "none"
+    }
+  )
+}
+
 # =============================================================================
 # Base Profiles
 # =============================================================================
@@ -185,6 +206,21 @@ resource "incus_profile" "staging_network" {
     type = "nic"
     properties = {
       network = incus_network.staging.name
+    }
+  }
+}
+
+# Profile for containers on the GitOps network
+resource "incus_profile" "gitops_network" {
+  count = var.enable_gitops ? 1 : 0
+
+  name = "gitops-network"
+
+  device {
+    name = "gitops"
+    type = "nic"
+    properties = {
+      network = incus_network.gitops[0].name
     }
   }
 }

@@ -17,6 +17,7 @@ The project is organized into two main directories:
 | Service | CPU (cores) | Memory | Purpose |
 |---------|-------------|--------|---------|
 | Caddy | 2 | 1GB | Reverse proxy, TLS termination |
+| Caddy GitOps | 1 | 256MB | GitOps webhook proxy (optional) |
 | Grafana | 2 | 1GB | Dashboards, visualization |
 | Prometheus | 2 | 2GB | Metrics storage |
 | Loki | 2 | 2GB | Log aggregation |
@@ -25,7 +26,8 @@ The project is organized into two main directories:
 | Node Exporter | 1 | 128MB | Host metrics |
 | Mosquitto | 1 | 256MB | MQTT broker |
 | Cloudflared | 1 | 256MB | Tunnel client (optional) |
-| **Total** | **13** | **7.4GB** | |
+| Atlantis | 2 | 1GB | GitOps controller (optional) |
+| **Total** | **13-16** | **7.4-8.7GB** | |
 
 **Notes:**
 - Resource limits are enforced with hard memory limits (OOM kill on exceed)
@@ -42,7 +44,8 @@ The project is organized into two main directories:
 | alertmanager01-data | 1GB | Minimal | Silences, notifications |
 | step-ca01-data | 1GB | Minimal | CA certificates, database |
 | mosquitto01-data | 5GB | Variable | Retained MQTT messages |
-| **Total** | **167GB** | | |
+| atlantis01-data | 10GB | Minimal | Plans cache, locks (optional) |
+| **Total** | **167-177GB** | | |
 
 *Growth rates vary significantly based on workload. Adjust retention settings to control storage usage.
 
@@ -55,6 +58,7 @@ The project is organized into two main directories:
 | staging | 10.30.0.0/24 | Staging workloads |
 | production | 10.40.0.0/24 | Production applications |
 | management | 10.50.0.0/24 | Internal services (monitoring) |
+| gitops | 10.60.0.0/24 | GitOps automation (Atlantis) |
 
 **External Access:**
 - Caddy: Ports 80, 443 (HTTP/HTTPS)
@@ -594,6 +598,38 @@ The project uses Terraform modules for scalability and reusability:
     - Conditionally deployed: Only created when `enable_incus_loki` is true (default)
     - Logs queryable in Grafana via Loki datasource
 
+23. **Atlantis Module** ([terraform/modules/atlantis/](terraform/modules/atlantis/))
+    - GitOps controller for PR-based infrastructure management
+    - Automatic `terraform plan` on PR creation/update
+    - Apply changes via PR comment `atlantis apply`
+    - Webhook endpoint proxied via dedicated Caddy GitOps instance (GitHub IP allowlisting, rate limiting)
+    - Persistent storage for plans cache and locks (10GB)
+    - Custom Docker image: [docker/atlantis/](docker/atlantis/)
+
+24. **Atlantis Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+    - Instance name: `atlantis01`
+    - Image: `ghcr.io/accuser-dev/atlas/atlantis:latest` (published from [docker/atlantis/](docker/atlantis/))
+    - Webhook endpoint: `https://<atlantis_domain>/events`
+    - Resource limits: 2 CPUs, 1GB memory
+    - Storage: 10GB persistent volume for `/atlantis-data`
+    - Network: Connected to gitops network (10.60.0.0/24)
+    - Conditionally deployed: Only created when `enable_gitops` is true (default: false)
+    - See [GITOPS.md](GITOPS.md) for setup and usage instructions
+
+25. **Caddy GitOps Module** ([terraform/modules/caddy-gitops/](terraform/modules/caddy-gitops/))
+    - Dedicated Caddy instance for GitOps network webhook traffic
+    - Separate from main Caddy instance (one Caddy per network pattern)
+    - GitHub IP allowlisting for webhook security
+    - Rate limiting for webhook protection
+    - Uses same custom Caddy image as main instance
+
+26. **Caddy GitOps Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+    - Instance name: `caddy-gitops01`
+    - Image: `ghcr.io/accuser-dev/atlas/caddy:latest`
+    - Resource limits: 1 CPU, 256MB memory
+    - Network: Connected to gitops network + external (incusbr0)
+    - Conditionally deployed: Only created when `enable_gitops` is true
+
 ### External TCP Service Pattern (Proxy Devices)
 
 For non-HTTP services that need external access (like MQTT), the project uses Incus proxy devices instead of Caddy reverse proxy:
@@ -657,6 +693,7 @@ Each service with persistent storage uses Incus storage volumes:
 - `step-ca01-data` - 1GB - `/home/step`
 - `alertmanager01-data` - 1GB - `/alertmanager`
 - `mosquitto01-data` - 5GB - `/mosquitto/data`
+- `atlantis01-data` - 10GB - `/atlantis-data` (optional, if Atlantis enabled)
 
 ### Retention Configuration
 

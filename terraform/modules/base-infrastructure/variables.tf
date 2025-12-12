@@ -180,6 +180,47 @@ variable "management_network_ipv6_nat" {
   default     = true
 }
 
+# GitOps Configuration
+variable "enable_gitops" {
+  description = "Enable GitOps infrastructure (gitops network and profile)"
+  type        = bool
+  default     = false
+}
+
+variable "gitops_network_ipv4" {
+  description = "IPv4 address for GitOps network (Atlantis, CI/CD automation)"
+  type        = string
+  default     = "10.60.0.1/24"
+
+  validation {
+    condition     = can(cidrhost(var.gitops_network_ipv4, 0))
+    error_message = "Must be valid CIDR notation (e.g., 10.60.0.1/24)"
+  }
+}
+
+variable "gitops_network_nat" {
+  description = "Enable NAT for GitOps network IPv4"
+  type        = bool
+  default     = true
+}
+
+variable "gitops_network_ipv6" {
+  description = "IPv6 address for GitOps network (e.g., fd00:10:60::1/64). Set to empty string to disable IPv6."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.gitops_network_ipv6 == "" || can(cidrhost(var.gitops_network_ipv6, 0))
+    error_message = "Must be empty or valid IPv6 CIDR notation (e.g., fd00:10:60::1/64)"
+  }
+}
+
+variable "gitops_network_ipv6_nat" {
+  description = "Enable NAT for GitOps network IPv6"
+  type        = bool
+  default     = true
+}
+
 # External Network Configuration
 variable "external_network" {
   description = "Name of the external network (typically incusbr0)"
