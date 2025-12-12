@@ -69,17 +69,13 @@ module "caddy01" {
     module.base.docker_base_profile.name,
   ]
 
-  # Service blocks from all modules
-  service_blocks = concat(
-    [module.grafana01.caddy_config_block],
-    var.enable_atlantis ? [module.atlantis01[0].caddy_config_block] : []
-  )
+  # Service blocks from all modules (production + management services only)
+  service_blocks = [module.grafana01.caddy_config_block]
 
   # Network configuration - reference managed networks
   # Caddy has special multi-network setup for reverse proxy functionality
   production_network = module.base.production_network.name
   management_network = module.base.management_network.name
-  gitops_network     = var.enable_atlantis ? module.base.gitops_network.name : ""
   external_network   = "incusbr0"
 
   # Resource limits (from centralized service config)
@@ -498,4 +494,33 @@ module "atlantis01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.atlantis.cpu
   memory_limit = local.services.atlantis.memory
+}
+
+# Dedicated Caddy instance for GitOps network
+# Handles Atlantis webhook traffic with GitHub IP allowlisting
+module "caddy_gitops01" {
+  source = "./modules/caddy-gitops"
+
+  count = var.enable_atlantis ? 1 : 0
+
+  instance_name        = "caddy-gitops01"
+  profile_name         = "caddy-gitops"
+  cloudflare_api_token = var.cloudflare_api_token
+
+  # Profile composition - base profile provides root disk
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+  ]
+
+  # Service blocks - only Atlantis on this Caddy instance
+  service_blocks = [module.atlantis01[0].caddy_config_block]
+
+  # Network configuration - gitops network + external only
+  gitops_network   = module.base.gitops_network.name
+  external_network = "incusbr0"
+
+  # Resource limits (lighter than main Caddy since fewer services)
+  cpu_limit    = local.services.caddy_gitops.cpu
+  memory_limit = local.services.caddy_gitops.memory
 }

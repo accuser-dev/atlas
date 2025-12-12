@@ -1,11 +1,16 @@
+# Variables for caddy-gitops module
+# A dedicated Caddy instance for GitOps network (Atlantis webhook endpoint)
+
 variable "instance_name" {
-  description = "Name of the Caddy instance"
+  description = "Name of the Caddy GitOps instance"
   type        = string
+  default     = "caddy-gitops01"
 }
 
 variable "profile_name" {
   description = "Name of the Incus profile"
   type        = string
+  default     = "caddy-gitops"
 }
 
 variable "image" {
@@ -17,7 +22,7 @@ variable "image" {
 variable "cpu_limit" {
   description = "CPU limit for the container"
   type        = string
-  default     = "2"
+  default     = "1"
 
   validation {
     condition     = can(regex("^[0-9]+$", var.cpu_limit)) && tonumber(var.cpu_limit) >= 1 && tonumber(var.cpu_limit) <= 64
@@ -28,7 +33,7 @@ variable "cpu_limit" {
 variable "memory_limit" {
   description = "Memory limit for the container"
   type        = string
-  default     = "1GB"
+  default     = "256MB"
 
   validation {
     condition     = can(regex("^[0-9]+(MB|GB)$", var.memory_limit))
@@ -42,16 +47,9 @@ variable "profiles" {
   default     = ["default"]
 }
 
-variable "production_network" {
-  description = "Production network name (for public-facing applications)"
+variable "gitops_network" {
+  description = "GitOps network name"
   type        = string
-  default     = "production"
-}
-
-variable "management_network" {
-  description = "Management network name (for internal services like monitoring)"
-  type        = string
-  default     = "management"
 }
 
 variable "external_network" {

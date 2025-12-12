@@ -66,6 +66,11 @@ locals {
       memory = "1GB"
       port   = 4141
     }
+    caddy_gitops = {
+      cpu    = "1"
+      memory = "256MB"
+      port   = 443
+    }
   }
 
   # NOTE: Network dependencies for depends_on cannot be centralized in locals

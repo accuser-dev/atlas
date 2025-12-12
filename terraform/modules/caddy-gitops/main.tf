@@ -1,7 +1,10 @@
+# Caddy GitOps Module
+# A dedicated Caddy instance for the GitOps network
+# Handles Atlantis webhook traffic with GitHub IP allowlisting
+
 # Service-specific profile
-# Contains only resource limits and service-specific devices (multi-network setup)
-# Base infrastructure (root disk, boot config) is provided by profiles passed via var.profiles
-resource "incus_profile" "caddy" {
+# Contains resource limits and network configuration for GitOps traffic
+resource "incus_profile" "caddy_gitops" {
   name = var.profile_name
 
   config = {
@@ -10,22 +13,12 @@ resource "incus_profile" "caddy" {
     "limits.memory.enforce" = "hard"
   }
 
-  # Caddy has a special multi-network setup for reverse proxy functionality
-  # Production network (public-facing applications)
+  # GitOps network (for Atlantis and CI/CD automation)
   device {
-    name = "prod"
+    name = "gitops"
     type = "nic"
     properties = {
-      network = var.production_network
-    }
-  }
-
-  # Management network (internal services like monitoring)
-  device {
-    name = "mgmt"
-    type = "nic"
-    properties = {
-      network = var.management_network
+      network = var.gitops_network
     }
   }
 
@@ -40,11 +33,11 @@ resource "incus_profile" "caddy" {
   }
 }
 
-resource "incus_instance" "caddy" {
+resource "incus_instance" "caddy_gitops" {
   name     = var.instance_name
   image    = var.image
   type     = "container"
-  profiles = concat(var.profiles, [incus_profile.caddy.name])
+  profiles = concat(var.profiles, [incus_profile.caddy_gitops.name])
 
   # Cloudflare API token injected as file for security
   # File-based injection prevents token exposure via `incus info`

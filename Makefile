@@ -80,8 +80,8 @@ IMAGE_TAG ?= latest
 # =============================================================================
 
 ATLAS_NETWORKS := development testing staging production management gitops
-ATLAS_PROFILES := caddy grafana loki prometheus step-ca node-exporter alertmanager mosquitto cloudflared atlantis
-ATLAS_SERVICES := caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter01 alertmanager01 mosquitto01 cloudflared01 atlantis01
+ATLAS_PROFILES := caddy grafana loki prometheus step-ca node-exporter alertmanager mosquitto cloudflared atlantis caddy-gitops
+ATLAS_SERVICES := caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter01 alertmanager01 mosquitto01 cloudflared01 atlantis01 caddy-gitops01
 ATLAS_VOLUMES := grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data atlantis01-data
 
 # Docker image names (local builds for testing)
