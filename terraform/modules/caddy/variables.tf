@@ -54,6 +54,12 @@ variable "management_network" {
   default     = "management"
 }
 
+variable "gitops_network" {
+  description = "GitOps network name (for Atlantis and CI/CD automation)"
+  type        = string
+  default     = ""
+}
+
 variable "external_network" {
   description = "External network name (for external access, typically incusbr0)"
   type        = string

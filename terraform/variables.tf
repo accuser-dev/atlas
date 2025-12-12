@@ -208,6 +208,41 @@ variable "management_network_ipv6_nat" {
   default     = true
 }
 
+# GitOps Network Configuration
+variable "gitops_network_ipv4" {
+  description = "IPv4 address for GitOps network (Atlantis, CI/CD automation)"
+  type        = string
+  default     = "10.60.0.1/24"
+
+  validation {
+    condition     = can(cidrhost(var.gitops_network_ipv4, 0))
+    error_message = "Must be valid CIDR notation (e.g., 10.60.0.1/24)"
+  }
+}
+
+variable "gitops_network_nat" {
+  description = "Enable NAT for GitOps network IPv4"
+  type        = bool
+  default     = true
+}
+
+variable "gitops_network_ipv6" {
+  description = "IPv6 address for GitOps network (e.g., fd00:10:60::1/64). Set to empty string to disable IPv6."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.gitops_network_ipv6 == "" || can(cidrhost(var.gitops_network_ipv6, 0))
+    error_message = "Must be empty or valid IPv6 CIDR notation (e.g., fd00:10:60::1/64)"
+  }
+}
+
+variable "gitops_network_ipv6_nat" {
+  description = "Enable NAT for GitOps network IPv6"
+  type        = bool
+  default     = true
+}
+
 # Cloudflared Configuration
 variable "cloudflared_tunnel_token" {
   description = "Cloudflare Tunnel token from Zero Trust dashboard"
@@ -239,4 +274,49 @@ variable "enable_incus_loki" {
   description = "Enable native Incus logging to Loki (sends lifecycle and logging events)"
   type        = bool
   default     = true
+}
+
+# Atlantis Configuration
+variable "enable_atlantis" {
+  description = "Enable Atlantis GitOps controller deployment"
+  type        = bool
+  default     = false
+}
+
+variable "atlantis_domain" {
+  description = "Domain for Atlantis webhook endpoint (e.g., 'atlantis.example.com')"
+  type        = string
+  default     = ""
+}
+
+variable "atlantis_github_user" {
+  description = "GitHub username for Atlantis (required if enable_atlantis is true)"
+  type        = string
+  default     = ""
+}
+
+variable "atlantis_github_token" {
+  description = "GitHub personal access token for Atlantis (required if enable_atlantis is true)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "atlantis_github_webhook_secret" {
+  description = "Webhook secret for GitHub webhooks (required if enable_atlantis is true)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "atlantis_repo_allowlist" {
+  description = "List of repositories Atlantis is allowed to manage"
+  type        = list(string)
+  default     = ["github.com/accuser-dev/atlas"]
+}
+
+variable "atlantis_allowed_ip_range" {
+  description = "IP range allowed to access Atlantis webhook (default: GitHub webhook IPs)"
+  type        = string
+  default     = "192.30.252.0/22 185.199.108.0/22 140.82.112.0/20 143.55.64.0/20"
 }

@@ -1,0 +1,39 @@
+# Atlantis repository configuration
+# This file defines how Atlantis handles infrastructure changes via PRs
+# See: https://www.runatlantis.io/docs/repo-level-atlantis-yaml.html
+version: 3
+automerge: false
+delete_source_branch_on_merge: false
+parallel_plan: true
+parallel_apply: false
+
+projects:
+  - name: atlas-infrastructure
+    dir: terraform
+    workspace: default
+    terraform_version: v1.10.6
+    autoplan:
+      when_modified:
+        - "*.tf"
+        - "*.tfvars"
+        - "*.tftpl"
+        - "modules/**/*.tf"
+        - "modules/**/*.tfvars"
+        - "modules/**/*.tftpl"
+        - "prometheus-alerts.yml"
+      enabled: true
+    apply_requirements:
+      - mergeable
+      - approved
+    workflow: atlas
+
+workflows:
+  atlas:
+    plan:
+      steps:
+        - init:
+            extra_args: ["-backend-config=backend.hcl"]
+        - plan
+    apply:
+      steps:
+        - apply

@@ -44,6 +44,11 @@ module "base" {
   management_network_nat      = var.management_network_nat
   management_network_ipv6     = var.management_network_ipv6
   management_network_ipv6_nat = var.management_network_ipv6_nat
+
+  gitops_network_ipv4     = var.gitops_network_ipv4
+  gitops_network_nat      = var.gitops_network_nat
+  gitops_network_ipv6     = var.gitops_network_ipv6
+  gitops_network_ipv6_nat = var.gitops_network_ipv6_nat
 }
 
 # =============================================================================
@@ -65,15 +70,16 @@ module "caddy01" {
   ]
 
   # Service blocks from all modules
-  service_blocks = [
-    module.grafana01.caddy_config_block,
-    # Add more service blocks here as you create more modules
-  ]
+  service_blocks = concat(
+    [module.grafana01.caddy_config_block],
+    var.enable_atlantis ? [module.atlantis01[0].caddy_config_block] : []
+  )
 
   # Network configuration - reference managed networks
   # Caddy has special multi-network setup for reverse proxy functionality
   production_network = module.base.production_network.name
   management_network = module.base.management_network.name
+  gitops_network     = var.enable_atlantis ? module.base.gitops_network.name : ""
   external_network   = "incusbr0"
 
   # Resource limits (from centralized service config)
@@ -451,4 +457,45 @@ module "incus_loki" {
   log_types = "lifecycle,logging"
 
   # Loki dependency is implicit through loki_address reference
+}
+
+# =============================================================================
+# GitOps Automation
+# =============================================================================
+
+module "atlantis01" {
+  source = "./modules/atlantis"
+
+  count = var.enable_atlantis ? 1 : 0
+
+  instance_name = "atlantis01"
+  profile_name  = "atlantis"
+
+  # Profile composition - base profiles provide root disk and network
+  profiles = [
+    "default",
+    module.base.docker_base_profile.name,
+    module.base.gitops_network_profile.name,
+  ]
+
+  # Domain configuration for Caddy reverse proxy
+  domain           = var.atlantis_domain
+  allowed_ip_range = var.atlantis_allowed_ip_range
+  atlantis_port    = tostring(local.services.atlantis.port)
+
+  # GitHub configuration (from terraform.tfvars)
+  github_user           = var.atlantis_github_user
+  github_token          = var.atlantis_github_token
+  github_webhook_secret = var.atlantis_github_webhook_secret
+  repo_allowlist        = var.atlantis_repo_allowlist
+  atlantis_url          = "https://${var.atlantis_domain}"
+
+  # Enable persistent storage for plans cache and locks
+  enable_data_persistence = true
+  data_volume_name        = "atlantis01-data"
+  data_volume_size        = "10GB"
+
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.atlantis.cpu
+  memory_limit = local.services.atlantis.memory
 }

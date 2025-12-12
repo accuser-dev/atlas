@@ -1,0 +1,37 @@
+${domain} {
+	# GitHub webhook IP allowlist (from https://api.github.com/meta)
+	# hooks: 192.30.252.0/22, 185.199.108.0/22, 140.82.112.0/20, 143.55.64.0/20
+	@denied not remote_ip ${allowed_ip_range}
+	abort @denied
+
+%{ if enable_rate_limiting ~}
+	# Rate limiting for webhook endpoint
+	rate_limit {
+		zone ${replace(domain, ".", "_")} {
+			key {remote_host}
+			events ${rate_limit_requests}
+			window ${rate_limit_window}
+		}
+	}
+
+%{ endif ~}
+	# Security headers
+	header {
+		# HSTS - force HTTPS for 1 year
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+		# Prevent clickjacking - webhooks should not be embedded
+		X-Frame-Options "DENY"
+
+		# Prevent MIME sniffing
+		X-Content-Type-Options "nosniff"
+
+		# Control referrer information
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# Remove server information
+		-Server
+	}
+
+	reverse_proxy ${instance_name}.incus:${port}
+}

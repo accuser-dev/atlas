@@ -61,6 +61,11 @@ locals {
       memory = "256MB"
       port   = 2000
     }
+    atlantis = {
+      cpu    = "2"
+      memory = "1GB"
+      port   = 4141
+    }
   }
 
   # NOTE: Network dependencies for depends_on cannot be centralized in locals

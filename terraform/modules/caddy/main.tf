@@ -29,6 +29,18 @@ resource "incus_profile" "caddy" {
     }
   }
 
+  # GitOps network (for Atlantis and CI/CD automation)
+  dynamic "device" {
+    for_each = var.gitops_network != "" ? [1] : []
+    content {
+      name = "gitops"
+      type = "nic"
+      properties = {
+        network = var.gitops_network
+      }
+    }
+  }
+
   # External network (for external access, typically incusbr0)
   # Named "eth0" to override the default profile's NIC on incusbr0
   device {
