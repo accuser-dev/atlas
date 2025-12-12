@@ -23,7 +23,7 @@ This document describes the security architecture, controls, and best practices 
 
 Atlas implements a defense-in-depth security strategy with multiple layers:
 
-1. **Network Segmentation** - Five isolated networks for different workload types
+1. **Network Segmentation** - Five isolated networks (six with GitOps enabled) for different workload types
 2. **Access Control** - IP-based restrictions and rate limiting
 3. **TLS Encryption** - Internal PKI for service-to-service communication
 4. **Container Isolation** - Non-root execution and resource limits
@@ -59,9 +59,9 @@ Atlas implements a defense-in-depth security strategy with multiple layers:
 
 ## Network Isolation
 
-### Five-Network Architecture
+### Network Architecture
 
-Atlas uses five isolated bridge networks to segment workloads:
+Atlas uses five isolated bridge networks to segment workloads (six when GitOps is enabled):
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -86,12 +86,12 @@ Atlas uses five isolated bridge networks to segment workloads:
 │   applications                              (Grafana, Prometheus,    │
 │                                              Loki, step-ca)         │
 │                                                                      │
-│   ┌───────────┐  ┌───────────┐  ┌───────────┐                       │
-│   │Development│  │  Testing  │  │  Staging  │                       │
-│   │ 10.10.0.0 │  │ 10.20.0.0 │  │ 10.30.0.0 │                       │
-│   └───────────┘  └───────────┘  └───────────┘                       │
+│   ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐        │
+│   │Development│  │  Testing  │  │  Staging  │  │  GitOps   │        │
+│   │ 10.10.0.0 │  │ 10.20.0.0 │  │ 10.30.0.0 │  │ 10.60.0.0 │        │
+│   └───────────┘  └───────────┘  └───────────┘  └───────────┘        │
 │                                                                      │
-│   Workload environments (isolated from each other)                   │
+│   Workload environments (isolated)    GitOps (optional, Atlantis)    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -104,12 +104,14 @@ Atlas uses five isolated bridge networks to segment workloads:
 | staging | 10.30.0.0/24 | Staging workloads | NAT only |
 | production | 10.40.0.0/24 | Production applications | Via Caddy |
 | management | 10.50.0.0/24 | Internal services | Via Caddy (restricted) |
+| gitops | 10.60.0.0/24 | GitOps automation (optional) | Via Caddy-GitOps |
 
 ### Inter-Service Communication
 
 - Services on the **same network** can communicate via `.incus` DNS (e.g., `prometheus01.incus`)
 - Services on **different networks** cannot communicate directly
 - **Caddy** has interfaces on production, management, and external networks to route traffic
+- **Caddy-GitOps** (optional) has interfaces on gitops and external networks for webhook traffic
 
 ### Profile Composition and NIC Naming
 
@@ -122,6 +124,7 @@ Each network profile uses a **semantic NIC name** to prevent conflicts during pr
 | development-network | `dev` | development |
 | testing-network | `test` | testing |
 | staging-network | `stage` | staging |
+| gitops-network | `gitops` | gitops |
 
 This allows containers to have multiple network interfaces without naming collisions.
 
@@ -318,6 +321,8 @@ module "grafana01" {
 | Alertmanager | Management | None (internal only) | None |
 | Mosquitto | Production | Direct (ports 1883/8883) | Password file |
 | Caddy | Multiple | Direct (ports 80/443) | N/A (proxy) |
+| Atlantis | GitOps | Via Caddy-GitOps (GitHub IPs) | Webhook secret |
+| Caddy-GitOps | GitOps | Direct (ports 80/443) | N/A (proxy) |
 
 ---
 
@@ -336,7 +341,9 @@ All containers run as non-root users:
 | Mosquitto | mosquitto | 1883 | Standard Mosquitto UID |
 | step-ca | step | 1000 | Smallstep default |
 | Caddy | root | 0 | Required for port binding |
+| Caddy-GitOps | root | 0 | Required for port binding |
 | Node Exporter | N/A | N/A | Runs as container default |
+| Atlantis | atlantis | 100 | Official Atlantis UID |
 
 ### Storage Volume Permissions
 
@@ -374,6 +381,7 @@ All containers enforce hard resource limits:
 | Service | CPU | Memory | Memory Enforce |
 |---------|-----|--------|----------------|
 | Caddy | 2 | 1GB | hard |
+| Caddy-GitOps | 1 | 256MB | hard |
 | Grafana | 2 | 1GB | hard |
 | Prometheus | 2 | 2GB | hard |
 | Loki | 2 | 2GB | hard |
@@ -382,6 +390,7 @@ All containers enforce hard resource limits:
 | Mosquitto | 1 | 256MB | hard |
 | Node Exporter | 1 | 128MB | hard |
 | Cloudflared | 1 | 256MB | hard |
+| Atlantis | 2 | 1GB | hard |
 
 **Hard memory enforcement** means the container will be OOM-killed rather than using swap, preventing noisy neighbor issues.
 

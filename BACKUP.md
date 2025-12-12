@@ -31,6 +31,7 @@ This document describes backup procedures and disaster recovery playbooks for th
 | step-ca | step-ca01-data | 1GB | CA certificates, private keys | **Critical** |
 | Alertmanager | alertmanager01-data | 1GB | Silences, notification state | Low |
 | Mosquitto | mosquitto01-data | 5GB | Retained messages, subscriptions | Medium |
+| Atlantis | atlantis01-data | 10GB | Plans cache, locks (optional) | Low |
 
 ### Recovery Objectives
 
@@ -59,8 +60,8 @@ Snapshots are instant, copy-on-write backups stored within Incus:
 incus storage volume snapshot local grafana01-data backup-$(date +%Y%m%d)
 
 # Snapshot all Atlas volumes
-for vol in grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data; do
-  incus storage volume snapshot local "$vol" "backup-$(date +%Y%m%d-%H%M%S)"
+for vol in grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data atlantis01-data; do
+  incus storage volume snapshot local "$vol" "backup-$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
 done
 ```
 
@@ -84,10 +85,10 @@ incus start grafana01
 BACKUP_DIR="/backup/atlas/$(date +%Y%m%d)"
 mkdir -p "$BACKUP_DIR"
 
-for service in grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01; do
-  incus stop "$service"
-  incus storage volume export local "${service}-data" "$BACKUP_DIR/${service}-data.tar.gz"
-  incus start "$service"
+for service in grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01 atlantis01; do
+  incus stop "$service" 2>/dev/null || true
+  incus storage volume export local "${service}-data" "$BACKUP_DIR/${service}-data.tar.gz" 2>/dev/null || true
+  incus start "$service" 2>/dev/null || true
 done
 ```
 
@@ -237,19 +238,19 @@ If the entire infrastructure needs to be rebuilt from scratch:
 4. **Restore data volumes:**
    ```bash
    # Stop services
-   for svc in grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01; do
+   for svc in grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01 atlantis01; do
      incus stop "$svc" 2>/dev/null || true
    done
 
    # Import volume backups
-   for svc in grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01; do
+   for svc in grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01 atlantis01; do
      incus storage volume delete local "${svc}-data" 2>/dev/null || true
-     incus storage volume import local "./${svc}-data.tar.gz" "${svc}-data"
+     incus storage volume import local "./${svc}-data.tar.gz" "${svc}-data" 2>/dev/null || true
    done
 
    # Start services
-   for svc in grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01; do
-     incus start "$svc"
+   for svc in grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01 atlantis01; do
+     incus start "$svc" 2>/dev/null || true
    done
    ```
 
@@ -361,6 +362,7 @@ If the CA private key is compromised, you must regenerate (not restore):
 | Loki | Weekly | 2 weeks | Snapshot (optional) |
 | Alertmanager | Daily | 7 days | Snapshot |
 | Mosquitto | Daily | 7 days | Snapshot |
+| Atlantis | Weekly | 2 weeks | Snapshot (optional) |
 | Terraform state | Daily | 30 days | Bucket export |
 
 ## Automated Snapshot Scheduling
@@ -419,9 +421,9 @@ module "grafana01" {
 incus storage volume info local grafana01-data
 
 # List all snapshots across volumes
-for vol in grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data; do
+for vol in grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data atlantis01-data; do
   echo "=== $vol ==="
-  incus storage volume show local "$vol" | grep -A5 "snapshots:"
+  incus storage volume show local "$vol" | grep -A5 "snapshots:" 2>/dev/null || echo "  (volume not found)"
 done
 ```
 
@@ -437,12 +439,12 @@ BACKUP_DIR="/backup/atlas/$(date +%Y%m%d)"
 mkdir -p "$BACKUP_DIR"
 
 # Snapshot all volumes
-for vol in grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data; do
+for vol in grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data atlantis01-data; do
   incus storage volume snapshot local "$vol" "daily-$(date +%Y%m%d)" 2>/dev/null || true
 done
 
 # Clean old snapshots (keep 7 days)
-for vol in grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data; do
+for vol in grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data atlantis01-data; do
   incus storage volume show local "$vol" | grep -E "daily-[0-9]{8}" | while read snap; do
     snap_date=$(echo "$snap" | grep -oE "[0-9]{8}")
     if [[ $(date -d "$snap_date" +%s) -lt $(date -d "7 days ago" +%s) ]]; then

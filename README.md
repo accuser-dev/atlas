@@ -14,6 +14,7 @@ This project provides a declarative infrastructure setup for:
 - **Node Exporter** - Host-level system metrics
 - **Mosquitto** - MQTT broker for IoT messaging
 - **Cloudflared** - Cloudflare Tunnel for Zero Trust access
+- **Atlantis** - GitOps controller for PR-based infrastructure management (optional)
 
 All services run in Incus containers with persistent storage, network isolation, and automatic configuration management.
 
@@ -23,6 +24,7 @@ All services run in Incus containers with persistent storage, network isolation,
 atlas/
 ├── docker/                    # Custom Docker images
 │   ├── alertmanager/         # Alert routing and notifications
+│   ├── atlantis/             # GitOps controller
 │   ├── caddy/                # Reverse proxy with Cloudflare DNS plugin
 │   ├── cloudflared/          # Cloudflare Tunnel client
 │   ├── grafana/              # Grafana with optional plugins
@@ -35,7 +37,10 @@ atlas/
 │   ├── bootstrap/            # Bootstrap project for remote state
 │   ├── modules/              # Reusable service modules
 │   │   ├── alertmanager/
+│   │   ├── atlantis/         # GitOps controller (optional)
+│   │   ├── base-infrastructure/  # Networks and base profiles
 │   │   ├── caddy/
+│   │   ├── caddy-gitops/     # Dedicated Caddy for GitOps (optional)
 │   │   ├── cloudflared/
 │   │   ├── grafana/
 │   │   ├── incus-loki/       # Native Incus logging to Loki
@@ -54,10 +59,12 @@ atlas/
 ├── .github/workflows/        # CI/CD workflows
 │   ├── ci.yml                # Validation and testing
 │   └── release.yml           # Build and publish images
+├── atlantis.yaml             # Atlantis repository configuration
 ├── Makefile                  # Build and deployment automation
 ├── CLAUDE.md                 # Detailed architecture documentation
 ├── CONTRIBUTING.md           # Contribution guidelines
 ├── BACKUP.md                 # Backup and disaster recovery
+├── GITOPS.md                 # GitOps workflow with Atlantis
 └── README.md                 # This file
 ```
 
@@ -206,12 +213,13 @@ module "grafana01" {
 
 ### Network Configuration
 
-Five networks are defined in `terraform/networks.tf`:
+Six networks are defined (gitops is optional):
 - **development** (10.10.0.0/24) - For development services
 - **testing** (10.20.0.0/24) - For test environments
 - **staging** (10.30.0.0/24) - For staging services
 - **production** (10.40.0.0/24) - For production services
 - **management** (10.50.0.0/24) - For internal services (monitoring, PKI)
+- **gitops** (10.60.0.0/24) - For GitOps automation (optional, enabled with `enable_gitops`)
 
 Configure IP addresses in `terraform/terraform.tfvars`.
 
@@ -425,5 +433,6 @@ For detailed architecture, design patterns, and development guidance, see:
 - [CLAUDE.md](CLAUDE.md) - Complete architecture documentation
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines and GitHub Flow
 - [BACKUP.md](BACKUP.md) - Backup and disaster recovery procedures
+- [GITOPS.md](GITOPS.md) - GitOps workflow with Atlantis
 - [docker/*/README.md](docker/) - Service-specific Docker image docs
-- [terraform/modules/*/](terraform/modules/) - Terraform module documentation
+- [terraform/modules/*/](terraform/modules/) - OpenTofu module documentation
