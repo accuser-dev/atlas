@@ -49,10 +49,9 @@ module "caddy01" {
   profile_name         = "caddy"
   cloudflare_api_token = var.cloudflare_api_token
 
-  # Profile composition - base profile provides root disk
+  # Profile composition - docker-base provides root disk and autorestart
   # Caddy manages its own multi-network setup (production, management, external)
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
   ]
 
@@ -78,9 +77,8 @@ module "grafana01" {
   instance_name = "grafana01"
   profile_name  = "grafana"
 
-  # Profile composition - base profiles provide root disk and network
+  # Profile composition - docker-base provides root disk, network profile provides NIC
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
     module.base.management_network_profile.name,
   ]
@@ -131,9 +129,8 @@ module "loki01" {
   instance_name = "loki01"
   profile_name  = "loki"
 
-  # Profile composition - base profiles provide root disk and network
+  # Profile composition - docker-base provides root disk, network profile provides NIC
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
     module.base.management_network_profile.name,
   ]
@@ -157,9 +154,8 @@ module "prometheus01" {
   instance_name = "prometheus01"
   profile_name  = "prometheus"
 
-  # Profile composition - base profiles provide root disk and network
+  # Profile composition - docker-base provides root disk, network profile provides NIC
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
     module.base.management_network_profile.name,
   ]
@@ -281,9 +277,8 @@ module "step_ca01" {
   instance_name = "step-ca01"
   profile_name  = "step-ca"
 
-  # Profile composition - base profiles provide root disk and network
+  # Profile composition - docker-base provides root disk, network profile provides NIC
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
     module.base.management_network_profile.name,
   ]
@@ -314,9 +309,8 @@ module "node_exporter01" {
   instance_name = "node-exporter01"
   profile_name  = "node-exporter"
 
-  # Profile composition - base profiles provide root disk and network
+  # Profile composition - docker-base provides root disk, network profile provides NIC
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
     module.base.management_network_profile.name,
   ]
@@ -335,9 +329,8 @@ module "alertmanager01" {
   instance_name = "alertmanager01"
   profile_name  = "alertmanager"
 
-  # Profile composition - base profiles provide root disk and network
+  # Profile composition - docker-base provides root disk, network profile provides NIC
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
     module.base.management_network_profile.name,
   ]
@@ -361,10 +354,9 @@ module "mosquitto01" {
   instance_name = "mosquitto01"
   profile_name  = "mosquitto"
 
-  # Profile composition - base profiles provide root disk and network
+  # Profile composition - docker-base provides root disk, network profile provides NIC
   # Note: mosquitto uses production network for external access
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
     module.base.production_network_profile.name,
   ]
@@ -402,9 +394,8 @@ module "cloudflared01" {
   instance_name = "cloudflared01"
   profile_name  = "cloudflared"
 
-  # Profile composition - base profiles provide root disk and network
+  # Profile composition - docker-base provides root disk, network profile provides NIC
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
     module.base.management_network_profile.name,
   ]
@@ -454,9 +445,8 @@ module "atlantis01" {
   instance_name = "atlantis01"
   profile_name  = "atlantis"
 
-  # Profile composition - base profiles provide root disk and network
+  # Profile composition - docker-base provides root disk, network profile provides NIC
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
     module.base.gitops_network_profile.name,
   ]
@@ -494,9 +484,9 @@ module "caddy_gitops01" {
   profile_name         = "caddy-gitops"
   cloudflare_api_token = var.cloudflare_api_token
 
-  # Profile composition - base profile provides root disk
+  # Profile composition - docker-base provides root disk
+  # caddy-gitops module adds its own network NICs
   profiles = [
-    "default",
     module.base.docker_base_profile.name,
   ]
 

@@ -869,22 +869,35 @@ Each service uses Incus profiles to define resource limits, devices, and configu
 
 #### Profile Composition Pattern
 
-All containers use a two-profile composition:
+All containers use profile composition **without the Incus default profile**. This provides explicit control over network access and avoids unwanted external connectivity.
+
+**Standard services** (most containers):
 ```hcl
-profiles = ["default", incus_profile.service.name]
+profiles = [
+  module.base.docker_base_profile.name,      # Root disk, autorestart
+  module.base.management_network_profile.name, # Management network NIC
+]
 ```
 
-**"default" profile**: Incus's built-in profile providing baseline container configuration
-- Root filesystem device
-- Basic network device (eth0)
-- Standard container settings
+**Caddy** (reverse proxy - special case):
+```hcl
+profiles = [
+  module.base.docker_base_profile.name,  # Root disk, autorestart
+]
+# Caddy module adds its own multi-network NICs directly
+```
 
-**Service-specific profile**: Module-defined profile that extends/overrides defaults
-- Resource limits (CPU, memory)
-- Service-specific devices (storage volumes, additional NICs)
-- Boot and restart policies
+**Base profiles from base-infrastructure module:**
+- `docker_base_profile`: Provides root disk on local pool and `boot.autorestart = true`
+- `management_network_profile`: Provides eth0 NIC on management network (10.20.0.0/24)
+- `production_network_profile`: Provides eth0 NIC on production network (10.10.0.0/24)
+- `gitops_network_profile`: Provides eth0 NIC on gitops network (10.30.0.0/24, optional)
 
-Profiles are applied in order, so service-specific settings take precedence over defaults.
+**Why NOT use the default profile:**
+- Default profile provides eth0 on incusbr0 (external bridge) - gives unwanted external network access
+- Our docker-base profile already provides root disk
+- Network profiles provide appropriate isolated NICs
+- Explicit is better than implicit for security
 
 #### Profile Structure
 
@@ -1010,34 +1023,16 @@ This ensures:
 - Proper creation order during `tofu apply`
 - Clean teardown order during `tofu destroy`
 
-#### Why Use the Default Profile?
-
-The "default" profile provides:
-- Standard root filesystem device configuration
-- Basic network device setup
-- Common container settings and limits
-- Proven baseline used by Incus community
-
-By composing with "default" rather than replacing it:
-- Leverage Incus best practices
-- Reduce duplication in module profiles
-- Service profiles focus only on service-specific requirements
-- Easier to maintain as Incus evolves
-
-**Verification**: To see the default profile contents on your Incus server:
-```bash
-incus profile show default
-```
-
 #### Profile Design Principles
 
-1. **Consistency**: All modules follow identical profile patterns
-2. **Modularity**: Profiles are self-contained within modules
-3. **Flexibility**: Variable-driven configuration for all limits
-4. **Composition**: Extend "default" rather than replace
-5. **Separation of Concerns**: Profiles handle resources, instances handle runtime config
+1. **Explicit over Implicit**: No default profile means explicit control over network access
+2. **Consistency**: All modules follow identical profile composition patterns
+3. **Modularity**: Base profiles are defined in base-infrastructure module, reused everywhere
+4. **Flexibility**: Variable-driven configuration for all limits
+5. **Security**: Containers only have network access they explicitly need
+6. **Separation of Concerns**: docker-base handles common settings, network profiles handle connectivity
 
-This approach enables easy scaling - new instances reuse the proven profile pattern with customized resource limits.
+This approach enables easy scaling - new instances reuse the proven profile pattern with customized resource limits while maintaining network isolation.
 
 ### Adding New Service Modules
 
