@@ -53,12 +53,9 @@ The project is organized into two main directories:
 
 | Network | CIDR | Purpose |
 |---------|------|---------|
-| development | 10.10.0.0/24 | Development workloads |
-| testing | 10.20.0.0/24 | Testing workloads |
-| staging | 10.30.0.0/24 | Staging workloads |
-| production | 10.40.0.0/24 | Production applications |
-| management | 10.50.0.0/24 | Internal services (monitoring) |
-| gitops | 10.60.0.0/24 | GitOps automation (Atlantis) |
+| production | 10.10.0.0/24 | Public-facing services (Mosquitto) |
+| management | 10.20.0.0/24 | Internal services (monitoring stack) |
+| gitops | 10.30.0.0/24 | GitOps automation (optional, Atlantis) |
 
 **External Access:**
 - Caddy: Ports 80, 443 (HTTP/HTTPS)
@@ -127,7 +124,7 @@ atlas/
 │   ├── init.sh               # Initialization wrapper script
 │   ├── main.tf               # Module instantiations
 │   ├── variables.tf          # Variable definitions
-│   ├── networks.tf           # Network configuration
+│   ├── locals.tf             # Centralized service configuration
 │   ├── outputs.tf            # Output values
 │   ├── providers.tf          # Provider configuration
 │   ├── versions.tf           # Version constraints and backend config
@@ -370,7 +367,7 @@ The project uses Terraform modules for scalability and reusability:
 - [terraform/providers.tf](terraform/providers.tf) - Provider configuration
 - [terraform/variables.tf](terraform/variables.tf) - Root-level input variable definitions
 - [terraform/main.tf](terraform/main.tf) - Module instantiations and orchestration
-- [terraform/networks.tf](terraform/networks.tf) - Network definitions (development, testing, staging, production, management)
+- [terraform/locals.tf](terraform/locals.tf) - Centralized service configuration
 - [terraform/outputs.tf](terraform/outputs.tf) - Output values (endpoints, configurations)
 - [terraform/terraform.tfvars](terraform/terraform.tfvars) - Variable values (gitignored, contains secrets)
 
@@ -424,12 +421,12 @@ The project uses Terraform modules for scalability and reusability:
    - Uses the `lxc/incus` provider (v1.0.0+)
    - Manages LXC/Incus containers and storage volumes
 
-2. **Network Configuration** ([terraform/networks.tf](terraform/networks.tf))
-   - Five managed networks: development, testing, staging, production, management
-   - Each network has configurable IPv4 addresses (default 10.10.0.1/24 through 10.50.0.1/24)
+2. **Network Configuration** ([terraform/modules/base-infrastructure/](terraform/modules/base-infrastructure/))
+   - Two managed networks: production (10.10.0.0/24), management (10.20.0.0/24)
+   - Optional gitops network (10.30.0.0/24) when `enable_gitops = true`
    - Optional IPv6 support (dual-stack) using ULA addresses (e.g., fd00:10:10::1/64)
    - NAT enabled for external connectivity (configurable for both IPv4 and IPv6)
-   - Management network (10.50.0.1/24) hosts internal services like monitoring
+   - Management network hosts internal services (monitoring stack)
 
 3. **Caddy Module** ([terraform/modules/caddy/](terraform/modules/caddy/))
    - Reverse proxy with automatic HTTPS via Let's Encrypt
@@ -612,7 +609,7 @@ The project uses Terraform modules for scalability and reusability:
     - Webhook endpoint: `https://<atlantis_domain>/events`
     - Resource limits: 2 CPUs, 1GB memory
     - Storage: 10GB persistent volume for `/atlantis-data`
-    - Network: Connected to gitops network (10.60.0.0/24)
+    - Network: Connected to gitops network (10.30.0.0/24)
     - Conditionally deployed: Only created when `enable_gitops` is true (default: false)
     - See [GITOPS.md](GITOPS.md) for setup and usage instructions
 
@@ -1134,10 +1131,11 @@ module "caddy01" {
 - DRY principle: No duplicate configuration
 
 **Network Architecture:**
-- Five managed networks: development (10.10.0.1/24), testing (10.20.0.1/24), staging (10.30.0.1/24), production (10.40.0.1/24), management (10.50.0.1/24)
+- Two managed networks: production (10.10.0.0/24), management (10.20.0.0/24)
+- Optional gitops network (10.30.0.0/24) when `enable_gitops = true`
 - Optional IPv6 dual-stack support using ULA addresses (fd00:10:XX::1/64)
-- Application environments: development, testing, staging, production
-- Management network: hosts internal services (monitoring stack: Grafana, Loki, Prometheus)
+- Production network: public-facing services (Mosquitto)
+- Management network: internal services (monitoring stack: Grafana, Loki, Prometheus)
 - Services on same network can communicate via internal DNS
 - Public services exposed via Caddy reverse proxy with triple NICs (production, management, external)
 - IP-based access control for security
@@ -1148,7 +1146,7 @@ module "caddy01" {
 - Enable by setting `*_network_ipv6` variables in terraform.tfvars
 - Uses ULA (Unique Local Address) prefix fd00::/8 for private addressing
 - NAT66 configurable per-network via `*_network_ipv6_nat` variables
-- Example: `production_network_ipv6 = "fd00:10:40::1/64"`
+- Example: `production_network_ipv6 = "fd00:10:10::1/64"`
 
 **Rate Limiting:**
 - Built-in rate limiting via mholt/caddy-ratelimit plugin

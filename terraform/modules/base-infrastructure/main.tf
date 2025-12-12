@@ -2,66 +2,9 @@
 # Networks
 # =============================================================================
 
-resource "incus_network" "development" {
-  name        = "development"
-  description = "Development network"
-  type        = "bridge"
-
-  config = merge(
-    {
-      "ipv4.address" = var.development_network_ipv4
-      "ipv4.nat"     = tostring(var.development_network_nat)
-    },
-    var.development_network_ipv6 != "" ? {
-      "ipv6.address" = var.development_network_ipv6
-      "ipv6.nat"     = tostring(var.development_network_ipv6_nat)
-      } : {
-      "ipv6.address" = "none"
-    }
-  )
-}
-
-resource "incus_network" "testing" {
-  name        = "testing"
-  description = "Testing network"
-  type        = "bridge"
-
-  config = merge(
-    {
-      "ipv4.address" = var.testing_network_ipv4
-      "ipv4.nat"     = tostring(var.testing_network_nat)
-    },
-    var.testing_network_ipv6 != "" ? {
-      "ipv6.address" = var.testing_network_ipv6
-      "ipv6.nat"     = tostring(var.testing_network_ipv6_nat)
-      } : {
-      "ipv6.address" = "none"
-    }
-  )
-}
-
-resource "incus_network" "staging" {
-  name        = "staging"
-  description = "Staging network"
-  type        = "bridge"
-
-  config = merge(
-    {
-      "ipv4.address" = var.staging_network_ipv4
-      "ipv4.nat"     = tostring(var.staging_network_nat)
-    },
-    var.staging_network_ipv6 != "" ? {
-      "ipv6.address" = var.staging_network_ipv6
-      "ipv6.nat"     = tostring(var.staging_network_ipv6_nat)
-      } : {
-      "ipv6.address" = "none"
-    }
-  )
-}
-
 resource "incus_network" "production" {
   name        = "production"
-  description = "Production network"
+  description = "Production network for public-facing services"
   type        = "bridge"
 
   config = merge(
@@ -145,19 +88,6 @@ resource "incus_profile" "docker_base" {
 # Network Profiles
 # =============================================================================
 
-# Profile for containers on the management network
-resource "incus_profile" "management_network" {
-  name = "management-network"
-
-  device {
-    name = "mgmt"
-    type = "nic"
-    properties = {
-      network = incus_network.management.name
-    }
-  }
-}
-
 # Profile for containers on the production network
 resource "incus_profile" "production_network" {
   name = "production-network"
@@ -171,41 +101,15 @@ resource "incus_profile" "production_network" {
   }
 }
 
-# Profile for containers on the development network
-resource "incus_profile" "development_network" {
-  name = "development-network"
+# Profile for containers on the management network
+resource "incus_profile" "management_network" {
+  name = "management-network"
 
   device {
-    name = "dev"
+    name = "mgmt"
     type = "nic"
     properties = {
-      network = incus_network.development.name
-    }
-  }
-}
-
-# Profile for containers on the testing network
-resource "incus_profile" "testing_network" {
-  name = "testing-network"
-
-  device {
-    name = "test"
-    type = "nic"
-    properties = {
-      network = incus_network.testing.name
-    }
-  }
-}
-
-# Profile for containers on the staging network
-resource "incus_profile" "staging_network" {
-  name = "staging-network"
-
-  device {
-    name = "stage"
-    type = "nic"
-    properties = {
-      network = incus_network.staging.name
+      network = incus_network.management.name
     }
   }
 }

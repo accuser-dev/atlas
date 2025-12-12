@@ -4,7 +4,7 @@
 # Total CPU:     13 cores (soft limits)
 # Total Memory:  7.4GB (hard limits)
 # Total Storage: 167GB (default volumes)
-# Networks:      5 internal + 1 external bridge
+# Networks:      2 internal + 1 external bridge (3 with GitOps enabled)
 #
 # See CLAUDE.md "Resource Requirements" section for detailed breakdown.
 # =============================================================================
@@ -19,22 +19,7 @@ module "base" {
 
   storage_pool = "local"
 
-  # Network configuration - pass through from root variables
-  development_network_ipv4     = var.development_network_ipv4
-  development_network_nat      = var.development_network_nat
-  development_network_ipv6     = var.development_network_ipv6
-  development_network_ipv6_nat = var.development_network_ipv6_nat
-
-  testing_network_ipv4     = var.testing_network_ipv4
-  testing_network_nat      = var.testing_network_nat
-  testing_network_ipv6     = var.testing_network_ipv6
-  testing_network_ipv6_nat = var.testing_network_ipv6_nat
-
-  staging_network_ipv4     = var.staging_network_ipv4
-  staging_network_nat      = var.staging_network_nat
-  staging_network_ipv6     = var.staging_network_ipv6
-  staging_network_ipv6_nat = var.staging_network_ipv6_nat
-
+  # Network configuration - simplified to production + management
   production_network_ipv4     = var.production_network_ipv4
   production_network_nat      = var.production_network_nat
   production_network_ipv6     = var.production_network_ipv6

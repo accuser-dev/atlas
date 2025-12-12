@@ -51,7 +51,7 @@ atlas/
 │   │   ├── prometheus/
 │   │   └── step-ca/
 │   ├── main.tf               # Service instantiations
-│   ├── networks.tf           # Network configuration
+│   ├── locals.tf             # Centralized service configuration
 │   ├── variables.tf          # Variable definitions
 │   ├── outputs.tf            # Output values
 │   └── terraform.tfvars      # Secrets (gitignored)
@@ -213,13 +213,10 @@ module "grafana01" {
 
 ### Network Configuration
 
-Six networks are defined (gitops is optional):
-- **development** (10.10.0.0/24) - For development services
-- **testing** (10.20.0.0/24) - For test environments
-- **staging** (10.30.0.0/24) - For staging services
-- **production** (10.40.0.0/24) - For production services
-- **management** (10.50.0.0/24) - For internal services (monitoring, PKI)
-- **gitops** (10.60.0.0/24) - For GitOps automation (optional, enabled with `enable_gitops`)
+Two networks are defined (gitops is optional):
+- **production** (10.10.0.0/24) - For public-facing services (Mosquitto)
+- **management** (10.20.0.0/24) - For internal services (monitoring stack, PKI)
+- **gitops** (10.30.0.0/24) - For GitOps automation (optional, enabled with `enable_gitops`)
 
 Configure IP addresses in `terraform/terraform.tfvars`.
 

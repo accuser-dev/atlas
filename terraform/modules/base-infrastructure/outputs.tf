@@ -3,21 +3,6 @@
 # =============================================================================
 # Full resource references for dependency tracking
 
-output "development_network" {
-  description = "Development network resource"
-  value       = incus_network.development
-}
-
-output "testing_network" {
-  description = "Testing network resource"
-  value       = incus_network.testing
-}
-
-output "staging_network" {
-  description = "Staging network resource"
-  value       = incus_network.staging
-}
-
 output "production_network" {
   description = "Production network resource"
   value       = incus_network.production
@@ -49,29 +34,14 @@ output "docker_base_profile" {
   value       = incus_profile.docker_base
 }
 
-output "management_network_profile" {
-  description = "Management network profile resource (mgmt NIC on management network)"
-  value       = incus_profile.management_network
-}
-
 output "production_network_profile" {
   description = "Production network profile resource (prod NIC on production network)"
   value       = incus_profile.production_network
 }
 
-output "development_network_profile" {
-  description = "Development network profile resource (dev NIC on development network)"
-  value       = incus_profile.development_network
-}
-
-output "testing_network_profile" {
-  description = "Testing network profile resource (test NIC on testing network)"
-  value       = incus_profile.testing_network
-}
-
-output "staging_network_profile" {
-  description = "Staging network profile resource (stage NIC on staging network)"
-  value       = incus_profile.staging_network
+output "management_network_profile" {
+  description = "Management network profile resource (mgmt NIC on management network)"
+  value       = incus_profile.management_network
 }
 
 output "gitops_network_profile" {

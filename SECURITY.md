@@ -23,7 +23,7 @@ This document describes the security architecture, controls, and best practices 
 
 Atlas implements a defense-in-depth security strategy with multiple layers:
 
-1. **Network Segmentation** - Five isolated networks (six with GitOps enabled) for different workload types
+1. **Network Segmentation** - Two isolated networks (three with GitOps enabled) for workload separation
 2. **Access Control** - IP-based restrictions and rate limiting
 3. **TLS Encryption** - Internal PKI for service-to-service communication
 4. **Container Isolation** - Non-root execution and resource limits
@@ -61,7 +61,7 @@ Atlas implements a defense-in-depth security strategy with multiple layers:
 
 ### Network Architecture
 
-Atlas uses five isolated bridge networks to segment workloads (six when GitOps is enabled):
+Atlas uses two isolated bridge networks to segment workloads (three when GitOps is enabled):
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -71,27 +71,25 @@ Atlas uses five isolated bridge networks to segment workloads (six when GitOps i
 │                        │  incusbr0 │ (external bridge)              │
 │                        └─────┬─────┘                                │
 │                              │                                       │
-│                        ┌─────┴─────┐                                │
-│                        │   Caddy   │ (reverse proxy)                │
-│                        └───┬───┬───┘                                │
-│                            │   │                                     │
-│         ┌──────────────────┘   └──────────────────┐                 │
-│         │                                          │                 │
-│   ┌─────┴─────┐                            ┌──────┴─────┐           │
-│   │Production │ 10.40.0.0/24               │ Management │ 10.50.0.0/24
-│   │  Network  │                            │   Network  │           │
-│   └───────────┘                            └────────────┘           │
-│         │                                          │                 │
-│   Public-facing                             Internal services        │
-│   applications                              (Grafana, Prometheus,    │
-│                                              Loki, step-ca)         │
-│                                                                      │
-│   ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐        │
-│   │Development│  │  Testing  │  │  Staging  │  │  GitOps   │        │
-│   │ 10.10.0.0 │  │ 10.20.0.0 │  │ 10.30.0.0 │  │ 10.60.0.0 │        │
-│   └───────────┘  └───────────┘  └───────────┘  └───────────┘        │
-│                                                                      │
-│   Workload environments (isolated)    GitOps (optional, Atlantis)    │
+│              ┌───────────────┼───────────────┐                      │
+│              │               │               │                       │
+│        ┌─────┴─────┐   ┌─────┴─────┐   ┌─────┴─────┐               │
+│        │   Caddy   │   │           │   │Caddy-GitOps│               │
+│        └───┬───┬───┘   │           │   └─────┬─────┘               │
+│            │   │       │           │         │                       │
+│     ┌──────┘   └────┐  │           │         │                       │
+│     │               │  │           │         │                       │
+│ ┌───┴───────┐  ┌────┴──┴───┐  ┌────┴─────────┴───┐                  │
+│ │Production │  │Management │  │     GitOps       │                  │
+│ │10.10.0.0  │  │10.20.0.0  │  │   10.30.0.0      │                  │
+│ └───────────┘  └───────────┘  └──────────────────┘                  │
+│      │              │                │                               │
+│  Mosquitto     Grafana           Atlantis                           │
+│              Prometheus         (optional)                          │
+│                 Loki                                                 │
+│               step-ca                                                │
+│            Alertmanager                                              │
+│            Node Exporter                                             │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -99,12 +97,9 @@ Atlas uses five isolated bridge networks to segment workloads (six when GitOps i
 
 | Network | CIDR | Purpose | External Access |
 |---------|------|---------|-----------------|
-| development | 10.10.0.0/24 | Development workloads | NAT only |
-| testing | 10.20.0.0/24 | Testing workloads | NAT only |
-| staging | 10.30.0.0/24 | Staging workloads | NAT only |
-| production | 10.40.0.0/24 | Production applications | Via Caddy |
-| management | 10.50.0.0/24 | Internal services | Via Caddy (restricted) |
-| gitops | 10.60.0.0/24 | GitOps automation (optional) | Via Caddy-GitOps |
+| production | 10.10.0.0/24 | Public-facing services | Via Caddy |
+| management | 10.20.0.0/24 | Internal services | Via Caddy (restricted) |
+| gitops | 10.30.0.0/24 | GitOps automation (optional) | Via Caddy-GitOps |
 
 ### Inter-Service Communication
 
@@ -119,11 +114,8 @@ Each network profile uses a **semantic NIC name** to prevent conflicts during pr
 
 | Profile | NIC Name | Network |
 |---------|----------|---------|
-| management-network | `mgmt` | management |
 | production-network | `prod` | production |
-| development-network | `dev` | development |
-| testing-network | `test` | testing |
-| staging-network | `stage` | staging |
+| management-network | `mgmt` | management |
 | gitops-network | `gitops` | gitops |
 
 This allows containers to have multiple network interfaces without naming collisions.
