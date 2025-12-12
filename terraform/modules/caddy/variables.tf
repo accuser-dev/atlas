@@ -55,7 +55,7 @@ variable "management_network" {
 }
 
 variable "external_network" {
-  description = "External network name (for external access, typically incusbr0)"
+  description = "External network name (for external access, typically incusbr0). Set to empty string when production network is physical (direct LAN attachment)."
   type        = string
   default     = "incusbr0"
 }

@@ -1,6 +1,10 @@
 # Service-specific profile
 # Contains only resource limits and service-specific devices (multi-network setup)
 # Base infrastructure (root disk, boot config) is provided by profiles passed via var.profiles
+#
+# Network modes:
+# - Bridge mode (external_network set): 3 NICs - prod, mgmt, eth0 (external)
+# - Physical mode (external_network empty): 2 NICs - prod (provides LAN access), mgmt
 resource "incus_profile" "caddy" {
   name = var.profile_name
 
@@ -12,6 +16,7 @@ resource "incus_profile" "caddy" {
 
   # Caddy has a special multi-network setup for reverse proxy functionality
   # Production network (public-facing applications)
+  # In physical mode, this provides direct LAN access
   device {
     name = "prod"
     type = "nic"
@@ -30,12 +35,16 @@ resource "incus_profile" "caddy" {
   }
 
   # External network (for external access, typically incusbr0)
-  # Named "eth0" to override the default profile's NIC on incusbr0
-  device {
-    name = "eth0"
-    type = "nic"
-    properties = {
-      network = var.external_network
+  # Only added when external_network is set (bridge mode)
+  # In physical mode, production network provides external access directly
+  dynamic "device" {
+    for_each = var.external_network != "" ? [1] : []
+    content {
+      name = "eth0"
+      type = "nic"
+      properties = {
+        network = var.external_network
+      }
     }
   }
 }

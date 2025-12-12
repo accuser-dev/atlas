@@ -20,6 +20,11 @@ module "base" {
   storage_pool = "local"
 
   # Network configuration - simplified to production + management
+  # Production network supports physical mode for IncusOS direct LAN attachment
+  production_network_type   = var.production_network_type
+  production_network_parent = var.production_network_parent
+
+  # IPv4/IPv6 config only used when type is 'bridge'
   production_network_ipv4     = var.production_network_ipv4
   production_network_nat      = var.production_network_nat
   production_network_ipv6     = var.production_network_ipv6
@@ -62,7 +67,8 @@ module "caddy01" {
   # Caddy has special multi-network setup for reverse proxy functionality
   production_network = module.base.production_network.name
   management_network = module.base.management_network.name
-  external_network   = "incusbr0"
+  # External network only needed in bridge mode - physical mode provides LAN access directly
+  external_network = module.base.production_network_is_physical ? "" : "incusbr0"
 
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.caddy.cpu
@@ -365,9 +371,9 @@ module "mosquitto01" {
   mqtt_port  = "1883"
   mqtts_port = "8883"
 
-  # External access via Incus proxy devices
-  # This exposes MQTT ports on the host for external clients
-  enable_external_access = true
+  # External access via Incus proxy devices (bridge mode only)
+  # In physical mode, containers get LAN IPs directly - no proxy needed
+  enable_external_access = !module.base.production_network_is_physical
   external_mqtt_port     = "1883"
   external_mqtts_port    = "8883"
 

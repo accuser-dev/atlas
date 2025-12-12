@@ -1,3 +1,21 @@
+# =============================================================================
+# Network Configuration
+# =============================================================================
+
+output "production_network_type" {
+  description = "Production network type (bridge or physical)"
+  value       = module.base.production_network_type
+}
+
+output "production_network_is_physical" {
+  description = "Whether production network is physical (direct LAN attachment)"
+  value       = module.base.production_network_is_physical
+}
+
+# =============================================================================
+# Service Configuration
+# =============================================================================
+
 output "grafana_caddy_config" {
   description = "Generated Caddy configuration for Grafana"
   value       = module.grafana01.caddy_config_block

@@ -51,15 +51,28 @@ The project is organized into two main directories:
 
 ### Network Requirements
 
-| Network | CIDR | Purpose |
-|---------|------|---------|
-| production | 10.10.0.0/24 | Public-facing services (Mosquitto) |
-| management | 10.20.0.0/24 | Internal services (monitoring stack) |
-| gitops | 10.30.0.0/24 | GitOps automation (optional, Atlantis) |
+| Network | CIDR | Type | Purpose |
+|---------|------|------|---------|
+| production | 10.10.0.0/24 | bridge/physical | Public-facing services (Mosquitto) |
+| management | 10.20.0.0/24 | bridge | Internal services (monitoring stack) |
+| gitops | 10.30.0.0/24 | bridge | GitOps automation (optional, Atlantis) |
+
+**Network Modes:**
+
+The production network supports two deployment modes:
+
+| Mode | Use Case | External Access |
+|------|----------|-----------------|
+| **bridge** (default) | Standard deployments | Via proxy devices on host ports |
+| **physical** | IncusOS clusters | Direct LAN IPs via DHCP/static |
+
+*Bridge mode:* Production network is NAT'd. Services like Mosquitto are exposed via Incus proxy devices that listen on host ports.
+
+*Physical mode:* Production network attaches directly to a physical LAN interface. Containers get LAN IPs directly - no proxy devices needed.
 
 **External Access:**
 - Caddy: Ports 80, 443 (HTTP/HTTPS)
-- Mosquitto: Ports 1883, 8883 (MQTT/MQTTS)
+- Mosquitto: Ports 1883, 8883 (MQTT/MQTTS) - via proxy devices in bridge mode, direct in physical mode
 - Cloudflared: Outbound only (no inbound ports)
 
 ### Minimum Host Requirements
@@ -1132,9 +1145,19 @@ module "caddy01" {
 - Production network: public-facing services (Mosquitto)
 - Management network: internal services (monitoring stack: Grafana, Loki, Prometheus)
 - Services on same network can communicate via internal DNS
-- Public services exposed via Caddy reverse proxy with triple NICs (production, management, external)
+- Caddy reverse proxy with multi-NIC setup (production, management, optional external)
 - IP-based access control for security
 - Automatic HTTPS via Let's Encrypt with Cloudflare DNS validation
+
+**Production Network Modes:**
+- **Bridge mode** (default): NAT'd network with proxy devices for external access
+  - Caddy has 3 NICs: production, management, external (incusbr0)
+  - Mosquitto exposed via proxy devices on host ports
+- **Physical mode** (IncusOS): Direct LAN attachment via physical interface
+  - Set `production_network_type = "physical"` and `production_network_parent = "enp5s0"`
+  - Caddy has 2 NICs: production (direct LAN), management
+  - Mosquitto gets LAN IP directly - no proxy devices needed
+  - Containers accessible on LAN via their IPs
 
 **IPv6 Configuration:**
 - IPv6 is disabled by default (set to empty string)

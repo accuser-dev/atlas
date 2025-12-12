@@ -111,7 +111,7 @@ variable "mqtts_port" {
 
 # External Access via Proxy Devices
 variable "enable_external_access" {
-  description = "Enable external access via Incus proxy devices"
+  description = "Enable external access via Incus proxy devices. Set to false when production network is physical (direct LAN attachment) since containers get LAN IPs directly."
   type        = bool
   default     = true
 }

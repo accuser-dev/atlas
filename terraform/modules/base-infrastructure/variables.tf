@@ -6,8 +6,25 @@ variable "storage_pool" {
 }
 
 # Production Network Configuration
+variable "production_network_type" {
+  description = "Network type: 'bridge' (default, NAT) or 'physical' (direct LAN attachment for IncusOS)"
+  type        = string
+  default     = "bridge"
+
+  validation {
+    condition     = contains(["bridge", "physical"], var.production_network_type)
+    error_message = "production_network_type must be 'bridge' or 'physical'."
+  }
+}
+
+variable "production_network_parent" {
+  description = "Physical interface name when production_network_type is 'physical' (e.g., 'enp5s0', 'eth1'). Required when type is 'physical'."
+  type        = string
+  default     = ""
+}
+
 variable "production_network_ipv4" {
-  description = "IPv4 address for production network"
+  description = "IPv4 address for production network (only used when type is 'bridge')"
   type        = string
   default     = "10.10.0.1/24"
 

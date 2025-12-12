@@ -2,12 +2,20 @@
 # Networks
 # =============================================================================
 
+# Production network - supports both bridge (NAT) and physical (direct LAN) modes
+# Bridge mode: NAT'd network for standard deployments
+# Physical mode: Direct LAN attachment for IncusOS clusters
 resource "incus_network" "production" {
   name        = "production"
-  description = "Production network for public-facing services"
-  type        = "bridge"
+  description = var.production_network_type == "physical" ? "Production network (physical LAN attachment)" : "Production network for public-facing services"
+  type        = var.production_network_type
 
-  config = merge(
+  # Config varies based on network type
+  config = var.production_network_type == "physical" ? {
+    # Physical network only needs parent interface
+    parent = var.production_network_parent
+    } : merge(
+    # Bridge network needs IPv4/IPv6 configuration
     {
       "ipv4.address" = var.production_network_ipv4
       "ipv4.nat"     = tostring(var.production_network_nat)
@@ -19,6 +27,13 @@ resource "incus_network" "production" {
       "ipv6.address" = "none"
     }
   )
+
+  lifecycle {
+    precondition {
+      condition     = var.production_network_type != "physical" || var.production_network_parent != ""
+      error_message = "production_network_parent is required when production_network_type is 'physical'."
+    }
+  }
 }
 
 resource "incus_network" "management" {

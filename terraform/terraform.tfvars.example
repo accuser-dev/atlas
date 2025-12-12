@@ -31,35 +31,31 @@ allowed_ip_range = "192.168.1.0/24"
 # Override these if you need different network ranges
 # Default values are shown below - uncomment to customize
 
-# Development Network (default: 10.10.0.1/24, IPv6 disabled)
-# development_network_ipv4     = "10.10.0.1/24"
-# development_network_nat      = true
-# development_network_ipv6     = "fd00:10:10::1/64"  # Uncomment to enable IPv6
-# development_network_ipv6_nat = true
-
-# Testing Network (default: 10.20.0.1/24, IPv6 disabled)
-# testing_network_ipv4     = "10.20.0.1/24"
-# testing_network_nat      = true
-# testing_network_ipv6     = "fd00:10:20::1/64"  # Uncomment to enable IPv6
-# testing_network_ipv6_nat = true
-
-# Staging Network (default: 10.30.0.1/24, IPv6 disabled)
-# staging_network_ipv4     = "10.30.0.1/24"
-# staging_network_nat      = true
-# staging_network_ipv6     = "fd00:10:30::1/64"  # Uncomment to enable IPv6
-# staging_network_ipv6_nat = true
-
-# Production Network (default: 10.40.0.1/24, IPv6 disabled)
-# production_network_ipv4     = "10.40.0.1/24"
+# Production Network (default: 10.10.0.1/24, bridge mode, IPv6 disabled)
+# The production network hosts public-facing services like Mosquitto.
+#
+# Two modes are supported:
+#   - bridge (default): NAT'd network, services exposed via proxy devices
+#   - physical: Direct LAN attachment for IncusOS clusters
+#
+# Bridge Mode (default):
+# production_network_type     = "bridge"
+# production_network_ipv4     = "10.10.0.1/24"
 # production_network_nat      = true
-# production_network_ipv6     = "fd00:10:40::1/64"  # Uncomment to enable IPv6
+# production_network_ipv6     = "fd00:10:10::1/64"  # Uncomment to enable IPv6
 # production_network_ipv6_nat = true
+#
+# Physical Mode (for IncusOS with direct LAN attachment):
+# Containers on production network get LAN IPs directly via DHCP/static.
+# No proxy devices needed - services are directly accessible on the LAN.
+# production_network_type   = "physical"
+# production_network_parent = "enp5s0"  # Your physical LAN interface name
 
-# Management Network (default: 10.50.0.1/24, IPv6 disabled)
+# Management Network (default: 10.20.0.1/24, IPv6 disabled)
 # Hosts internal services like Grafana, Loki, Prometheus
-# management_network_ipv4     = "10.50.0.1/24"
+# management_network_ipv4     = "10.20.0.1/24"
 # management_network_nat      = true
-# management_network_ipv6     = "fd00:10:50::1/64"  # Uncomment to enable IPv6
+# management_network_ipv6     = "fd00:10:20::1/64"  # Uncomment to enable IPv6
 # management_network_ipv6_nat = true
 
 # ============================================================================

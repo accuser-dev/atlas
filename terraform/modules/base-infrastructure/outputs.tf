@@ -8,6 +8,16 @@ output "production_network" {
   value       = incus_network.production
 }
 
+output "production_network_type" {
+  description = "Production network type (bridge or physical)"
+  value       = var.production_network_type
+}
+
+output "production_network_is_physical" {
+  description = "Whether production network is physical (direct LAN attachment)"
+  value       = var.production_network_type == "physical"
+}
+
 output "management_network" {
   description = "Management network resource"
   value       = incus_network.management
