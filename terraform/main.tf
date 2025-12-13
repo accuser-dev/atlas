@@ -21,6 +21,7 @@ module "base" {
 
   # Network configuration - simplified to production + management
   # Production network supports physical mode for IncusOS direct LAN attachment
+  production_network_name   = var.production_network_name
   production_network_type   = var.production_network_type
   production_network_parent = var.production_network_parent
 

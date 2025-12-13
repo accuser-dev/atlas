@@ -42,6 +42,17 @@ variable "grafana_admin_password" {
 #   - gitops (10.30.0.0/24): GitOps automation (optional)
 
 # Production Network Configuration
+variable "production_network_name" {
+  description = "Name of the production network. For IncusOS physical mode, set this to match the physical interface name (e.g., 'eno1') to avoid creating a ghost network."
+  type        = string
+  default     = "production"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z][a-zA-Z0-9-]*$", var.production_network_name)) && length(var.production_network_name) <= 15
+    error_message = "Network name must start with a letter, contain only alphanumeric characters and hyphens, and be at most 15 characters."
+  }
+}
+
 variable "production_network_type" {
   description = "Network type: 'bridge' (default, NAT) or 'physical' (direct LAN attachment for IncusOS)"
   type        = string
@@ -54,7 +65,7 @@ variable "production_network_type" {
 }
 
 variable "production_network_parent" {
-  description = "Physical interface name when production_network_type is 'physical' (e.g., 'enp5s0', 'eth1'). Required when type is 'physical'."
+  description = "Physical interface name when production_network_type is 'physical' (e.g., 'enp5s0', 'eth1'). Required when type is 'physical'. For IncusOS, ensure the interface has 'role instances' enabled."
   type        = string
   default     = ""
 }

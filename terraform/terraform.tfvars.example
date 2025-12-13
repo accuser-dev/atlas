@@ -39,6 +39,7 @@ allowed_ip_range = "192.168.1.0/24"
 #   - physical: Direct LAN attachment for IncusOS clusters
 #
 # Bridge Mode (default):
+# production_network_name     = "production"  # Network name in Incus
 # production_network_type     = "bridge"
 # production_network_ipv4     = "10.10.0.1/24"
 # production_network_nat      = true
@@ -48,8 +49,14 @@ allowed_ip_range = "192.168.1.0/24"
 # Physical Mode (for IncusOS with direct LAN attachment):
 # Containers on production network get LAN IPs directly via DHCP/static.
 # No proxy devices needed - services are directly accessible on the LAN.
+#
+# IMPORTANT: For IncusOS physical mode:
+#   1. Enable the 'instances' role on the interface: incus network set eno1 role instances
+#   2. Set network name to match interface name to avoid ghost networks
+#
+# production_network_name   = "eno1"    # Must match interface name for clean network list
 # production_network_type   = "physical"
-# production_network_parent = "enp5s0"  # Your physical LAN interface name
+# production_network_parent = "eno1"    # Your physical LAN interface name
 
 # Management Network (default: 10.20.0.1/24, IPv6 disabled)
 # Hosts internal services like Grafana, Loki, Prometheus

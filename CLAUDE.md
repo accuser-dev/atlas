@@ -1154,10 +1154,20 @@ module "caddy01" {
   - Caddy has 3 NICs: production, management, external (incusbr0)
   - Mosquitto exposed via proxy devices on host ports
 - **Physical mode** (IncusOS): Direct LAN attachment via physical interface
-  - Set `production_network_type = "physical"` and `production_network_parent = "enp5s0"`
+  - **Prerequisites:** Enable 'instances' role on the interface: `incus network set eno1 role instances`
+  - Set `production_network_name`, `production_network_type`, and `production_network_parent`
+  - **Best practice:** Set `production_network_name` to match the interface name (e.g., `eno1`) to avoid ghost networks
   - Caddy has 2 NICs: production (direct LAN), management
   - Mosquitto gets LAN IP directly - no proxy devices needed
   - Containers accessible on LAN via their IPs
+
+**IncusOS Physical Network Example:**
+```hcl
+# In terraform.tfvars
+production_network_name   = "eno1"      # Match interface name
+production_network_type   = "physical"
+production_network_parent = "eno1"      # Physical LAN interface
+```
 
 **IPv6 Configuration:**
 - IPv6 is disabled by default (set to empty string)

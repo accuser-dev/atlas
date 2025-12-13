@@ -6,8 +6,8 @@
 # Bridge mode: NAT'd network for standard deployments
 # Physical mode: Direct LAN attachment for IncusOS clusters
 resource "incus_network" "production" {
-  name        = "production"
-  description = var.production_network_type == "physical" ? "Production network (physical LAN attachment)" : "Production network for public-facing services"
+  name        = var.production_network_name
+  description = var.production_network_type == "physical" ? "Production network (physical LAN attachment via ${var.production_network_parent})" : "Production network for public-facing services"
   type        = var.production_network_type
 
   # Config varies based on network type
