@@ -53,6 +53,7 @@ allowed_ip_range = "192.168.1.0/24"
 # IMPORTANT: For IncusOS physical mode:
 #   1. Enable the 'instances' role on the interface: incus network set eno1 role instances
 #   2. Set network name to match interface name to avoid ghost networks
+#   3. If the network already exists, import it: tofu import module.base.incus_network.production eno1
 #
 # production_network_name   = "eno1"    # Must match interface name for clean network list
 # production_network_type   = "physical"

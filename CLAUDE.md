@@ -1169,6 +1169,11 @@ production_network_type   = "physical"
 production_network_parent = "eno1"      # Physical LAN interface
 ```
 
+**Note:** If the physical network already exists in Incus (common on IncusOS), import it before applying:
+```bash
+tofu import module.base.incus_network.production eno1
+```
+
 **IPv6 Configuration:**
 - IPv6 is disabled by default (set to empty string)
 - Enable by setting `*_network_ipv6` variables in terraform.tfvars
