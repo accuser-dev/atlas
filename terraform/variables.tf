@@ -258,3 +258,36 @@ variable "atlantis_allowed_ip_range" {
   type        = string
   default     = "192.30.252.0/22 185.199.108.0/22 140.82.112.0/20 143.55.64.0/20"
 }
+
+# =============================================================================
+# DNS Configuration
+# =============================================================================
+
+variable "dns_domain" {
+  description = "Primary domain for the internal DNS zone (e.g., 'accuser.dev'). CoreDNS will be authoritative for this zone."
+  type        = string
+  default     = "accuser.dev"
+}
+
+variable "dns_upstream_servers" {
+  description = "List of upstream DNS servers for forwarding external queries"
+  type        = list(string)
+  default     = ["1.1.1.1", "1.0.0.1"]
+}
+
+variable "dns_nameserver_ip" {
+  description = "IP address for the NS record in the zone file. Required when production network is physical mode. In bridge mode, the production network gateway is used."
+  type        = string
+  default     = ""
+}
+
+variable "dns_additional_records" {
+  description = "Additional static DNS records not managed by service modules"
+  type = list(object({
+    name  = string
+    type  = string
+    value = string
+    ttl   = optional(number, 300)
+  }))
+  default = []
+}

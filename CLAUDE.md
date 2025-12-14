@@ -25,9 +25,10 @@ The project is organized into two main directories:
 | step-ca | 1 | 512MB | Certificate authority |
 | Node Exporter | 1 | 128MB | Host metrics |
 | Mosquitto | 1 | 256MB | MQTT broker |
+| CoreDNS | 1 | 128MB | Split-horizon DNS |
 | Cloudflared | 1 | 256MB | Tunnel client (optional) |
 | Atlantis | 2 | 1GB | GitOps controller (optional) |
-| **Total** | **13-16** | **7.4-8.7GB** | |
+| **Total** | **14-17** | **7.5-8.8GB** | |
 
 **Notes:**
 - Resource limits are enforced with hard memory limits (OOM kill on exceed)
@@ -565,14 +566,33 @@ The project uses Terraform modules for scalability and reusability:
     - Storage: 5GB persistent volume for `/mosquitto/data`
     - Network: Connected to production network (externally accessible)
 
-17. **Cloudflared Module** ([terraform/modules/cloudflared/](terraform/modules/cloudflared/))
+17. **CoreDNS Module** ([terraform/modules/coredns/](terraform/modules/coredns/))
+    - Split-horizon DNS server for internal service resolution
+    - Authoritative for internal zone (e.g., `accuser.dev`)
+    - Forwards `.incus` queries to Incus DNS resolver
+    - Forwards external queries to upstream DNS (Cloudflare, Google)
+    - External access via Incus proxy devices (UDP+TCP on port 53)
+    - Zone file generated from Terraform service module outputs
+    - Custom Docker image: [docker/coredns/](docker/coredns/)
+
+18. **CoreDNS Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+    - Instance name: `coredns01`
+    - Image: `ghcr.io/accuser-dev/atlas/coredns:latest` (published from [docker/coredns/](docker/coredns/))
+    - Internal endpoint: `coredns01.incus:53`
+    - External access: Host port 53 (UDP+TCP) via proxy devices (bridge mode)
+    - Resource limits: 1 CPU, 128MB memory
+    - Network: Connected to production network (LAN accessible)
+    - Health endpoint: `http://coredns01.incus:8080/health`
+    - Metrics endpoint: `http://coredns01.incus:9153/metrics`
+
+19. **Cloudflared Module** ([terraform/modules/cloudflared/](terraform/modules/cloudflared/))
     - Cloudflare Tunnel client for secure remote access via Zero Trust
     - Token-based authentication (managed via Cloudflare dashboard)
     - Metrics endpoint for Prometheus scraping
     - No persistent storage required (stateless)
     - Custom Docker image: [docker/cloudflared/](docker/cloudflared/)
 
-18. **Cloudflared Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+20. **Cloudflared Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `cloudflared01`
     - Image: `ghcr.io/accuser-dev/atlas/cloudflared:latest` (published from [docker/cloudflared/](docker/cloudflared/))
     - Metrics endpoint: `http://cloudflared01.incus:2000`
@@ -580,35 +600,35 @@ The project uses Terraform modules for scalability and reusability:
     - Network: Connected to management network (internal access to all services)
     - Conditionally deployed: Only created when `cloudflared_tunnel_token` is set
 
-19. **Incus Metrics Module** ([terraform/modules/incus-metrics/](terraform/modules/incus-metrics/))
+21. **Incus Metrics Module** ([terraform/modules/incus-metrics/](terraform/modules/incus-metrics/))
     - Generates mTLS certificates for scraping Incus container metrics
     - Uses Terraform TLS provider for certificate generation (ECDSA P-384)
     - Registers certificate with Incus as type "metrics"
     - Outputs certificate and private key for injection into Prometheus
     - No Docker image required (certificate management only)
 
-20. **Incus Metrics** (instantiated in [terraform/main.tf](terraform/main.tf))
+22. **Incus Metrics** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Certificate name: `prometheus-metrics`
     - Metrics endpoint: `https://<management-gateway>:8443/1.0/metrics`
     - Certificate validity: 10 years (3650 days)
     - Conditionally deployed: Only created when `enable_incus_metrics` is true (default)
     - Provides container-level metrics: CPU, memory, disk, network, processes
 
-21. **Incus Loki Module** ([terraform/modules/incus-loki/](terraform/modules/incus-loki/))
+23. **Incus Loki Module** ([terraform/modules/incus-loki/](terraform/modules/incus-loki/))
     - Configures native Incus logging to Loki (no Promtail required)
     - Pushes lifecycle events (instance start/stop, create, delete)
     - Pushes logging events (container and VM log output)
     - Uses Incus server-level configuration
     - No Docker image required (server configuration only)
 
-22. **Incus Loki** (instantiated in [terraform/main.tf](terraform/main.tf))
+24. **Incus Loki** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Logging name: `loki01`
     - Target address: `http://loki01.incus:3100`
     - Event types: `lifecycle,logging`
     - Conditionally deployed: Only created when `enable_incus_loki` is true (default)
     - Logs queryable in Grafana via Loki datasource
 
-23. **Atlantis Module** ([terraform/modules/atlantis/](terraform/modules/atlantis/))
+25. **Atlantis Module** ([terraform/modules/atlantis/](terraform/modules/atlantis/))
     - GitOps controller for PR-based infrastructure management
     - Automatic `terraform plan` on PR creation/update
     - Apply changes via PR comment `atlantis apply`
@@ -616,7 +636,7 @@ The project uses Terraform modules for scalability and reusability:
     - Persistent storage for plans cache and locks (10GB)
     - Custom Docker image: [docker/atlantis/](docker/atlantis/)
 
-24. **Atlantis Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+26. **Atlantis Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `atlantis01`
     - Image: `ghcr.io/accuser-dev/atlas/atlantis:latest` (published from [docker/atlantis/](docker/atlantis/))
     - Webhook endpoint: `https://<atlantis_domain>/events`
@@ -626,14 +646,14 @@ The project uses Terraform modules for scalability and reusability:
     - Conditionally deployed: Only created when `enable_gitops` is true (default: false)
     - See [GITOPS.md](GITOPS.md) for setup and usage instructions
 
-25. **Caddy GitOps Module** ([terraform/modules/caddy-gitops/](terraform/modules/caddy-gitops/))
+27. **Caddy GitOps Module** ([terraform/modules/caddy-gitops/](terraform/modules/caddy-gitops/))
     - Dedicated Caddy instance for GitOps network webhook traffic
     - Separate from main Caddy instance (one Caddy per network pattern)
     - GitHub IP allowlisting for webhook security
     - Rate limiting for webhook protection
     - Uses same custom Caddy image as main instance
 
-26. **Caddy GitOps Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+28. **Caddy GitOps Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `caddy-gitops01`
     - Image: `ghcr.io/accuser-dev/atlas/caddy:latest`
     - Resource limits: 1 CPU, 256MB memory
@@ -1448,6 +1468,12 @@ After applying, use `cd terraform && tofu output` to view:
 - `alertmanager_endpoint` - Internal Alertmanager endpoint URL for alert routing
 - `mosquitto_mqtt_endpoint` - Internal MQTT endpoint URL
 - `mosquitto_external_ports` - External host ports for MQTT access (1883, 8883)
+- `coredns_dns_endpoint` - Internal DNS endpoint using .incus DNS
+- `coredns_ipv4_address` - CoreDNS IPv4 address (use for DHCP DNS server configuration)
+- `coredns_external_port` - External DNS port on host (bridge mode only)
+- `coredns_health_endpoint` - CoreDNS health check endpoint URL
+- `coredns_metrics_endpoint` - CoreDNS Prometheus metrics endpoint URL
+- `coredns_zone_file` - Generated DNS zone file content (for debugging)
 - `cloudflared_metrics_endpoint` - Cloudflared metrics endpoint (if enabled)
 - `cloudflared_instance_status` - Cloudflared instance status (if enabled)
 - `incus_metrics_endpoint` - Incus metrics endpoint URL being scraped by Prometheus
