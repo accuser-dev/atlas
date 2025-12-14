@@ -38,3 +38,15 @@ output "tls_enabled" {
   description = "Whether TLS is enabled for this instance"
   value       = var.enable_tls
 }
+
+output "dns_records" {
+  description = "DNS records for this Grafana instance (for CoreDNS zone file generation)"
+  value = var.domain != "" ? [
+    {
+      name  = split(".", var.domain)[0] # Extract hostname (e.g., "grafana" from "grafana.accuser.dev")
+      type  = "A"
+      value = incus_instance.grafana.ipv4_address
+      ttl   = 300
+    }
+  ] : []
+}

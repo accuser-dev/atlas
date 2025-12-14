@@ -71,6 +71,11 @@ locals {
       memory = "256MB"
       port   = 443
     }
+    coredns = {
+      cpu    = "1"
+      memory = "128MB"
+      port   = 53
+    }
   }
 
   # NOTE: Network dependencies for depends_on cannot be centralized in locals

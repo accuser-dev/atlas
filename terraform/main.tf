@@ -1,8 +1,8 @@
 # =============================================================================
 # Resource Summary
 # =============================================================================
-# Total CPU:     13 cores (soft limits)
-# Total Memory:  7.4GB (hard limits)
+# Total CPU:     14 cores (soft limits)
+# Total Memory:  7.5GB (hard limits)
 # Total Storage: 167GB (default volumes)
 # Networks:      2 internal + 1 external bridge (3 with GitOps enabled)
 #
@@ -391,6 +391,49 @@ module "mosquitto01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.mosquitto.cpu
   memory_limit = local.services.mosquitto.memory
+}
+
+module "coredns01" {
+  source = "./modules/coredns"
+
+  instance_name = "coredns01"
+  profile_name  = "coredns"
+
+  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Note: coredns uses production network for LAN client access
+  profiles = [
+    module.base.docker_base_profile.name,
+    module.base.production_network_profile.name,
+  ]
+
+  # Zone configuration
+  domain = var.dns_domain
+
+  # Collect DNS records from all service modules that output them
+  dns_records = concat(
+    module.grafana01.dns_records,
+    # Add other services as they implement dns_records output
+  )
+
+  # Additional static DNS records (not managed by service modules)
+  additional_records = var.dns_additional_records
+
+  # Nameserver IP - use production network gateway as placeholder
+  # This is used for the NS record in the zone file
+  nameserver_ip = module.base.production_network_is_physical ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0]
+
+  # Forwarding configuration
+  incus_dns_server     = split("/", var.management_network_ipv4)[0] # Management network gateway
+  upstream_dns_servers = var.dns_upstream_servers
+
+  # External access via Incus proxy devices (bridge mode only)
+  # In physical mode, containers get LAN IPs directly - no proxy needed
+  enable_external_access = !module.base.production_network_is_physical
+  external_dns_port      = "53"
+
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.coredns.cpu
+  memory_limit = local.services.coredns.memory
 }
 
 module "cloudflared01" {
