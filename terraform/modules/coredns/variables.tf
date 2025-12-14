@@ -74,9 +74,9 @@ variable "domain" {
 variable "dns_records" {
   description = "List of DNS records for the zone file. Each service module outputs its records."
   type = list(object({
-    name  = string           # Hostname without domain (e.g., "grafana")
-    type  = string           # Record type: A, AAAA, CNAME
-    value = string           # IP address or target hostname
+    name  = string # Hostname without domain (e.g., "grafana")
+    type  = string # Record type: A, AAAA, CNAME
+    value = string # IP address or target hostname
     ttl   = optional(number, 300)
   }))
   default = []
