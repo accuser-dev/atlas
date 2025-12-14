@@ -1,10 +1,7 @@
 # CoreDNS for internal split-horizon DNS
 # Provides authoritative DNS for internal zones with upstream forwarding
 #
-# Note: Official CoreDNS image is scratch-based (no filesystem), which doesn't
-# work with Incus application containers. We build on Alpine instead.
-
-FROM coredns/coredns:1.12.0 AS coredns-binary
+# Uses coredns package from Alpine testing repo to ensure proper LXC compatibility
 
 FROM alpine:3.21
 
@@ -17,19 +14,12 @@ LABEL org.opencontainers.image.title="Atlas CoreDNS"
 LABEL org.opencontainers.image.description="Split-horizon DNS server for internal service resolution"
 LABEL org.opencontainers.image.vendor="accuser"
 
-# Copy CoreDNS binary from official image
-COPY --from=coredns-binary /coredns /usr/bin/coredns
+# Install coredns from community repo and wget for health checks
+# Using Alpine's package ensures proper integration with the system
+RUN apk add --no-cache coredns wget
 
 # Create configuration directories for Incus file injection
 RUN mkdir -p /etc/coredns/zones
-
-# Install wget for health checks and openrc for init
-RUN apk add --no-cache wget openrc
-
-# Setup /run properly for LXC containers
-# The VOLUME directive marks /run as a tmpfs mount point
-RUN mkdir -p /run/openrc /run/lock
-VOLUME /run
 
 # Health check using the built-in health endpoint
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
@@ -42,5 +32,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 # Expose DNS ports (UDP and TCP) and metrics
 EXPOSE 53/udp 53/tcp 9153/tcp 8080/tcp
 
-ENTRYPOINT ["/usr/bin/coredns"]
+ENTRYPOINT ["/usr/sbin/coredns"]
 CMD ["-conf", "/etc/coredns/Corefile"]
