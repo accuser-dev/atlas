@@ -26,8 +26,10 @@ RUN mkdir -p /etc/coredns/zones
 # Install wget for health checks and openrc for init
 RUN apk add --no-cache wget openrc
 
-# Setup OpenRC for proper init (needed for LXC containers)
-RUN mkdir -p /run/openrc && touch /run/openrc/softlevel
+# Setup /run properly for LXC containers
+# The VOLUME directive marks /run as a tmpfs mount point
+RUN mkdir -p /run/openrc /run/lock
+VOLUME /run
 
 # Health check using the built-in health endpoint
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
