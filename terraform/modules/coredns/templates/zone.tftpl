@@ -21,9 +21,11 @@ $TTL ${zone_ttl}
 ; NS Record - Nameserver
 ; =============================================================================
 @   IN  NS  ${soa_nameserver}.${domain}.
+%{ if nameserver_ip != "" ~}
 
 ; Nameserver A record (points to this CoreDNS instance)
 ${soa_nameserver}  IN  A  ${nameserver_ip}
+%{ endif ~}
 
 ; =============================================================================
 ; Service Records

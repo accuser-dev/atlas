@@ -1,0 +1,44 @@
+#cloud-config
+# CoreDNS system container cloud-init configuration
+
+package_update: true
+
+packages:
+  - coredns
+  - wget
+
+write_files:
+  - path: /etc/coredns/Corefile
+    permissions: '0644'
+    content: |
+      ${indent(6, corefile_content)}
+
+  - path: /etc/coredns/zones/${domain}.zone
+    permissions: '0644'
+    content: |
+      ${indent(6, zone_file_content)}
+
+  # OpenRC init script for CoreDNS
+  - path: /etc/init.d/coredns
+    permissions: '0755'
+    content: |
+      #!/sbin/openrc-run
+
+      name="CoreDNS"
+      description="CoreDNS DNS server"
+      command="/usr/bin/coredns"
+      command_args="-conf /etc/coredns/Corefile"
+      command_background=true
+      pidfile="/run/$${RC_SVCNAME}.pid"
+      output_log="/var/log/coredns.log"
+      error_log="/var/log/coredns.log"
+
+      depend() {
+        need net
+        after firewall
+      }
+
+runcmd:
+  # Enable and start CoreDNS service
+  - rc-update add coredns default
+  - rc-service coredns start

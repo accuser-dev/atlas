@@ -3,9 +3,12 @@
 # =============================================================================
 # Provides split-horizon DNS for internal service resolution.
 # Zone file is generated from dns_records collected from service modules.
+#
+# Uses a system container (images:alpine) instead of OCI application container
+# because LXC requires a proper filesystem structure that OCI containers lack.
 
 # Service-specific profile
-# Contains only resource limits and service-specific devices (proxy devices for DNS)
+# Contains resource limits and service-specific devices (proxy devices for DNS)
 # Base infrastructure (root disk, network) is provided by profiles passed via var.profiles
 resource "incus_profile" "coredns" {
   name = var.profile_name
@@ -14,6 +17,7 @@ resource "incus_profile" "coredns" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
+    "boot.autostart"        = "true"
   }
 
   # External access via proxy device for DNS (UDP)
@@ -76,6 +80,13 @@ locals {
     nameserver_ip  = var.nameserver_ip
     dns_records    = local.all_dns_records
   })
+
+  # Generate cloud-init configuration
+  cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
+    corefile_content  = local.corefile_content
+    zone_file_content = local.zone_file_content
+    domain            = var.domain
+  })
 }
 
 resource "incus_instance" "coredns" {
@@ -84,17 +95,7 @@ resource "incus_instance" "coredns" {
   type     = "container"
   profiles = concat(var.profiles, [incus_profile.coredns.name])
 
-  # Inject Corefile configuration
-  file {
-    content     = local.corefile_content
-    target_path = "/etc/coredns/Corefile"
-    mode        = "0644"
-  }
-
-  # Inject zone file
-  file {
-    content     = local.zone_file_content
-    target_path = "/etc/coredns/zones/${var.domain}.zone"
-    mode        = "0644"
+  config = {
+    "cloud-init.user-data" = local.cloud_init_content
   }
 }

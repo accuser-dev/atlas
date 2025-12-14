@@ -13,9 +13,9 @@ variable "profile_name" {
 }
 
 variable "image" {
-  description = "Container image to use for CoreDNS"
+  description = "Container image to use for CoreDNS (system container with cloud-init)"
   type        = string
-  default     = "ghcr:accuser-dev/atlas/coredns:latest"
+  default     = "images:alpine/3.21/cloud"
 }
 
 variable "cpu_limit" {
