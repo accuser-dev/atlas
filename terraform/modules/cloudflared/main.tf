@@ -1,6 +1,6 @@
 # Service-specific profile
-# Contains only resource limits - base infrastructure (root disk, network) is
-# provided by profiles passed via var.profiles
+# Contains resource limits and root disk with size limit
+# Base infrastructure (network) is provided by profiles passed via var.profiles
 resource "incus_profile" "cloudflared" {
   name = var.profile_name
 
@@ -8,6 +8,17 @@ resource "incus_profile" "cloudflared" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
+  }
+
+  # Root disk with size limit
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool
+      size = var.root_disk_size
+    }
   }
 }
 

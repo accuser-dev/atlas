@@ -55,10 +55,10 @@ module "caddy01" {
   profile_name         = "caddy"
   cloudflare_api_token = var.cloudflare_api_token
 
-  # Profile composition - docker-base provides root disk and autorestart
-  # Caddy manages its own multi-network setup (production, management, external)
+  # Profile composition - container-base provides boot.autorestart
+  # Caddy module manages root disk with size limit and multi-network setup
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
   ]
 
   # Service blocks from all modules (production + management services only)
@@ -84,9 +84,10 @@ module "grafana01" {
   instance_name = "grafana01"
   profile_name  = "grafana"
 
-  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
+  # Network profile provides NIC
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
 
@@ -136,9 +137,9 @@ module "loki01" {
   instance_name = "loki01"
   profile_name  = "loki"
 
-  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
 
@@ -161,9 +162,9 @@ module "prometheus01" {
   instance_name = "prometheus01"
   profile_name  = "prometheus"
 
-  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
 
@@ -284,9 +285,9 @@ module "step_ca01" {
   instance_name = "step-ca01"
   profile_name  = "step-ca"
 
-  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
 
@@ -316,9 +317,9 @@ module "node_exporter01" {
   instance_name = "node-exporter01"
   profile_name  = "node-exporter"
 
-  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
 
@@ -336,9 +337,9 @@ module "alertmanager01" {
   instance_name = "alertmanager01"
   profile_name  = "alertmanager"
 
-  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
 
@@ -361,10 +362,10 @@ module "mosquitto01" {
   instance_name = "mosquitto01"
   profile_name  = "mosquitto"
 
-  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
   # Note: mosquitto uses production network for external access
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.production_network_profile.name,
   ]
 
@@ -399,10 +400,10 @@ module "coredns01" {
   instance_name = "coredns01"
   profile_name  = "coredns"
 
-  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
   # Note: coredns uses production network for LAN client access
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.production_network_profile.name,
   ]
 
@@ -444,9 +445,9 @@ module "cloudflared01" {
   instance_name = "cloudflared01"
   profile_name  = "cloudflared"
 
-  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
 
@@ -495,9 +496,9 @@ module "atlantis01" {
   instance_name = "atlantis01"
   profile_name  = "atlantis"
 
-  # Profile composition - docker-base provides root disk, network profile provides NIC
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.gitops_network_profile.name,
   ]
 
@@ -534,10 +535,10 @@ module "caddy_gitops01" {
   profile_name         = "caddy-gitops"
   cloudflare_api_token = var.cloudflare_api_token
 
-  # Profile composition - docker-base provides root disk
-  # caddy-gitops module adds its own network NICs
+  # Profile composition - container-base provides boot.autorestart
+  # caddy-gitops module manages root disk with size limit and its own network NICs
   profiles = [
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
   ]
 
   # Service blocks - only Atlantis on this Caddy instance

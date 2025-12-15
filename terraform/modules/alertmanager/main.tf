@@ -24,8 +24,8 @@ resource "incus_storage_volume" "alertmanager_data" {
 }
 
 # Service-specific profile
-# Contains only resource limits and service-specific devices (data volume)
-# Base infrastructure (root disk, network) is provided by profiles passed via var.profiles
+# Contains resource limits, root disk with size limit, and service-specific devices
+# Network is provided by profiles passed via var.profiles
 resource "incus_profile" "alertmanager" {
   name = var.profile_name
 
@@ -33,6 +33,17 @@ resource "incus_profile" "alertmanager" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
+  }
+
+  # Root disk with size limit
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool
+      size = var.root_disk_size
+    }
   }
 
   dynamic "device" {

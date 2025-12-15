@@ -42,7 +42,7 @@ variable "memory_limit" {
 
 # Profile Composition
 variable "profiles" {
-  description = "List of Incus profile names to apply (should include base profiles for root disk and network)"
+  description = "List of Incus profile names to apply (should include base profiles for network)"
   type        = list(string)
   default     = ["default"]
 }
@@ -51,6 +51,17 @@ variable "storage_pool" {
   description = "Storage pool for the data volume"
   type        = string
   default     = "local"
+}
+
+variable "root_disk_size" {
+  description = "Size limit for the root disk (container filesystem)"
+  type        = string
+  default     = "2GB"
+
+  validation {
+    condition     = can(regex("^[0-9]+(MB|GB)$", var.root_disk_size))
+    error_message = "Root disk size must be in format like '1GB' or '500MB'"
+  }
 }
 
 # Storage Configuration

@@ -39,9 +39,9 @@ output "management_network_gateway" {
 # =============================================================================
 # Full resource references for dependency tracking
 
-output "docker_base_profile" {
-  description = "Docker base profile resource (boot.autorestart, root disk)"
-  value       = incus_profile.docker_base
+output "container_base_profile" {
+  description = "Container base profile resource (boot.autorestart only)"
+  value       = incus_profile.container_base
 }
 
 output "production_network_profile" {

@@ -2,8 +2,8 @@
 # Deploys Prometheus Node Exporter for host-level metrics collection
 
 # Service-specific profile
-# Contains only resource limits and service-specific devices (host mounts)
-# Base infrastructure (root disk, network) is provided by profiles passed via var.profiles
+# Contains resource limits, root disk, and service-specific devices (host mounts)
+# Base network infrastructure is provided by profiles passed via var.profiles
 resource "incus_profile" "node_exporter" {
   name = var.profile_name
 
@@ -11,6 +11,17 @@ resource "incus_profile" "node_exporter" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
+  }
+
+  # Root disk with size limit
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool
+      size = var.root_disk_size
+    }
   }
 
   # Mount host filesystem read-only for metrics collection

@@ -36,8 +36,25 @@ variable "memory_limit" {
   }
 }
 
+variable "storage_pool" {
+  description = "Storage pool for volumes"
+  type        = string
+  default     = "local"
+}
+
+variable "root_disk_size" {
+  description = "Size limit for the root disk (container filesystem)"
+  type        = string
+  default     = "1GB"
+
+  validation {
+    condition     = can(regex("^[0-9]+(MB|GB)$", var.root_disk_size))
+    error_message = "Root disk size must be in format like '1GB' or '500MB'"
+  }
+}
+
 variable "profiles" {
-  description = "List of Incus profile names to apply (should include base profiles for root disk and network)"
+  description = "List of Incus profile names to apply (should include base profiles for network)"
   type        = list(string)
   default     = ["default"]
 }

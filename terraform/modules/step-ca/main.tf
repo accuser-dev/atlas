@@ -34,8 +34,8 @@ resource "incus_storage_volume" "step_ca_data" {
 }
 
 # Service-specific profile
-# Contains only resource limits and service-specific devices (data volume)
-# Base infrastructure (root disk, network) is provided by profiles passed via var.profiles
+# Contains resource limits, root disk with size limit, and service-specific devices
+# Network is provided by profiles passed via var.profiles
 resource "incus_profile" "step_ca" {
   name = var.profile_name
 
@@ -43,6 +43,17 @@ resource "incus_profile" "step_ca" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
+  }
+
+  # Root disk with size limit
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool
+      size = var.root_disk_size
+    }
   }
 
   # Mount persistent volume for CA data

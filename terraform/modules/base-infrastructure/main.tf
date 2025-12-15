@@ -80,22 +80,14 @@ resource "incus_network" "gitops" {
 # Base Profiles
 # =============================================================================
 
-# Base profile for all Docker containers
-# Provides: boot.autorestart, root disk
-resource "incus_profile" "docker_base" {
-  name = "docker-base"
+# Base profile for all containers (OCI and system containers)
+# Provides: boot.autorestart only
+# Root disk is defined per-service module to allow size limits
+resource "incus_profile" "container_base" {
+  name = "container-base"
 
   config = {
     "boot.autorestart" = "true"
-  }
-
-  device {
-    name = "root"
-    type = "disk"
-    properties = {
-      path = "/"
-      pool = var.storage_pool
-    }
   }
 }
 
