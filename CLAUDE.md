@@ -907,28 +907,33 @@ All containers use profile composition **without the Incus default profile**. Th
 **Standard services** (most containers):
 ```hcl
 profiles = [
-  module.base.docker_base_profile.name,      # Root disk, autorestart
+  module.base.container_base_profile.name,     # boot.autorestart only
   module.base.management_network_profile.name, # Management network NIC
 ]
+# Service module's profile provides root disk with size limit
 ```
 
 **Caddy** (reverse proxy - special case):
 ```hcl
 profiles = [
-  module.base.docker_base_profile.name,  # Root disk, autorestart
+  module.base.container_base_profile.name,  # boot.autorestart only
 ]
-# Caddy module adds its own multi-network NICs directly
+# Caddy module manages its own root disk and multi-network NICs
 ```
 
 **Base profiles from base-infrastructure module:**
-- `docker_base_profile`: Provides root disk on local pool and `boot.autorestart = true`
+- `container_base_profile`: Provides only `boot.autorestart = true`
 - `management_network_profile`: Provides eth0 NIC on management network (10.20.0.0/24)
 - `production_network_profile`: Provides eth0 NIC on production network (10.10.0.0/24)
 - `gitops_network_profile`: Provides eth0 NIC on gitops network (10.30.0.0/24, optional)
 
+**Root disk management:**
+- Each service module defines its own root disk device with a configurable size limit
+- This prevents DoS via unlimited storage and provides per-service control
+- Default sizes: 1GB for lightweight services, 2GB for heavier services (grafana, loki, prometheus, atlantis)
+
 **Why NOT use the default profile:**
 - Default profile provides eth0 on incusbr0 (external bridge) - gives unwanted external network access
-- Our docker-base profile already provides root disk
 - Network profiles provide appropriate isolated NICs
 - Explicit is better than implicit for security
 
@@ -944,29 +949,24 @@ resource "incus_profile" "service" {
     "limits.cpu"            = var.cpu_limit      # Configurable CPU cores
     "limits.memory"         = var.memory_limit   # Configurable RAM
     "limits.memory.enforce" = "hard"             # Strict memory enforcement
-    "boot.autorestart"      = "true"             # Auto-restart on host reboot
   }
 
+  # Root disk with size limit (prevents DoS via storage exhaustion)
   device {
     name = "root"
     type = "disk"
     properties = {
       path = "/"
       pool = var.storage_pool  # Default: "local"
-    }
-  }
-
-  device {
-    name = "eth0"
-    type = "nic"
-    properties = {
-      network = var.network_name
+      size = var.root_disk_size # Configurable, e.g., "1GB" or "2GB"
     }
   }
 
   # Optional: Additional devices (storage volumes, extra NICs)
 }
 ```
+
+Network connectivity is provided by profiles passed via `var.profiles` (e.g., `management_network_profile`).
 
 #### Resource Limits
 
@@ -1063,7 +1063,7 @@ This ensures:
 3. **Modularity**: Base profiles are defined in base-infrastructure module, reused everywhere
 4. **Flexibility**: Variable-driven configuration for all limits
 5. **Security**: Containers only have network access they explicitly need
-6. **Separation of Concerns**: docker-base handles common settings, network profiles handle connectivity
+6. **Separation of Concerns**: container-base handles boot settings, service profiles handle root disk, network profiles handle connectivity
 
 This approach enables easy scaling - new instances reuse the proven profile pattern with customized resource limits while maintaining network isolation.
 

@@ -21,8 +21,7 @@ module "step_ca01" {
   profile_name  = "step-ca"
 
   profiles = [
-    "default",
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
 

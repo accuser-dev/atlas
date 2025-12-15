@@ -21,8 +21,7 @@ module "alertmanager01" {
   profile_name  = "alertmanager"
 
   profiles = [
-    "default",
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
 
