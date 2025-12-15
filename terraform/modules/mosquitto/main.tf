@@ -1,3 +1,54 @@
+# =============================================================================
+# Mosquitto MQTT Broker Module
+# =============================================================================
+# Supports two container types:
+# - system: Alpine Linux with cloud-init (recommended)
+# - oci: Docker/OCI image from ghcr.io (legacy)
+
+locals {
+  # Select image based on container type if not explicitly provided
+  default_images = {
+    system = "images:alpine/3.21/cloud"
+    oci    = "ghcr:accuser-dev/atlas/mosquitto:latest"
+  }
+  selected_image = var.image != "" ? var.image : local.default_images[var.container_type]
+
+  # Mosquitto user UID differs between Alpine package (100) and OCI image (1883)
+  mosquitto_uid = var.container_type == "system" ? "100" : "1883"
+  mosquitto_gid = var.container_type == "system" ? "101" : "1883"
+
+  # TLS environment variables (only for OCI containers)
+  tls_env_vars = var.container_type == "oci" && var.enable_tls ? {
+    ENABLE_TLS         = "true"
+    STEPCA_URL         = var.stepca_url
+    STEPCA_FINGERPRINT = var.stepca_fingerprint
+    CERT_DURATION      = var.cert_duration
+  } : {}
+
+  # Port environment variables (only for OCI containers)
+  port_env_vars = var.container_type == "oci" ? {
+    MQTT_PORT  = var.mqtt_port
+    MQTTS_PORT = var.mqtts_port
+  } : {}
+
+  # Password file content (for OCI container file injection)
+  passwd_content = length(var.mqtt_users) > 0 ? join("\n", [
+    for username, password in var.mqtt_users : "${username}:${password}"
+  ]) : ""
+
+  # Cloud-init configuration (for system containers)
+  cloud_init_content = var.container_type == "system" ? templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
+    mqtt_port          = var.mqtt_port
+    mqtts_port         = var.mqtts_port
+    enable_tls         = var.enable_tls
+    stepca_url         = var.stepca_url
+    stepca_fingerprint = var.stepca_fingerprint
+    cert_duration      = var.cert_duration
+    mqtt_users         = var.mqtt_users
+    mosquitto_config   = var.mosquitto_config
+  }) : ""
+}
+
 resource "incus_storage_volume" "mosquitto_data" {
   count = var.enable_data_persistence ? 1 : 0
 
@@ -7,10 +58,10 @@ resource "incus_storage_volume" "mosquitto_data" {
   config = merge(
     {
       size = var.data_volume_size
-      # Set initial ownership for mosquitto user (UID 1883) to allow writes from non-root container
-      # Requires Incus 6.8+ (https://linuxcontainers.org/incus/news/2024_12_13_07_12.html)
-      "initial.uid"  = "1883"
-      "initial.gid"  = "1883"
+      # Set initial ownership for mosquitto user to allow writes from non-root container
+      # UID differs: Alpine package uses 100, OCI image uses 1883
+      "initial.uid"  = local.mosquitto_uid
+      "initial.gid"  = local.mosquitto_gid
       "initial.mode" = "0755"
     },
     var.enable_snapshots ? {
@@ -93,45 +144,26 @@ resource "incus_profile" "mosquitto" {
   ]
 }
 
-locals {
-  # TLS environment variables (only set when TLS is enabled)
-  tls_env_vars = var.enable_tls ? {
-    ENABLE_TLS         = "true"
-    STEPCA_URL         = var.stepca_url
-    STEPCA_FINGERPRINT = var.stepca_fingerprint
-    CERT_DURATION      = var.cert_duration
-  } : {}
-
-  # Port environment variables
-  port_env_vars = {
-    MQTT_PORT  = var.mqtt_port
-    MQTTS_PORT = var.mqtts_port
-  }
-
-  # Generate password file content if users are provided
-  # Format: username:password_hash (one per line)
-  # Note: The container will need to hash these - for now we pass plaintext
-  # and the entrypoint can use mosquitto_passwd if needed
-  passwd_content = length(var.mqtt_users) > 0 ? join("\n", [
-    for username, password in var.mqtt_users : "${username}:${password}"
-  ]) : ""
-}
-
 resource "incus_instance" "mosquitto" {
   name     = var.instance_name
-  image    = var.image
+  image    = local.selected_image
   type     = "container"
   profiles = concat(var.profiles, [incus_profile.mosquitto.name])
 
-  config = merge(
+  # Configuration differs based on container type
+  config = var.container_type == "system" ? {
+    # System container: use cloud-init for configuration
+    "cloud-init.user-data" = local.cloud_init_content
+  } : merge(
+    # OCI container: use environment variables
     { for k, v in var.environment_variables : "environment.${k}" => v },
     { for k, v in local.tls_env_vars : "environment.${k}" => v },
     { for k, v in local.port_env_vars : "environment.${k}" => v },
   )
 
-  # Inject password file if users are configured
+  # File injection only for OCI containers (system containers use cloud-init)
   dynamic "file" {
-    for_each = length(var.mqtt_users) > 0 ? [1] : []
+    for_each = var.container_type == "oci" && length(var.mqtt_users) > 0 ? [1] : []
     content {
       content     = local.passwd_content
       target_path = "/mosquitto/config/passwd"
@@ -139,9 +171,8 @@ resource "incus_instance" "mosquitto" {
     }
   }
 
-  # Inject custom configuration if provided
   dynamic "file" {
-    for_each = var.mosquitto_config != "" ? [1] : []
+    for_each = var.container_type == "oci" && var.mosquitto_config != "" ? [1] : []
     content {
       content     = var.mosquitto_config
       target_path = "/mosquitto/config/custom.conf"
