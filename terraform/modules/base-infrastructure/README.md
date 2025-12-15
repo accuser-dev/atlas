@@ -5,7 +5,7 @@ This module provides the foundational infrastructure for all Atlas services, inc
 ## Features
 
 - **Five Environment Networks**: Development, Testing, Staging, Production, Management
-- **Docker Base Profile**: Root disk and auto-restart configuration
+- **Container Base Profile**: Auto-restart configuration for all containers
 - **Network Profiles**: Semantic NIC devices for each network (prod, mgmt, dev, test, stage)
 - **IPv4 and IPv6 Support**: Optional dual-stack networking
 - **NAT Configuration**: Configurable NAT for each network
@@ -32,11 +32,10 @@ module "grafana01" {
   source = "./modules/grafana"
 
   profiles = [
-    "default",
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
-  # ...
+  # Service module provides its own root disk with size limit
 }
 ```
 
@@ -60,15 +59,17 @@ module "grafana01" {
 │   ┌──────────────────────────────────────────────────────┐  │
 │   │                    Profiles                           │  │
 │   │                                                       │  │
-│   │   docker-base ──────────────────────────────────────┐│  │
+│   │   container-base ───────────────────────────────────┐│  │
 │   │   │  boot.autorestart = true                        ││  │
-│   │   │  root disk on storage pool                      ││  │
 │   │   └─────────────────────────────────────────────────┘│  │
 │   │                                                       │  │
 │   │   *-network ────────────────────────────────────────┐│  │
 │   │   │  Semantic NIC device (prod, mgmt, dev, etc.)    ││  │
 │   │   │  (one profile per network)                      ││  │
 │   │   └─────────────────────────────────────────────────┘│  │
+│   │                                                       │  │
+│   │   Note: Root disk is managed by each service module  │  │
+│   │   with configurable size limits (e.g., 1GB, 2GB)     │  │
 │   │                                                       │  │
 │   └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
@@ -83,13 +84,12 @@ Service modules use profile composition to inherit base infrastructure:
 profiles = concat(var.profiles, [incus_profile.service.name])
 
 # Results in ordered profiles:
-# 1. "default"                 - Incus default profile
-# 2. "docker-base"             - Root disk + auto-restart
-# 3. "management-network"      - mgmt NIC on management network
-# 4. "grafana" (service-specific) - CPU/memory limits, data volume
+# 1. "container-base"          - boot.autorestart only
+# 2. "management-network"      - mgmt NIC on management network
+# 3. "grafana" (service-specific) - root disk with size limit, CPU/memory limits, data volume
 ```
 
-**Profile order matters**: Later profiles override earlier ones. Service-specific profiles define resource limits and service devices, while base profiles provide infrastructure.
+**Profile order matters**: Later profiles override earlier ones. Service-specific profiles define root disk (with size limits), resource limits, and service devices. Network profiles provide connectivity.
 
 ## Network Layout
 
@@ -205,12 +205,14 @@ module "base" {
 
 | Name | Description |
 |------|-------------|
-| `docker_base_profile` | Docker base profile (boot.autorestart, root disk) |
+| `container_base_profile` | Container base profile (boot.autorestart only) |
 | `development_network_profile` | Development network profile (dev NIC) |
 | `testing_network_profile` | Testing network profile (test NIC) |
 | `staging_network_profile` | Staging network profile (stage NIC) |
 | `production_network_profile` | Production network profile (prod NIC) |
 | `management_network_profile` | Management network profile (mgmt NIC) |
+
+**Note:** Root disk devices are managed by each service module with configurable size limits (via `root_disk_size` variable), not by the base profile.
 
 ## Troubleshooting
 
@@ -235,7 +237,7 @@ incus profile list
 ### View profile configuration
 
 ```bash
-incus profile show docker-base
+incus profile show container-base
 incus profile show management-network
 ```
 
@@ -280,10 +282,10 @@ module "grafana01" {
   source = "./modules/grafana"
 
   profiles = [
-    "default",
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
+  # Grafana module's profile provides root disk with size limit
 }
 ```
 

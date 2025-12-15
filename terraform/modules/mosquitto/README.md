@@ -21,8 +21,7 @@ module "mosquitto01" {
   profile_name  = "mosquitto"
 
   profiles = [
-    "default",
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.production_network_profile.name,
   ]
 

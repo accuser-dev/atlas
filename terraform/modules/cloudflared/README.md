@@ -22,8 +22,7 @@ module "cloudflared01" {
   profile_name  = "cloudflared"
 
   profiles = [
-    "default",
-    module.base.docker_base_profile.name,
+    module.base.container_base_profile.name,
     module.base.management_network_profile.name,
   ]
 
