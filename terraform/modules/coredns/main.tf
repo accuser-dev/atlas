@@ -8,8 +8,8 @@
 # because LXC requires a proper filesystem structure that OCI containers lack.
 
 # Service-specific profile
-# Contains resource limits and service-specific devices (proxy devices for DNS)
-# Base infrastructure (root disk, network) is provided by profiles passed via var.profiles
+# Contains resource limits, root disk with size limit, and service-specific devices (proxy devices for DNS)
+# Network connectivity is provided by profiles passed via var.profiles
 resource "incus_profile" "coredns" {
   name = var.profile_name
 
@@ -18,6 +18,17 @@ resource "incus_profile" "coredns" {
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
     "boot.autostart"        = "true"
+  }
+
+  # Root disk with size limit
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool
+      size = var.root_disk_size
+    }
   }
 
   # External access via proxy device for DNS (UDP)

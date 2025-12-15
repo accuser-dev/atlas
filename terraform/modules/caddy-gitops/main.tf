@@ -3,7 +3,7 @@
 # Handles Atlantis webhook traffic with GitHub IP allowlisting
 
 # Service-specific profile
-# Contains resource limits and network configuration for GitOps traffic
+# Contains resource limits, root disk, and network configuration for GitOps traffic
 resource "incus_profile" "caddy_gitops" {
   name = var.profile_name
 
@@ -11,6 +11,17 @@ resource "incus_profile" "caddy_gitops" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
+  }
+
+  # Root disk with size limit
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool
+      size = var.root_disk_size
+    }
   }
 
   # GitOps network (for Atlantis and CI/CD automation)

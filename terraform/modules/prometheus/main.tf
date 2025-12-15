@@ -24,8 +24,8 @@ resource "incus_storage_volume" "prometheus_data" {
 }
 
 # Service-specific profile
-# Contains only resource limits and service-specific devices (data volume)
-# Base infrastructure (root disk, network) is provided by profiles passed via var.profiles
+# Contains resource limits, root disk with size limit, and service-specific devices
+# Network is provided by profiles passed via var.profiles
 resource "incus_profile" "prometheus" {
   name = var.profile_name
 
@@ -35,6 +35,18 @@ resource "incus_profile" "prometheus" {
     "limits.memory.enforce" = "hard"
   }
 
+  # Root disk with size limit
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool
+      size = var.root_disk_size
+    }
+  }
+
+  # Data volume for persistent storage
   dynamic "device" {
     for_each = var.enable_data_persistence ? [1] : []
     content {

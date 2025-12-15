@@ -1,6 +1,6 @@
 # Service-specific profile
-# Contains only resource limits and service-specific devices (multi-network setup)
-# Base infrastructure (root disk, boot config) is provided by profiles passed via var.profiles
+# Contains resource limits, root disk with size limit, and service-specific devices (multi-network setup)
+# Network is provided by profiles passed via var.profiles
 #
 # Network modes:
 # - Bridge mode (external_network set): 3 NICs - prod, mgmt, eth0 (external)
@@ -12,6 +12,17 @@ resource "incus_profile" "caddy" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
+  }
+
+  # Root disk with size limit
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool
+      size = var.root_disk_size
+    }
   }
 
   # Caddy has a special multi-network setup for reverse proxy functionality

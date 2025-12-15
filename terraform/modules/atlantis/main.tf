@@ -20,8 +20,8 @@ resource "incus_storage_volume" "atlantis_data" {
 }
 
 # Service-specific profile
-# Contains resource limits and service-specific devices (data volume)
-# Base infrastructure (root disk, network) is provided by profiles passed via var.profiles
+# Contains resource limits and service-specific devices (root disk with size limit, data volume)
+# Base infrastructure (network) is provided by profiles passed via var.profiles
 resource "incus_profile" "atlantis" {
   name = var.profile_name
 
@@ -29,6 +29,17 @@ resource "incus_profile" "atlantis" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
+  }
+
+  # Root disk with size limit
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = var.storage_pool
+      size = var.root_disk_size
+    }
   }
 
   # Data volume for persistent Atlantis data
