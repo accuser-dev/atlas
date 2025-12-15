@@ -154,7 +154,7 @@ resource "incus_instance" "mosquitto" {
   config = var.container_type == "system" ? {
     # System container: use cloud-init for configuration
     "cloud-init.user-data" = local.cloud_init_content
-  } : merge(
+    } : merge(
     # OCI container: use environment variables
     { for k, v in var.environment_variables : "environment.${k}" => v },
     { for k, v in local.tls_env_vars : "environment.${k}" => v },
