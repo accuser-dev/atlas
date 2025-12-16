@@ -1,20 +1,32 @@
 # Atlas Infrastructure
 
-An OpenTofu-based infrastructure project for managing Incus containers running a complete observability and monitoring stack.
+A multi-environment OpenTofu infrastructure project for managing Incus containers across multiple hosts, providing a complete observability and monitoring stack.
 
 ## Overview
 
-This project provides a declarative infrastructure setup for:
-- **Caddy** - Reverse proxy with automatic HTTPS
-- **Grafana** - Visualization and dashboarding
-- **Prometheus** - Metrics collection and storage
-- **Loki** - Log aggregation
-- **Alertmanager** - Alert routing and notifications
-- **step-ca** - Internal PKI for service TLS certificates
-- **Node Exporter** - Host-level system metrics
-- **Mosquitto** - MQTT broker for IoT messaging
+This project manages two Incus environments with separate Terraform state:
+
+- **`iapetus`** - Control plane / aggregation (IncusOS standalone host)
+- **`cluster`** - Production workloads (3-node IncusOS cluster)
+
+### Services by Environment
+
+**iapetus (Control Plane):**
+- **Grafana** - Central dashboards and visualization
+- **Prometheus** - Federated metrics (pulls from cluster)
+- **Loki** - Aggregated log storage
+- **step-ca** - Internal PKI for TLS certificates
 - **Cloudflared** - Cloudflare Tunnel for Zero Trust access
-- **Atlantis** - GitOps controller for PR-based infrastructure management (optional)
+- **Atlantis** - GitOps controller (optional)
+- **Node Exporter** - Host metrics
+
+**cluster (Production):**
+- **Prometheus** - Local metrics scraping
+- **Promtail** - Ships logs to iapetus Loki
+- **Alertmanager** - Alert routing and notifications
+- **Node Exporter × 3** - Host metrics (pinned to each cluster node)
+- **Mosquitto** - MQTT broker for IoT messaging
+- **CoreDNS** - Split-horizon DNS
 
 All services run in Incus containers with persistent storage, network isolation, and automatic configuration management.
 
@@ -22,50 +34,49 @@ All services run in Incus containers with persistent storage, network isolation,
 
 ```
 atlas/
-├── docker/                    # Custom Docker images
-│   ├── alertmanager/         # Alert routing and notifications
-│   ├── atlantis/             # GitOps controller
-│   ├── caddy/                # Reverse proxy with Cloudflare DNS plugin
-│   ├── cloudflared/          # Cloudflare Tunnel client
-│   ├── grafana/              # Grafana with optional plugins
-│   ├── loki/                 # Log aggregation
-│   ├── mosquitto/            # MQTT broker
-│   ├── prometheus/           # Metrics collection with optional rules
-│   └── step-ca/              # Internal PKI certificate authority
+├── modules/                   # Shared Terraform modules (used by all environments)
+│   ├── alertmanager/
+│   ├── atlantis/
+│   ├── base-infrastructure/   # Networks and base profiles
+│   ├── cloudflared/
+│   ├── coredns/
+│   ├── grafana/
+│   ├── incus-loki/            # Native Incus logging to Loki
+│   ├── incus-metrics/         # Incus container metrics
+│   ├── loki/
+│   ├── mosquitto/
+│   ├── node-exporter/
+│   ├── prometheus/
+│   ├── promtail/              # Log shipping to central Loki
+│   └── step-ca/
 │
-├── terraform/                 # Infrastructure as Code (OpenTofu)
-│   ├── bootstrap/            # Bootstrap project for remote state
-│   ├── modules/              # Reusable service modules
-│   │   ├── alertmanager/
-│   │   ├── atlantis/         # GitOps controller (optional)
-│   │   ├── base-infrastructure/  # Networks and base profiles
-│   │   ├── caddy/
-│   │   ├── caddy-gitops/     # Dedicated Caddy for GitOps (optional)
-│   │   ├── cloudflared/
-│   │   ├── grafana/
-│   │   ├── incus-loki/       # Native Incus logging to Loki
-│   │   ├── incus-metrics/    # Incus container metrics
-│   │   ├── loki/
-│   │   ├── mosquitto/
-│   │   ├── node-exporter/
-│   │   ├── prometheus/
-│   │   └── step-ca/
-│   ├── main.tf               # Service instantiations
-│   ├── locals.tf             # Centralized service configuration
-│   ├── variables.tf          # Variable definitions
-│   ├── outputs.tf            # Output values
-│   └── terraform.tfvars      # Secrets (gitignored)
+├── environments/
+│   ├── iapetus/               # Control plane environment
+│   │   ├── main.tf            # Module instantiations
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   ├── terraform.tfvars   # Secrets (gitignored)
+│   │   └── bootstrap/         # Remote state setup
+│   │
+│   └── cluster/               # Production cluster environment
+│       ├── main.tf            # Module instantiations
+│       ├── variables.tf
+│       ├── outputs.tf
+│       └── terraform.tfvars   # Secrets (gitignored)
 │
-├── .github/workflows/        # CI/CD workflows
-│   ├── ci.yml                # Validation and testing
-│   └── release.yml           # Build and publish images
-├── atlantis.yaml             # Atlantis repository configuration
-├── Makefile                  # Build and deployment automation
-├── CLAUDE.md                 # Detailed architecture documentation
-├── CONTRIBUTING.md           # Contribution guidelines
-├── BACKUP.md                 # Backup and disaster recovery
-├── GITOPS.md                 # GitOps workflow with Atlantis
-└── README.md                 # This file
+├── docker/                    # Custom Docker images (Atlantis only)
+│   └── atlantis/
+│
+├── .github/workflows/         # CI/CD workflows
+│   ├── ci.yml                 # Validates both environments
+│   └── release.yml            # Build and publish images
+│
+├── Makefile                   # ENV=iapetus make plan (default: iapetus)
+├── CLAUDE.md                  # Detailed architecture documentation
+├── CONTRIBUTING.md            # Contribution guidelines
+├── BACKUP.md                  # Backup and disaster recovery
+├── GITOPS.md                  # GitOps workflow with Atlantis
+└── README.md                  # This file
 ```
 
 ## Quick Start
@@ -74,10 +85,10 @@ atlas/
 
 - [Incus](https://linuxcontainers.org/incus/) installed and running
 - [OpenTofu](https://opentofu.org/) >= 1.6 (or Terraform >= 1.6)
-- Cloudflare API token (for DNS-01 ACME challenges)
+- Cloudflare API token (for Cloudflare Tunnel access)
 - GitHub account (images published to ghcr.io)
 
-### Initial Setup
+### Initial Setup (iapetus)
 
 1. **Clone the repository**:
    ```bash
@@ -92,133 +103,123 @@ atlas/
 
 3. **Create terraform.tfvars**:
    ```bash
-   cd terraform
+   cd environments/iapetus
    cp terraform.tfvars.example terraform.tfvars
-   # Edit with your values:
-   # - cloudflare_api_token
-   # - network addresses (IPv4)
+   # Edit with your values
    ```
 
-4. **Deploy infrastructure**:
+4. **Deploy iapetus**:
    ```bash
    make init
    make plan
    make apply
    ```
 
-   Or use the combined command:
-   ```bash
-   make deploy
-   ```
-
 5. **View outputs**:
    ```bash
-   cd terraform
+   cd environments/iapetus
    tofu output
    ```
 
-## Docker Images
+### Deploying the Cluster Environment
 
-### Production Images (GitHub Container Registry)
+1. **Configure Incus remote** (from iapetus or management host):
+   ```bash
+   incus remote add cluster01 https://<cluster-ip>:8443
+   export INCUS_REMOTE=cluster01
+   ```
 
-All services use custom images automatically built and published by GitHub Actions:
+2. **Bootstrap cluster state**:
+   ```bash
+   ENV=cluster make bootstrap
+   ```
 
-- **Alertmanager**: `ghcr.io/accuser-dev/atlas/alertmanager:latest`
-- **Caddy**: `ghcr.io/accuser-dev/atlas/caddy:latest`
-- **Cloudflared**: `ghcr.io/accuser-dev/atlas/cloudflared:latest`
-- **Grafana**: `ghcr.io/accuser-dev/atlas/grafana:latest`
-- **Loki**: `ghcr.io/accuser-dev/atlas/loki:latest`
-- **Mosquitto**: `ghcr.io/accuser-dev/atlas/mosquitto:latest`
-- **Prometheus**: `ghcr.io/accuser-dev/atlas/prometheus:latest`
-- **step-ca**: `ghcr.io/accuser-dev/atlas/step-ca:latest`
+3. **Create terraform.tfvars**:
+   ```bash
+   cd environments/cluster
+   cp terraform.tfvars.example terraform.tfvars
+   # Edit with cluster-specific values including loki_push_url
+   ```
 
-Images are:
-- Built on every push to `main`
-- Published to GitHub Container Registry (ghcr.io)
-- Publicly accessible (no authentication required)
-- Extended from official images with custom plugins and configuration
+4. **Deploy cluster**:
+   ```bash
+   ENV=cluster make init
+   ENV=cluster make plan
+   ENV=cluster make apply
+   ```
+
+## Container Images
+
+### System Containers (Alpine + cloud-init)
+
+Most services use Alpine Linux system containers with cloud-init:
+- Grafana, Prometheus, Loki, Alertmanager
+- step-ca, Cloudflared, Node Exporter
+- Mosquitto, CoreDNS, Promtail
+
+These download and configure binaries at first boot - no custom images needed.
+
+### OCI Container Images (Docker)
+
+Only Atlantis uses a custom Docker image:
+- **Atlantis**: `ghcr.io/accuser-dev/atlas/atlantis:latest`
+
+Built on every push to `main` and published to GitHub Container Registry.
 
 ### Local Development
 
-Build images locally for testing:
+Build Atlantis image locally for testing:
 ```bash
-make build-all           # Build all images
-make build-grafana       # Build specific service
+make build-atlantis
 ```
-
-**Note:** Local builds are for testing only. Production deployments use images from ghcr.io.
 
 ## Usage
 
 ### Managing Infrastructure
 
-Initialize OpenTofu:
+All commands support the `ENV` variable to target specific environments:
+
 ```bash
+# iapetus (default)
 make init
-```
-
-Plan changes:
-```bash
 make plan
-```
-
-Apply changes:
-```bash
 make apply
-```
-
-Destroy infrastructure:
-```bash
 make destroy
+
+# cluster environment
+ENV=cluster make init
+ENV=cluster make plan
+ENV=cluster make apply
+ENV=cluster make destroy
 ```
 
 ### Full Deployment
 
-Deploy infrastructure (pulls images from ghcr.io):
 ```bash
+# Deploy iapetus
 make deploy
+
+# Deploy cluster
+ENV=cluster make deploy
 ```
 
 ## Configuration
 
-### Using Custom vs Official Images
-
-**Default: Custom Images from ghcr.io**
-
-All modules default to custom images from GitHub Container Registry.
-
-**Switching to Official Images:**
-
-Override the `image` variable in `terraform/main.tf`:
-
-```hcl
-module "grafana01" {
-  source = "./modules/grafana"
-
-  # Use official image instead of custom
-  image = "docker:grafana/grafana:latest"
-
-  # ... other configuration
-}
-```
-
-### Customizing Docker Images
-
-1. Edit the Dockerfile in `docker/<service>/Dockerfile`
-2. Add plugins, configuration, or customizations
-3. Test locally: `make build-<service>`
-4. Push to GitHub (merge PR to main)
-5. GitHub Actions builds and publishes to ghcr.io
-6. Run `make apply` to pull new image
-
 ### Network Configuration
 
-Two networks are defined (gitops is optional):
-- **production** (10.10.0.0/24) - For public-facing services (Mosquitto)
+Each environment has two networks:
+- **production** (10.10.0.0/24) - For external services (Mosquitto, CoreDNS)
 - **management** (10.20.0.0/24) - For internal services (monitoring stack, PKI)
-- **gitops** (10.30.0.0/24) - For GitOps automation (optional, enabled with `enable_gitops`)
+- **gitops** (10.30.0.0/24) - For GitOps automation (optional, iapetus only)
 
-Configure IP addresses in `terraform/terraform.tfvars`.
+Configure IP addresses in `environments/*/terraform.tfvars`.
+
+### Cross-Environment Integration
+
+The cluster environment connects to iapetus for:
+- **Log shipping**: Promtail → iapetus Loki (`loki_push_url` variable)
+- **Prometheus federation**: iapetus pulls metrics from cluster
+- **TLS certificates**: step-ca on iapetus issues certs for cluster services
 
 ### Adding New Services
 
@@ -228,68 +229,69 @@ See [CLAUDE.md](CLAUDE.md#adding-new-service-modules) for detailed instructions 
 
 ### Key Features
 
+- **Multi-Environment** - Separate state for iapetus (control plane) and cluster (production)
 - **Declarative Infrastructure** - Everything defined in OpenTofu
-- **Modular Design** - Reusable service modules
-- **CI/CD Integration** - Automated image builds via GitHub Actions
-- **Custom Images** - Published to GitHub Container Registry
+- **Modular Design** - Shared modules across environments
+- **System Containers** - Alpine Linux with cloud-init (no custom images for most services)
 - **Persistent Storage** - Data survives container restarts with optional automated snapshots
-- **Automatic HTTPS** - Let's Encrypt via Cloudflare DNS
-- **Network Isolation** - Separate networks for different environments
-- **Dynamic Configuration** - Auto-generated reverse proxy configs
+- **Zero Trust Access** - Cloudflare Tunnel for external access
+- **Network Isolation** - Separate networks for different service types
 - **Native Incus Integration** - Container metrics and logging via Incus API
 
-### Service Architecture
+### Multi-Environment Architecture
 
 ```
-Internet
-    │
-    ├──[Cloudflared]──── Cloudflare Tunnel (Zero Trust)
-    │
-    ↓
-[Caddy Reverse Proxy] ← HTTPS certificates via Cloudflare DNS
-    │
-    ├──[Grafana] ─────→ Visualization
-    │       │
-    │       ├─────────→ [Prometheus] → Metrics storage
-    │       │               ↑
-    │       │           [Node Exporter] → Host metrics
-    │       │           [Incus Metrics] → Container metrics
-    │       │
-    │       └─────────→ [Loki] → Log aggregation
-    │                       ↑
-    │                   [Incus Loki] → Container logs
-    │
-    └──[Mosquitto] ───→ MQTT (ports 1883/8883)
-
-[Prometheus] → [Alertmanager] → Notifications
-
-[step-ca] → Internal TLS certificates for all services
+┌─────────────────────────────────────────────────────────────────────┐
+│                         iapetus (IncusOS)                           │
+│                    Control Plane / Aggregation                      │
+├─────────────────────────────────────────────────────────────────────┤
+│  - Atlantis (GitOps) → manages iapetus + cluster via remote Incus   │
+│  - Grafana (central dashboards)                                     │
+│  - Prometheus (federated, pulls from cluster)                       │
+│  - Loki (aggregated logs via Promtail on cluster)                   │
+│  - Cloudflared (tunnel ingress)                                     │
+│  - step-ca (central CA for all environments)                        │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │ incus remote + prometheus federation
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│       prometheus/epimetheus/menoetius (IncusOS 3-node cluster)      │
+│                        Production Workloads                         │
+├─────────────────────────────────────────────────────────────────────┤
+│  - Prometheus (local scraping, federated by iapetus)                │
+│  - Promtail → ships logs to iapetus Loki                            │
+│  - node-exporter × 3 (pinned to each cluster node)                  │
+│  - Mosquitto, CoreDNS, Alertmanager                                 │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Public Services** (via Caddy):
-- Grafana: `https://grafana.yourdomain.com`
-
-**External TCP Services** (via Incus proxy):
-- Mosquitto MQTT: Host ports 1883 (MQTT), 8883 (MQTTS)
-
-**Internal Services** (Incus network only):
+**iapetus Services** (control plane):
+- Grafana: `https://grafana.yourdomain.com` (via Cloudflare Tunnel)
 - Prometheus: `http://prometheus01.incus:9090`
 - Loki: `http://loki01.incus:3100`
+- step-ca: `https://step-ca01.incus:9000`
+
+**cluster Services** (production):
+- Prometheus: `http://prometheus01.incus:9090`
 - Alertmanager: `http://alertmanager01.incus:9093`
-- step-ca: `https://step-ca01.incus:9000` (ACME server)
-- Node Exporter: `http://node-exporter01.incus:9100`
+- Mosquitto: Host ports 1883 (MQTT), 8883 (MQTTS)
+- CoreDNS: Host port 53 (DNS)
+- Node Exporter × 3: Pinned to each cluster node
 
 ### Storage Volumes
 
-Persistent storage for each service:
+**iapetus:**
 - `grafana01-data` (10GB) - Dashboards and settings
 - `loki01-data` (50GB) - Log storage
 - `prometheus01-data` (100GB) - Metrics storage
-- `alertmanager01-data` (1GB) - Silences and state
 - `step-ca01-data` (1GB) - CA keys and database
+
+**cluster:**
+- `prometheus01-data` (100GB) - Metrics storage
+- `alertmanager01-data` (1GB) - Silences and state
 - `mosquitto01-data` (5GB) - MQTT retained messages
 
-All volumes support optional automated snapshot scheduling via Terraform variables. See [BACKUP.md](BACKUP.md) for details.
+All volumes support optional automated snapshot scheduling. See [BACKUP.md](BACKUP.md) for details.
 
 ## CI/CD
 
@@ -300,8 +302,8 @@ The project uses separate workflows for validation and releases:
 **Triggers:** Pull requests and pushes to feature branches
 
 **What it does:**
-1. OpenTofu format and validation
-2. Docker image builds (without publish)
+1. OpenTofu format and validation for both environments
+2. Atlantis Docker image build (without publish)
 3. Security scanning
 
 ### Release Workflow (`release.yml`)
@@ -309,29 +311,20 @@ The project uses separate workflows for validation and releases:
 **Triggers:** Push to `main` branch
 
 **What it does:**
-1. Builds all Docker images in parallel
+1. Builds Atlantis Docker image
 2. Publishes to GitHub Container Registry
 3. Tags with `latest` and commit SHA
-
-### Image Publishing
-
-Images are published to GitHub Container Registry:
-- **Registry**: `ghcr.io`
-- **Organization**: `accuser-dev/atlas`
-- **Format**: `ghcr.io/accuser-dev/atlas/<service>:<tag>`
-- **Tags**: `latest` (main branch), commit SHA
-
-**Making images public:**
-After the first push, visit `https://github.com/accuser-dev/atlas/packages` and change each package visibility to public.
 
 ## Development
 
 ### Makefile Targets
 
+All targets support `ENV=iapetus` (default) or `ENV=cluster`:
+
 ```bash
 make help              # Show all available commands
 
-# Bootstrap (first time setup)
+# Bootstrap (first time setup per environment)
 make bootstrap         # Set up remote state storage
 
 # OpenTofu operations
@@ -339,12 +332,11 @@ make init              # Initialize OpenTofu with remote backend
 make plan              # Plan infrastructure changes
 make apply             # Apply infrastructure changes
 make destroy           # Destroy infrastructure
-make deploy            # Apply OpenTofu (pulls from ghcr.io)
+make deploy            # Apply OpenTofu
 make format            # Format OpenTofu files
 
-# Docker operations
-make build-all         # Build all Docker images locally (testing)
-make build-<service>   # Build specific service image locally
+# Docker operations (Atlantis only)
+make build-atlantis    # Build Atlantis image locally
 
 # Cleanup
 make clean             # Clean all build artifacts
@@ -360,15 +352,16 @@ make backup-list       # List all volume snapshots
 
 ### Directory Organization
 
-- **`docker/`** - Custom Docker image definitions
-  - Each service has its own directory with Dockerfile and README
-  - Images are built by GitHub Actions and published to ghcr.io
+- **`modules/`** - Shared Terraform modules
+  - Used by both environments
+  - Each service has its own directory
 
-- **`terraform/`** - Infrastructure as Code (OpenTofu)
-  - `bootstrap/` - Remote state setup
-  - `modules/` - Reusable service modules
-  - `*.tf` - Root-level OpenTofu configuration
-  - `terraform.tfvars` - Secrets and variables (gitignored)
+- **`environments/`** - Environment-specific configuration
+  - `iapetus/` - Control plane
+  - `cluster/` - Production workloads
+  - Each has `main.tf`, `variables.tf`, `terraform.tfvars` (gitignored)
+
+- **`docker/`** - Custom Docker images (Atlantis only)
 
 ## Troubleshooting
 
@@ -384,7 +377,7 @@ incus console <container-name>
 
 View current state:
 ```bash
-cd terraform
+cd environments/iapetus  # or environments/cluster
 tofu show
 ```
 
@@ -395,19 +388,14 @@ Test internal DNS:
 incus exec grafana01 -- ping prometheus01.incus
 ```
 
-### Certificate issues
+### Cross-environment connectivity
 
-Check Caddy logs:
+Ensure the cluster is accessible from iapetus:
 ```bash
-incus exec caddy01 -- cat /var/log/caddy.log
+# On iapetus or management host
+incus remote list
+incus list cluster01:
 ```
-
-### Image pull errors
-
-If Incus can't pull images from ghcr.io:
-1. Verify images are public in GitHub packages settings
-2. Check image names match expected format
-3. Test pull manually: `incus launch ghcr:accuser-dev/atlas/grafana:latest test`
 
 ## Contributing
 
@@ -431,5 +419,4 @@ For detailed architecture, design patterns, and development guidance, see:
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines and GitHub Flow
 - [BACKUP.md](BACKUP.md) - Backup and disaster recovery procedures
 - [GITOPS.md](GITOPS.md) - GitOps workflow with Atlantis
-- [docker/*/README.md](docker/) - Service-specific Docker image docs
-- [terraform/modules/*/](terraform/modules/) - OpenTofu module documentation
+- [modules/*/README.md](modules/) - OpenTofu module documentation

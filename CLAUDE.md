@@ -4,29 +4,71 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Terraform infrastructure project that manages Incus containers for a complete monitoring stack including Grafana, Prometheus, and Loki. External access is provided via Cloudflare Tunnel. The setup provisions containerized services with persistent storage and dynamic configuration generation.
+This is a multi-environment Terraform infrastructure project that manages Incus containers across multiple hosts. The project supports two environments with separate Terraform state:
 
-The project is organized into two main directories:
-- **`docker/`** - Custom Docker images for each service
-- **`terraform/`** - Infrastructure as Code using Terraform
+- **`iapetus`** - Control plane / aggregation (IncusOS standalone host)
+- **`cluster`** - Production workloads (3-node IncusOS cluster: prometheus, epimetheus, menoetius)
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         iapetus (IncusOS)                           │
+│                    Control Plane / Aggregation                      │
+├─────────────────────────────────────────────────────────────────────┤
+│  - Atlantis (GitOps) → manages iapetus + cluster via remote Incus   │
+│  - Grafana (central dashboards)                                     │
+│  - Prometheus (federated, pulls from cluster)                       │
+│  - Loki (aggregated logs via Promtail on cluster)                   │
+│  - Cloudflared (tunnel ingress)                                     │
+│  - step-ca (central CA for all environments)                        │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │ incus remote + prometheus federation
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│       prometheus/epimetheus/menoetius (IncusOS 3-node cluster)      │
+│                        Production Workloads                         │
+├─────────────────────────────────────────────────────────────────────┤
+│  - Prometheus (local scraping, federated by iapetus)                │
+│  - Promtail → ships logs to iapetus Loki                            │
+│  - node-exporter × 3 (pinned to each cluster node)                  │
+│  - Mosquitto, CoreDNS, Alertmanager                                 │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+The project is organized into three main directories:
+- **`docker/`** - Custom Docker images (Atlantis only)
+- **`modules/`** - Shared Terraform modules used by both environments
+- **`environments/`** - Environment-specific Terraform configurations
 
 ## Resource Requirements
 
 ### Compute Resources
 
+**iapetus (Control Plane):**
+
 | Service | CPU (cores) | Memory | Purpose |
 |---------|-------------|--------|---------|
 | Grafana | 2 | 1GB | Dashboards, visualization |
-| Prometheus | 2 | 2GB | Metrics storage |
+| Prometheus | 2 | 2GB | Metrics storage (federated) |
 | Loki | 2 | 2GB | Log aggregation |
-| Alertmanager | 1 | 256MB | Alert routing |
 | step-ca | 1 | 512MB | Certificate authority |
 | Node Exporter | 1 | 128MB | Host metrics |
-| Mosquitto | 1 | 256MB | MQTT broker |
-| CoreDNS | 1 | 128MB | Split-horizon DNS |
 | Cloudflared | 1 | 256MB | Tunnel client (optional) |
 | Atlantis | 2 | 1GB | GitOps controller (optional) |
-| **Total** | **11-14** | **6.5-7.5GB** | |
+| **Total** | **9-11** | **5.9-6.9GB** | |
+
+**cluster (Production Workloads):**
+
+| Service | CPU (cores) | Memory | Purpose |
+|---------|-------------|--------|---------|
+| Prometheus | 2 | 2GB | Local metrics scraping |
+| Alertmanager | 1 | 256MB | Alert routing |
+| Node Exporter × 3 | 3 | 384MB | Host metrics (pinned per node) |
+| Promtail | 1 | 256MB | Log shipping to iapetus |
+| Mosquitto | 1 | 256MB | MQTT broker |
+| CoreDNS | 1 | 128MB | Split-horizon DNS |
+| **Total** | **9** | **3.3GB** | |
 
 **Notes:**
 - Resource limits are enforced with hard memory limits (OOM kill on exceed)
@@ -94,46 +136,61 @@ For a complete deployment with all services:
 
 ```
 atlas/
-├── docker/                    # Custom Docker images (Atlantis only - other services use system containers)
-│   └── atlantis/             # Atlantis GitOps controller
+├── modules/                   # Shared Terraform modules (used by all environments)
+│   ├── alertmanager/
+│   ├── atlantis/
+│   ├── base-infrastructure/
+│   ├── cloudflared/
+│   ├── coredns/
+│   ├── grafana/
+│   ├── incus-loki/
+│   ├── incus-metrics/
+│   ├── incus-vm/
+│   ├── loki/
+│   ├── mosquitto/
+│   ├── node-exporter/
+│   ├── prometheus/
+│   ├── promtail/              # Log shipping to central Loki
+│   └── step-ca/
+│
+├── environments/
+│   ├── iapetus/               # Control plane environment
+│   │   ├── main.tf            # Module instantiations for iapetus
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   ├── locals.tf
+│   │   ├── providers.tf       # provider "incus" {} (local/default)
+│   │   ├── versions.tf        # backend "s3" with iapetus bucket
+│   │   ├── terraform.tfvars   # (gitignored)
+│   │   ├── backend.hcl        # (gitignored)
+│   │   ├── init.sh
+│   │   └── bootstrap/         # Creates S3 bucket for state
+│   │
+│   └── cluster/               # Production cluster environment
+│       ├── main.tf            # Module instantiations for cluster
+│       ├── variables.tf
+│       ├── outputs.tf
+│       ├── locals.tf
+│       ├── providers.tf       # provider "incus" {} (uses INCUS_REMOTE)
+│       ├── versions.tf        # backend "s3" with cluster bucket
+│       ├── terraform.tfvars   # (gitignored)
+│       ├── backend.hcl        # (gitignored)
+│       └── init.sh
+│
+├── docker/                    # Custom Docker images (Atlantis only)
+│   └── atlantis/
 │       ├── Dockerfile
 │       └── README.md
-├── terraform/                 # Terraform infrastructure
-│   ├── bootstrap/            # Bootstrap Terraform project
-│   │   ├── main.tf           # Creates storage bucket and credentials
-│   │   ├── variables.tf      # Bootstrap variables
-│   │   ├── outputs.tf        # Bootstrap outputs
-│   │   ├── versions.tf       # Version constraints (local state)
-│   │   └── README.md         # Bootstrap documentation
-│   ├── modules/              # Reusable Terraform modules
-│   │   ├── alertmanager/
-│   │   ├── atlantis/
-│   │   ├── cloudflared/
-│   │   ├── coredns/
-│   │   ├── grafana/
-│   │   ├── incus-loki/
-│   │   ├── incus-metrics/
-│   │   ├── loki/
-│   │   ├── mosquitto/
-│   │   ├── node-exporter/
-│   │   ├── prometheus/
-│   │   └── step-ca/
-│   ├── init.sh               # Initialization wrapper script
-│   ├── main.tf               # Module instantiations
-│   ├── variables.tf          # Variable definitions
-│   ├── locals.tf             # Centralized service configuration
-│   ├── outputs.tf            # Output values
-│   ├── providers.tf          # Provider configuration
-│   ├── versions.tf           # Version constraints and backend config
-│   ├── README.md             # Terraform usage documentation
-│   ├── terraform.tfvars      # Variable values (gitignored)
-│   ├── backend.hcl           # Backend credentials (gitignored)
-│   ├── backend.hcl.example   # Backend config template
-│   └── BACKEND_SETUP.md      # Remote state setup guide
-├── Makefile                  # Build and deployment automation
-├── CONTRIBUTING.md           # Contribution guidelines and GitHub Flow workflow
-├── BACKUP.md                 # Backup and disaster recovery procedures
-└── CLAUDE.md                 # This file
+│
+├── .github/workflows/
+│   ├── ci.yml                 # Validates all environments
+│   ├── release.yml            # Build Atlantis image
+│   └── cleanup.yml
+│
+├── Makefile                   # ENV=iapetus make plan (default: iapetus)
+├── CONTRIBUTING.md
+├── BACKUP.md
+└── CLAUDE.md                  # This file
 ```
 
 ## Common Commands
@@ -143,48 +200,64 @@ atlas/
 For a vanilla Incus installation (after `incus admin init`):
 
 ```bash
-# 1. Bootstrap (creates storage bucket for Terraform state)
+# 1. Bootstrap iapetus (creates storage bucket for Terraform state)
 make bootstrap
 
 # 2. Initialize OpenTofu with remote backend
 make init
 
-# 3. Deploy infrastructure
+# 3. Deploy iapetus infrastructure
 make deploy
+
+# For cluster environment, configure remote first:
+incus remote add cluster01 https://<cluster-ip>:8443
+export INCUS_REMOTE=cluster01
+
+# Then deploy cluster
+ENV=cluster make init
+ENV=cluster make deploy
 ```
 
 ### Build and Deployment (Makefile)
+
+All Makefile commands support the `ENV` variable to target specific environments:
+- `ENV=iapetus` (default) - Control plane environment
+- `ENV=cluster` - Production cluster environment
+
 ```bash
-# Bootstrap commands (run once for fresh setup)
-make bootstrap           # Complete bootstrap process
-make bootstrap-init      # Initialize bootstrap Terraform
-make bootstrap-plan      # Plan bootstrap changes
-make bootstrap-apply     # Apply bootstrap
+# Bootstrap commands (run once per environment)
+make bootstrap           # Complete bootstrap process (iapetus)
+ENV=cluster make bootstrap  # Bootstrap cluster environment
 
 # Build Docker images locally (for testing only)
 make build-all
 make build-atlantis
 
 # OpenTofu operations (after bootstrap)
-make init                # Initialize OpenTofu with remote backend
-make plan                # Plan changes
-make apply               # Apply changes
-make destroy             # Destroy infrastructure and remove cached images
+make init                # Initialize iapetus with remote backend
+make plan                # Plan changes for iapetus
+make apply               # Apply changes to iapetus
+make destroy             # Destroy iapetus infrastructure
 
-# Complete deployment (applies OpenTofu, pulls images from ghcr.io)
-make deploy
+# Target cluster environment
+ENV=cluster make init    # Initialize cluster
+ENV=cluster make plan    # Plan cluster changes
+ENV=cluster make apply   # Apply to cluster
+
+# Complete deployment
+make deploy              # Deploy iapetus
+ENV=cluster make deploy  # Deploy cluster
 
 # Cleanup
 make clean               # Clean all build artifacts
 make clean-docker        # Clean Docker build cache
-make clean-tofu          # Clean OpenTofu cache
-make clean-bootstrap     # Clean bootstrap OpenTofu cache
+make clean-tofu          # Clean OpenTofu cache for current ENV
 make clean-images        # Remove Atlas images from Incus cache
 
 # Format OpenTofu files
 make format
 
-# Backup operations
+# Backup operations (environment-specific)
 make backup-snapshot     # Create snapshots of all storage volumes
 make backup-export       # Export all volumes to tarballs (stops services)
 make backup-list         # List all volume snapshots
@@ -200,18 +273,21 @@ For detailed backup procedures and disaster recovery playbooks, see [BACKUP.md](
 
 ```bash
 # Option 1: Use the Makefile (recommended)
-make init
+make init                     # iapetus
+ENV=cluster make init         # cluster
 
 # Option 2: Use the init wrapper script
-cd terraform && ./init.sh
+cd environments/iapetus && ./init.sh
+cd environments/cluster && ./init.sh
 
 # Option 3: Manual with backend config
-cd terraform && tofu init -backend-config=backend.hcl
+cd environments/iapetus && tofu init -backend-config=backend.hcl
+cd environments/cluster && tofu init -backend-config=backend.hcl
 ```
 
 After initialization, you can run other commands directly:
 ```bash
-cd terraform
+cd environments/iapetus  # or environments/cluster
 
 # Validate configuration
 tofu validate
@@ -239,22 +315,27 @@ tofu output
 
 **Remote State Backend:**
 
-This project uses Incus S3-compatible storage buckets for encrypted remote state storage. This provides:
+Each environment uses its own Incus S3-compatible storage bucket for encrypted remote state storage:
+- `iapetus` state → S3 bucket on iapetus host
+- `cluster` state → S3 bucket on cluster
+
+This provides:
 - Encrypted state at rest
 - Self-hosted (no external dependencies)
 - S3-compatible API
+- Separate state per environment
 - Secure credential-based access
 
 **Bootstrap Process:**
 
-The project uses a **two-project structure**:
-1. **Bootstrap project** (`terraform/bootstrap/`) - Uses local state, creates storage bucket
-2. **Main project** (`terraform/`) - Uses remote state in the storage bucket
+Each environment has a **two-project structure**:
+1. **Bootstrap project** (`environments/*/bootstrap/`) - Uses local state, creates storage bucket
+2. **Main project** (`environments/*/`) - Uses remote state in the storage bucket
 
 **Initial Setup (Automated):**
 
 ```bash
-# Run bootstrap to set up storage bucket
+# Run bootstrap for iapetus
 make bootstrap
 
 # Bootstrap creates:
@@ -262,16 +343,21 @@ make bootstrap
 # - Storage pool (terraform-state)
 # - Storage bucket (atlas-terraform-state)
 # - S3 credentials
-# - Backend config file (terraform/backend.hcl)
+# - Backend config file (environments/iapetus/backend.hcl)
+
+# For cluster, configure remote first then bootstrap:
+incus remote add cluster01 https://<cluster-ip>:8443
+export INCUS_REMOTE=cluster01
+ENV=cluster make bootstrap
 ```
 
-See [terraform/BACKEND_SETUP.md](terraform/BACKEND_SETUP.md) for detailed instructions and [terraform/bootstrap/README.md](terraform/bootstrap/README.md) for bootstrap documentation.
+See [environments/iapetus/BACKEND_SETUP.md](environments/iapetus/BACKEND_SETUP.md) for detailed instructions.
 
 **Working with Remote State:**
 
 ```bash
 # Normal operations work the same
-cd terraform
+cd environments/iapetus  # or environments/cluster
 tofu plan
 tofu apply
 
@@ -284,6 +370,7 @@ tofu init -migrate-state
 
 **Important Notes:**
 - Never commit `backend.hcl` (gitignored)
+- Each environment has its own state bucket and credentials
 - Store S3 credentials securely (environment variables recommended)
 - For CI/CD, use GitHub Secrets for credentials
 - Backup storage bucket regularly for disaster recovery
@@ -350,36 +437,43 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed workflow guidelines.
 
 ### Modular Structure
 
-The project uses Terraform modules for scalability and reusability:
+The project uses Terraform modules for scalability and reusability. Modules are shared across environments.
 
-**Terraform Root Level:**
-- [terraform/versions.tf](terraform/versions.tf) - Terraform and provider version constraints
-- [terraform/providers.tf](terraform/providers.tf) - Provider configuration
-- [terraform/variables.tf](terraform/variables.tf) - Root-level input variable definitions
-- [terraform/main.tf](terraform/main.tf) - Module instantiations and orchestration
-- [terraform/locals.tf](terraform/locals.tf) - Centralized service configuration
-- [terraform/outputs.tf](terraform/outputs.tf) - Output values (endpoints, configurations)
-- [terraform/terraform.tfvars](terraform/terraform.tfvars) - Variable values (gitignored, contains secrets)
+**Environment Level (iapetus or cluster):**
+- `environments/*/versions.tf` - Terraform and provider version constraints
+- `environments/*/providers.tf` - Provider configuration
+- `environments/*/variables.tf` - Environment-specific variable definitions
+- `environments/*/main.tf` - Module instantiations for that environment
+- `environments/*/locals.tf` - Centralized service configuration
+- `environments/*/outputs.tf` - Output values (endpoints, configurations)
+- `environments/*/terraform.tfvars` - Variable values (gitignored, contains secrets)
 
-**Terraform Modules:**
-- [terraform/modules/grafana/](terraform/modules/grafana/) - Grafana observability platform
-  - [main.tf](terraform/modules/grafana/main.tf) - Profile, container, and storage volume
-  - [variables.tf](terraform/modules/grafana/variables.tf) - Module input variables including domain config
-  - [outputs.tf](terraform/modules/grafana/outputs.tf) - Module outputs
-  - [templates/cloud-init.yaml.tftpl](terraform/modules/grafana/templates/cloud-init.yaml.tftpl) - Cloud-init configuration
-  - [versions.tf](terraform/modules/grafana/versions.tf) - Provider requirements
+**Shared Terraform Modules:**
+- [modules/grafana/](modules/grafana/) - Grafana observability platform
+  - [main.tf](modules/grafana/main.tf) - Profile, container, and storage volume
+  - [variables.tf](modules/grafana/variables.tf) - Module input variables including domain config
+  - [outputs.tf](modules/grafana/outputs.tf) - Module outputs
+  - [templates/cloud-init.yaml.tftpl](modules/grafana/templates/cloud-init.yaml.tftpl) - Cloud-init configuration
+  - [versions.tf](modules/grafana/versions.tf) - Provider requirements
 
-- [terraform/modules/loki/](terraform/modules/loki/) - Log aggregation system (internal only)
-  - [main.tf](terraform/modules/loki/main.tf) - Profile, container, and storage volume
-  - [variables.tf](terraform/modules/loki/variables.tf) - Module input variables
-  - [outputs.tf](terraform/modules/loki/outputs.tf) - Module outputs including endpoint
-  - [versions.tf](terraform/modules/loki/versions.tf) - Provider requirements
+- [modules/loki/](modules/loki/) - Log aggregation system (internal only)
+  - [main.tf](modules/loki/main.tf) - Profile, container, and storage volume
+  - [variables.tf](modules/loki/variables.tf) - Module input variables
+  - [outputs.tf](modules/loki/outputs.tf) - Module outputs including endpoint
 
-- [terraform/modules/prometheus/](terraform/modules/prometheus/) - Metrics collection and storage (internal only)
-  - [main.tf](terraform/modules/prometheus/main.tf) - Profile, container, storage volume, and config file
-  - [variables.tf](terraform/modules/prometheus/variables.tf) - Module input variables including prometheus.yml config
-  - [outputs.tf](terraform/modules/prometheus/outputs.tf) - Module outputs including endpoint
-  - [versions.tf](terraform/modules/prometheus/versions.tf) - Provider requirements
+- [modules/prometheus/](modules/prometheus/) - Metrics collection and storage
+  - [main.tf](modules/prometheus/main.tf) - Profile, container, storage volume, and config file
+  - [variables.tf](modules/prometheus/variables.tf) - Module input variables including prometheus.yml config
+  - [outputs.tf](modules/prometheus/outputs.tf) - Module outputs including endpoint
+
+- [modules/promtail/](modules/promtail/) - Log shipping agent (cluster → iapetus)
+  - [main.tf](modules/promtail/main.tf) - Profile and container
+  - [variables.tf](modules/promtail/variables.tf) - Module input variables including loki_push_url
+  - [outputs.tf](modules/promtail/outputs.tf) - Module outputs
+  - [templates/cloud-init.yaml.tftpl](modules/promtail/templates/cloud-init.yaml.tftpl) - Cloud-init configuration
+
+- [modules/node-exporter/](modules/node-exporter/) - Host metrics collection
+  - Supports `target_node` variable for cluster pinning (one per physical host)
 
 **Docker Images:**
 - [docker/atlantis/](docker/atlantis/) - Custom Atlantis image with OpenTofu support
@@ -388,18 +482,20 @@ The project uses Terraform modules for scalability and reusability:
 
 ### Infrastructure Components
 
-1. **Incus Provider** ([terraform/providers.tf](terraform/providers.tf), [terraform/versions.tf](terraform/versions.tf))
+1. **Incus Provider**
    - Uses the `lxc/incus` provider (v1.0.0+)
    - Manages LXC/Incus containers and storage volumes
+   - iapetus uses local/default remote
+   - cluster uses INCUS_REMOTE environment variable to target remote cluster
 
-2. **Network Configuration** ([terraform/modules/base-infrastructure/](terraform/modules/base-infrastructure/))
+2. **Network Configuration** ([modules/base-infrastructure/](modules/base-infrastructure/))
    - Two managed networks: production (10.10.0.0/24), management (10.20.0.0/24)
    - Optional gitops network (10.30.0.0/24) when `enable_gitops = true`
    - Optional IPv6 support (dual-stack) using ULA addresses (e.g., fd00:10:10::1/64)
    - NAT enabled for external connectivity (configurable for both IPv4 and IPv6)
    - Management network hosts internal services (monitoring stack)
 
-3. **Grafana Module** ([terraform/modules/grafana/](terraform/modules/grafana/))
+3. **Grafana Module** ([modules/grafana/](modules/grafana/))
    - Visualization and dashboarding platform
    - Uses Alpine Linux system container with cloud-init
    - Persistent storage for dashboards and configuration (10GB)
@@ -407,7 +503,7 @@ The project uses Terraform modules for scalability and reusability:
    - Domain configuration for Cloudflare Tunnel access
    - Datasources and dashboards provisioned via cloud-init
 
-4. **Grafana Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+4. **Grafana Instance** (instantiated in [environments/iapetus/main.tf](environments/iapetus/main.tf))
    - Instance name: `grafana01`
    - Image: `images:alpine/3.21/cloud` (system container)
    - Domain: `grafana.accuser.dev` (accessible via Cloudflare Tunnel)
@@ -415,7 +511,7 @@ The project uses Terraform modules for scalability and reusability:
    - Storage: 10GB persistent volume for `/var/lib/grafana`
    - Network: Connected to management network
 
-5. **Loki Module** ([terraform/modules/loki/](terraform/modules/loki/))
+5. **Loki Module** ([modules/loki/](modules/loki/))
    - Log aggregation system (internal only)
    - Uses Alpine Linux system container with cloud-init (no Docker image)
    - Persistent storage for log data (50GB)
@@ -423,7 +519,7 @@ The project uses Terraform modules for scalability and reusability:
    - No public-facing reverse proxy configuration
    - Internal endpoint for Grafana data source
 
-8. **Loki Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+6. **Loki Instance** (instantiated in [environments/iapetus/main.tf](environments/iapetus/main.tf))
    - Instance name: `loki01`
    - Image: `images:alpine/3.21/cloud` (system container)
    - Internal endpoint: `http://loki01.incus:3100`
@@ -432,7 +528,7 @@ The project uses Terraform modules for scalability and reusability:
    - Retention: 30 days (720h) with 2h delete delay
    - Network: Connected to management network (internal only)
 
-9. **Prometheus Module** ([terraform/modules/prometheus/](terraform/modules/prometheus/))
+7. **Prometheus Module** ([modules/prometheus/](modules/prometheus/))
    - Metrics collection and time-series database (internal only)
    - Uses Alpine Linux system container with cloud-init (no Docker image)
    - Persistent storage for metrics data (100GB)
@@ -441,7 +537,7 @@ The project uses Terraform modules for scalability and reusability:
    - No public-facing reverse proxy configuration
    - Internal endpoint for Grafana data source
 
-10. **Prometheus Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+8. **Prometheus Instance** (both environments)
     - Instance name: `prometheus01`
     - Image: `images:alpine/3.21/cloud` (system container)
     - Internal endpoint: `http://prometheus01.incus:9090`
@@ -450,7 +546,7 @@ The project uses Terraform modules for scalability and reusability:
     - Retention: 30 days (time-based), no size limit by default
     - Network: Connected to management network (internal only)
 
-11. **step-ca Module** ([terraform/modules/step-ca/](terraform/modules/step-ca/))
+9. **step-ca Module** ([modules/step-ca/](modules/step-ca/))
     - Internal ACME Certificate Authority for TLS certificates
     - Uses Alpine Linux system container with cloud-init (no Docker image)
     - Persistent storage for CA data and certificates (1GB)
@@ -458,7 +554,7 @@ The project uses Terraform modules for scalability and reusability:
     - ACME endpoint for automated certificate issuance
     - Internal endpoint for services requesting certificates
 
-12. **step-ca Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+10. **step-ca Instance** (instantiated in [environments/iapetus/main.tf](environments/iapetus/main.tf))
     - Instance name: `step-ca01`
     - Image: `images:alpine/3.21/cloud` (system container)
     - CA name: "Atlas Internal CA"
@@ -469,7 +565,7 @@ The project uses Terraform modules for scalability and reusability:
     - Network: Connected to management network (internal only)
     - CA fingerprint: Retrieved after deployment via `incus exec step-ca01 -- cat /home/step/fingerprint`
 
-13. **Alertmanager Module** ([terraform/modules/alertmanager/](terraform/modules/alertmanager/))
+11. **Alertmanager Module** ([modules/alertmanager/](modules/alertmanager/))
     - Alert routing and notification management (internal only)
     - Uses Alpine Linux system container with cloud-init (no Docker image)
     - Persistent storage for silences and notification state (1GB)
@@ -477,7 +573,7 @@ The project uses Terraform modules for scalability and reusability:
     - Silencing and inhibition rules support
     - Integration with Prometheus via alertmanagers config
 
-14. **Alertmanager Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+12. **Alertmanager Instance** (instantiated in cluster environment)
     - Instance name: `alertmanager01`
     - Image: `images:alpine/3.21/cloud` (system container)
     - Internal endpoint: `http://alertmanager01.incus:9093`
@@ -486,7 +582,7 @@ The project uses Terraform modules for scalability and reusability:
     - Network: Connected to management network (internal only)
     - Prometheus integration: Configured via `alerting.alertmanagers` in prometheus.yml
 
-15. **Mosquitto Module** ([terraform/modules/mosquitto/](terraform/modules/mosquitto/))
+13. **Mosquitto Module** ([modules/mosquitto/](modules/mosquitto/))
     - Eclipse Mosquitto MQTT broker for IoT messaging
     - Uses Alpine Linux system container with cloud-init (no Docker image)
     - External access via Incus proxy devices (pattern for TCP services)
@@ -494,7 +590,7 @@ The project uses Terraform modules for scalability and reusability:
     - Optional TLS support via step-ca
     - Password file authentication support
 
-16. **Mosquitto Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+14. **Mosquitto Instance** (instantiated in cluster environment)
     - Instance name: `mosquitto01`
     - Image: `images:alpine/3.21/cloud` (system container)
     - Internal endpoint: `mqtt://mosquitto01.incus:1883`
@@ -503,7 +599,7 @@ The project uses Terraform modules for scalability and reusability:
     - Storage: 5GB persistent volume for `/mosquitto/data`
     - Network: Connected to production network (externally accessible)
 
-17. **CoreDNS Module** ([terraform/modules/coredns/](terraform/modules/coredns/))
+15. **CoreDNS Module** ([modules/coredns/](modules/coredns/))
     - Split-horizon DNS server for internal service resolution
     - Uses Alpine Linux system container with cloud-init (no Docker image)
     - Authoritative for internal zone (e.g., `accuser.dev`)
@@ -512,7 +608,7 @@ The project uses Terraform modules for scalability and reusability:
     - External access via Incus proxy devices (UDP+TCP on port 53)
     - Zone file generated from Terraform service module outputs
 
-18. **CoreDNS Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+16. **CoreDNS Instance** (instantiated in cluster environment)
     - Instance name: `coredns01`
     - Image: `images:alpine/3.21/cloud` (system container)
     - Internal endpoint: `coredns01.incus:53`
@@ -522,14 +618,14 @@ The project uses Terraform modules for scalability and reusability:
     - Health endpoint: `http://coredns01.incus:8080/health`
     - Metrics endpoint: `http://coredns01.incus:9153/metrics`
 
-19. **Cloudflared Module** ([terraform/modules/cloudflared/](terraform/modules/cloudflared/))
+17. **Cloudflared Module** ([modules/cloudflared/](modules/cloudflared/))
     - Cloudflare Tunnel client for secure remote access via Zero Trust
     - Uses Alpine Linux system container with cloud-init (no Docker image)
     - Token-based authentication (managed via Cloudflare dashboard)
     - Metrics endpoint for Prometheus scraping
     - No persistent storage required (stateless)
 
-20. **Cloudflared Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+18. **Cloudflared Instance** (instantiated in iapetus environment)
     - Instance name: `cloudflared01`
     - Image: `images:alpine/3.21/cloud` (system container)
     - Metrics endpoint: `http://cloudflared01.incus:2000`
@@ -537,35 +633,35 @@ The project uses Terraform modules for scalability and reusability:
     - Network: Connected to management network (internal access to all services)
     - Conditionally deployed: Only created when `cloudflared_tunnel_token` is set
 
-21. **Incus Metrics Module** ([terraform/modules/incus-metrics/](terraform/modules/incus-metrics/))
+19. **Incus Metrics Module** ([modules/incus-metrics/](modules/incus-metrics/))
     - Generates mTLS certificates for scraping Incus container metrics
     - Uses Terraform TLS provider for certificate generation (ECDSA P-384)
     - Registers certificate with Incus as type "metrics"
     - Outputs certificate and private key for injection into Prometheus
     - No Docker image required (certificate management only)
 
-22. **Incus Metrics** (instantiated in [terraform/main.tf](terraform/main.tf))
+20. **Incus Metrics** (instantiated in both environments)
     - Certificate name: `prometheus-metrics`
     - Metrics endpoint: `https://<management-gateway>:8443/1.0/metrics`
     - Certificate validity: 10 years (3650 days)
     - Conditionally deployed: Only created when `enable_incus_metrics` is true (default)
     - Provides container-level metrics: CPU, memory, disk, network, processes
 
-23. **Incus Loki Module** ([terraform/modules/incus-loki/](terraform/modules/incus-loki/))
+21. **Incus Loki Module** ([modules/incus-loki/](modules/incus-loki/))
     - Configures native Incus logging to Loki (no Promtail required)
     - Pushes lifecycle events (instance start/stop, create, delete)
     - Pushes logging events (container and VM log output)
     - Uses Incus server-level configuration
     - No Docker image required (server configuration only)
 
-24. **Incus Loki** (instantiated in [terraform/main.tf](terraform/main.tf))
+22. **Incus Loki** (instantiated in iapetus environment)
     - Logging name: `loki01`
     - Target address: `http://loki01.incus:3100`
     - Event types: `lifecycle,logging`
     - Conditionally deployed: Only created when `enable_incus_loki` is true (default)
     - Logs queryable in Grafana via Loki datasource
 
-25. **Atlantis Module** ([terraform/modules/atlantis/](terraform/modules/atlantis/))
+23. **Atlantis Module** ([modules/atlantis/](modules/atlantis/))
     - GitOps controller for PR-based infrastructure management
     - Automatic `terraform plan` on PR creation/update
     - Apply changes via PR comment `atlantis apply`
@@ -573,15 +669,25 @@ The project uses Terraform modules for scalability and reusability:
     - Persistent storage for plans cache and locks (10GB)
     - Custom Docker image: [docker/atlantis/](docker/atlantis/)
 
-26. **Atlantis Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+24. **Atlantis Instance** (instantiated in iapetus environment)
     - Instance name: `atlantis01`
     - Image: `ghcr.io/accuser-dev/atlas/atlantis:latest` (published from [docker/atlantis/](docker/atlantis/))
     - Webhook endpoint: `https://<atlantis_domain>/events`
     - Resource limits: 2 CPUs, 1GB memory
-    - Storage: 10GB persistent volume for `/atlantis-data`
-    - Network: Connected to gitops network (10.30.0.0/24)
-    - Conditionally deployed: Only created when `enable_gitops` is true (default: false)
-    - See [GITOPS.md](GITOPS.md) for setup and usage instructions
+
+25. **Promtail Module** ([modules/promtail/](modules/promtail/))
+    - Log shipping agent for forwarding logs to central Loki
+    - Uses Alpine Linux system container with cloud-init
+    - Scrapes journal logs and system logs
+    - Ships to iapetus Loki via HTTP
+
+26. **Promtail Instance** (instantiated in cluster environment)
+    - Instance name: `promtail01`
+    - Image: `images:alpine/3.21/cloud` (system container)
+    - Internal endpoint: `http://promtail01.incus:9080`
+    - Resource limits: 1 CPU, 256MB memory
+    - Network: Connected to management network
+    - Ships logs to: `http://loki01.iapetus:3100/loki/api/v1/push`
 
 ### External TCP Service Pattern (Proxy Devices)
 
@@ -920,12 +1026,12 @@ This approach enables easy scaling - new instances reuse the proven profile patt
 
 **For internal services (most common):**
 
-1. Create Terraform module in `terraform/modules/yourservice/`
+1. Create Terraform module in `modules/yourservice/`
 2. Set default image to `images:alpine/3.21/cloud`
 3. Create `templates/cloud-init.yaml.tftpl` for service configuration
 4. Add storage and network configuration to module
 5. Add endpoint output for internal connectivity
-6. Instantiate module in [terraform/main.tf](terraform/main.tf)
+6. Instantiate module in the appropriate environment's `main.tf`
 7. Connect from other services using `yourservice.incus:port`
 
 **For externally accessible services:**
@@ -947,15 +1053,16 @@ Use Incus proxy devices (bridge mode) or direct LAN attachment (physical mode):
 
 1. Create Docker image in `docker/yourservice/` with Dockerfile
 2. Add service to GitHub Actions matrix in `.github/workflows/release.yml`
-3. Create Terraform module and set image to `ghcr:accuser-dev/atlas/yourservice:latest`
-4. Push to GitHub to build and publish image
+3. Create Terraform module in `modules/yourservice/` and set image to `ghcr:accuser-dev/atlas/yourservice:latest`
+4. Instantiate in the appropriate environment's `main.tf`
+5. Push to GitHub to build and publish image
 
 **Example - Adding a new Grafana instance:**
 
-Add to `terraform/main.tf`:
+Add to `environments/iapetus/main.tf`:
 ```hcl
 module "grafana02" {
-  source = "./modules/grafana"
+  source = "../../modules/grafana"
 
   instance_name = "grafana02"
   profile_name  = "grafana02"
@@ -982,8 +1089,8 @@ Then configure external access via Cloudflare Tunnel dashboard.
 **Modular Architecture:**
 - Most services use Alpine Linux system containers with cloud-init
 - OCI containers (Docker images) only used for Atlantis
-- Each service type has its own Terraform module in `terraform/modules/`
-- Modules are instantiated in the root [terraform/main.tf](terraform/main.tf)
+- Each service type has its own Terraform module in `modules/`
+- Modules are instantiated in each environment's `main.tf`
 - Easy to scale by adding new module instances
 - Module parameters allow customization per instance
 
@@ -1187,9 +1294,9 @@ All alerts include detailed annotations with current values and context.
    - Push to GitHub to trigger CI/CD build and publish
 
 2. **Configure Infrastructure**:
-   - Edit Terraform modules in `terraform/modules/`
-   - Modify main configuration in `terraform/main.tf`
-   - Update variables in `terraform/terraform.tfvars`
+   - Edit Terraform modules in `modules/`
+   - Modify environment configuration in `environments/*/main.tf`
+   - Update variables in `environments/*/terraform.tfvars`
 
 3. **Deploy**:
    ```bash
@@ -1268,13 +1375,13 @@ The pipeline is split into two workflows:
 
 **Switching to Official Images**
 
-To use official upstream images instead, override the `image` variable in [terraform/main.tf](terraform/main.tf):
+To use official upstream images instead, override the `image` variable in the environment's `main.tf`:
 
 ```hcl
 module "grafana01" {
-  source = "./modules/grafana"
+  source = "../../modules/grafana"
 
-  # Use official image instead of custom ghcr.io image
+  # Use official image instead of system container
   image = "docker:grafana/grafana:latest"
 
   # ... other configuration
@@ -1298,7 +1405,7 @@ module "grafana01" {
 
 ## Important Notes
 
-- The `terraform/terraform.tfvars` file is gitignored and must be created manually with required secrets
+- The `environments/*/terraform.tfvars` files are gitignored and must be created manually with required secrets
 - Most services use Alpine Linux system containers (`images:alpine/3.21/cloud`) with cloud-init
 - Only Atlantis uses OCI containers from GitHub Container Registry (ghcr.io)
 - OCI images are automatically built and published by the Release workflow on push to main
@@ -1309,24 +1416,25 @@ module "grafana01" {
 
 ## Outputs
 
-After applying, use `cd terraform && tofu output` to view:
+After applying, use `cd environments/iapetus && tofu output` (or `environments/cluster`) to view:
+
+**iapetus outputs:**
 - `loki_endpoint` - Internal Loki endpoint URL
 - `prometheus_endpoint` - Internal Prometheus endpoint URL
 - `step_ca_acme_endpoint` - step-ca ACME endpoint URL for certificate requests
-- `step_ca_acme_directory` - step-ca ACME directory URL for ACME clients
 - `step_ca_fingerprint_command` - Command to retrieve CA fingerprint for TLS configuration
-- `alertmanager_endpoint` - Internal Alertmanager endpoint URL for alert routing
+- `cloudflared_metrics_endpoint` - Cloudflared metrics endpoint (if enabled)
+- `incus_metrics_endpoint` - Incus metrics endpoint URL
+- `incus_loki_logging_name` - Name of the Incus logging configuration for Loki
+
+**cluster outputs:**
+- `prometheus_endpoint` - Prometheus endpoint URL (for iapetus federation)
+- `alertmanager_endpoint` - Internal Alertmanager endpoint URL
 - `mosquitto_mqtt_endpoint` - Internal MQTT endpoint URL
 - `mosquitto_external_ports` - External host ports for MQTT access (1883, 8883)
-- `coredns_dns_endpoint` - Internal DNS endpoint using .incus DNS
-- `coredns_ipv4_address` - CoreDNS IPv4 address (use for DHCP DNS server configuration)
-- `coredns_external_port` - External DNS port on host (bridge mode only)
-- `coredns_health_endpoint` - CoreDNS health check endpoint URL
-- `coredns_metrics_endpoint` - CoreDNS Prometheus metrics endpoint URL
-- `coredns_zone_file` - Generated DNS zone file content (for debugging)
-- `cloudflared_metrics_endpoint` - Cloudflared metrics endpoint (if enabled)
-- `cloudflared_instance_status` - Cloudflared instance status (if enabled)
-- `incus_metrics_endpoint` - Incus metrics endpoint URL being scraped by Prometheus
-- `incus_metrics_certificate_fingerprint` - Fingerprint of the metrics certificate registered with Incus
-- `incus_loki_logging_name` - Name of the Incus logging configuration for Loki
-- `incus_loki_address` - Loki address configured for Incus logging
+- `coredns_dns_endpoint` - Internal DNS endpoint
+- `coredns_ipv4_address` - CoreDNS IPv4 address
+- `node_exporter_endpoints` - Node exporter endpoints for each cluster node
+- `promtail_endpoint` - Promtail HTTP API endpoint
+- `promtail_loki_target` - Loki URL that Promtail is shipping logs to
+- `incus_metrics_endpoint` - Incus metrics endpoint URL
