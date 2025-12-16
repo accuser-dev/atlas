@@ -9,9 +9,9 @@ variable "profile_name" {
 }
 
 variable "image" {
-  description = "Container image to use"
+  description = "Container image to use (system container with cloud-init)"
   type        = string
-  default     = "ghcr:accuser-dev/atlas/alertmanager:latest"
+  default     = "images:alpine/3.21/cloud"
 }
 
 variable "cpu_limit" {
@@ -57,12 +57,6 @@ variable "profiles" {
   description = "List of Incus profile names to apply (should include base profile and network profile)"
   type        = list(string)
   default     = ["default"]
-}
-
-variable "environment_variables" {
-  description = "Environment variables for Alertmanager container"
-  type        = map(string)
-  default     = {}
 }
 
 variable "enable_data_persistence" {
@@ -148,6 +142,12 @@ variable "cert_duration" {
     condition     = tonumber(trimsuffix(var.cert_duration, "h")) >= 1 && tonumber(trimsuffix(var.cert_duration, "h")) <= 8760
     error_message = "Certificate duration must be between 1h and 8760h (1 year)."
   }
+}
+
+variable "step_version" {
+  description = "Version of step-cli to install for TLS certificate management"
+  type        = string
+  default     = "0.28.2"
 }
 
 # Snapshot Scheduling

@@ -530,18 +530,19 @@ The project uses Terraform modules for scalability and reusability:
 
 13. **Alertmanager Module** ([terraform/modules/alertmanager/](terraform/modules/alertmanager/))
     - Alert routing and notification management (internal only)
+    - Uses Alpine Linux system container with cloud-init (no Docker image)
     - Persistent storage for silences and notification state (1GB)
     - Configurable notification routes (Slack, email, webhook)
     - Silencing and inhibition rules support
     - Integration with Prometheus via alertmanagers config
-    - Custom Docker image: [docker/alertmanager/](docker/alertmanager/)
+    - Optional TLS support via step-ca
 
 14. **Alertmanager Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `alertmanager01`
-    - Image: `ghcr.io/accuser-dev/atlas/alertmanager:latest` (published from [docker/alertmanager/](docker/alertmanager/))
+    - Image: `images:alpine/3.21/cloud` (system container)
     - Internal endpoint: `http://alertmanager01.incus:9093`
     - Resource limits: 1 CPU, 256MB memory
-    - Storage: 1GB persistent volume for `/alertmanager`
+    - Storage: 1GB persistent volume for `/var/lib/alertmanager`
     - Network: Connected to management network (internal only)
     - Prometheus integration: Configured via `alerting.alertmanagers` in prometheus.yml
 
