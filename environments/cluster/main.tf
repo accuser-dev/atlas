@@ -284,20 +284,24 @@ module "incus_metrics" {
 # =============================================================================
 # Log Shipping (Promtail)
 # =============================================================================
-# TODO: Create promtail module in Phase 3
-# module "promtail01" {
-#   source = "../../modules/promtail"
-#
-#   instance_name = "promtail01"
-#   profile_name  = "promtail"
-#
-#   profiles = [
-#     module.base.container_base_profile.name,
-#     module.base.management_network_profile.name,
-#   ]
-#
-#   loki_push_url = var.loki_push_url
-#
-#   cpu_limit    = local.services.promtail.cpu
-#   memory_limit = local.services.promtail.memory
-# }
+
+module "promtail01" {
+  source = "../../modules/promtail"
+
+  instance_name = "promtail01"
+  profile_name  = "promtail"
+
+  profiles = [
+    module.base.container_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
+
+  loki_push_url = var.loki_push_url
+
+  extra_labels = {
+    environment = "cluster"
+  }
+
+  cpu_limit    = local.services.promtail.cpu
+  memory_limit = local.services.promtail.memory
+}
