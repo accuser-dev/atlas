@@ -32,3 +32,13 @@ output "external_access_enabled" {
   description = "Whether external access is enabled via proxy devices"
   value       = var.enable_external_access
 }
+
+output "container_type" {
+  description = "Container type: 'system' (Alpine + cloud-init) or 'oci' (Docker image)"
+  value       = var.container_type
+}
+
+output "ipv4_address" {
+  description = "IPv4 address of the Mosquitto container"
+  value       = incus_instance.mosquitto.ipv4_address
+}
