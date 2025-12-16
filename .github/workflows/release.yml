@@ -71,8 +71,6 @@ jobs:
           filters: |
             atlantis:
               - 'docker/atlantis/**'
-            caddy:
-              - 'docker/caddy/**'
             release_workflow:
               - '.github/workflows/release.yml'
 
@@ -81,14 +79,13 @@ jobs:
         run: |
           # Check if release workflow itself changed - if so, build all images
           if [ "${{ steps.filter.outputs.release_workflow }}" == "true" ]; then
-            echo 'matrix=["atlantis","caddy"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["atlantis"]' >> $GITHUB_OUTPUT
             echo 'has_docker_changes=true' >> $GITHUB_OUTPUT
             echo "📋 Release workflow changed - will build all images"
           else
             # Build only changed images
             SERVICES=()
             if [ "${{ steps.filter.outputs.atlantis }}" == "true" ]; then SERVICES+=("atlantis"); fi
-            if [ "${{ steps.filter.outputs.caddy }}" == "true" ]; then SERVICES+=("caddy"); fi
 
             if [ ${#SERVICES[@]} -eq 0 ]; then
               echo 'matrix=[]' >> $GITHUB_OUTPUT
@@ -113,7 +110,6 @@ jobs:
           echo "| Service | Changed |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| atlantis | ${{ steps.filter.outputs.atlantis == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| caddy | ${{ steps.filter.outputs.caddy == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # Build and Push Docker Images
@@ -238,7 +234,7 @@ jobs:
 # NOTE: GitHub packages are private by default. To allow Incus to pull images
 # without authentication, you must manually set each package to public:
 #   1. Go to https://github.com/orgs/accuser/packages or your user packages page
-#   2. Click on each package (atlantis, caddy, grafana, loki, prometheus, step-ca)
+#   2. Click on each package (atlantis)
 #   3. Go to Package settings
 #   4. Under "Danger Zone", change visibility to "Public"
 #

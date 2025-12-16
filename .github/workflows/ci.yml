@@ -169,9 +169,6 @@ jobs:
             atlantis:
               - 'docker/atlantis/**'
               - 'test/docker/atlantis_test.sh'
-            caddy:
-              - 'docker/caddy/**'
-              - 'test/docker/caddy_test.sh'
             ci_workflow:
               - '.github/workflows/ci.yml'
               - '.trivyignore'
@@ -181,14 +178,13 @@ jobs:
         run: |
           # Check if CI workflow itself changed - if so, build all images
           if [ "${{ steps.filter.outputs.ci_workflow }}" == "true" ]; then
-            echo 'matrix=["atlantis","caddy"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["atlantis"]' >> $GITHUB_OUTPUT
             echo 'has_changes=true' >> $GITHUB_OUTPUT
             echo "📋 CI workflow changed - will build all images"
           else
             # Build only changed images (works for both PRs and feature branches)
             SERVICES=()
             if [ "${{ steps.filter.outputs.atlantis }}" == "true" ]; then SERVICES+=("atlantis"); fi
-            if [ "${{ steps.filter.outputs.caddy }}" == "true" ]; then SERVICES+=("caddy"); fi
 
             if [ ${#SERVICES[@]} -eq 0 ]; then
               echo 'matrix=[]' >> $GITHUB_OUTPUT
@@ -215,7 +211,6 @@ jobs:
           echo "| Service | Changed |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| atlantis | ${{ steps.filter.outputs.atlantis == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| caddy | ${{ steps.filter.outputs.caddy == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # Build Docker Images

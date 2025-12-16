@@ -16,11 +16,6 @@ locals {
   # Service configurations with default resource limits and ports
   # These can be overridden per-module if needed
   services = {
-    caddy = {
-      cpu    = "2"
-      memory = "1GB"
-      port   = 80
-    }
     grafana = {
       cpu    = "2"
       memory = "1GB"
@@ -65,11 +60,6 @@ locals {
       cpu    = "2"
       memory = "1GB"
       port   = 4141
-    }
-    caddy_gitops = {
-      cpu    = "1"
-      memory = "256MB"
-      port   = 443
     }
     coredns = {
       cpu    = "1"

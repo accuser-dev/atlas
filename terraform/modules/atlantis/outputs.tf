@@ -22,16 +22,3 @@ output "webhook_endpoint" {
   description = "Full webhook endpoint URL for GitHub"
   value       = "${var.atlantis_url}/events"
 }
-
-output "caddy_config_block" {
-  description = "Caddyfile configuration block for this Atlantis instance"
-  value = var.domain != "" ? templatefile("${path.module}/templates/caddyfile.tftpl", {
-    domain               = var.domain
-    allowed_ip_range     = var.allowed_ip_range
-    instance_name        = var.instance_name
-    port                 = var.atlantis_port
-    enable_rate_limiting = var.enable_rate_limiting
-    rate_limit_requests  = var.rate_limit_requests
-    rate_limit_window    = var.rate_limit_window
-  }) : ""
-}

@@ -48,36 +48,6 @@ module "base" {
 # Services
 # =============================================================================
 
-module "caddy01" {
-  source = "./modules/caddy"
-
-  instance_name        = "caddy01"
-  profile_name         = "caddy"
-  cloudflare_api_token = var.cloudflare_api_token
-
-  # Profile composition - container-base provides boot.autorestart
-  # Caddy module manages root disk with size limit and multi-network setup
-  profiles = [
-    module.base.container_base_profile.name,
-  ]
-
-  # Service blocks from all modules (production + management services only)
-  service_blocks = [module.grafana01.caddy_config_block]
-
-  # Network configuration - reference managed networks
-  # Caddy has special multi-network setup for reverse proxy functionality
-  production_network = module.base.production_network.name
-  management_network = module.base.management_network.name
-  # External network only needed in bridge mode - physical mode provides LAN access directly
-  external_network = module.base.production_network_is_physical ? "" : "incusbr0"
-
-  # Resource limits (from centralized service config)
-  cpu_limit    = local.services.caddy.cpu
-  memory_limit = local.services.caddy.memory
-
-  # Network dependencies are implicit through production_network and management_network references
-}
-
 module "grafana01" {
   source = "./modules/grafana"
 
@@ -91,10 +61,9 @@ module "grafana01" {
     module.base.management_network_profile.name,
   ]
 
-  # Domain configuration for reverse proxy
-  domain           = "grafana.accuser.dev"
-  allowed_ip_range = var.allowed_ip_range
-  grafana_port     = "3000"
+  # Domain configuration
+  domain       = "grafana.accuser.dev"
+  grafana_port = "3000"
 
   # Grafana admin credentials
   admin_user     = "admin"
@@ -499,10 +468,9 @@ module "atlantis01" {
     module.base.gitops_network_profile.name,
   ]
 
-  # Domain configuration for Caddy reverse proxy
-  domain           = var.atlantis_domain
-  allowed_ip_range = var.atlantis_allowed_ip_range
-  atlantis_port    = tostring(local.services.atlantis.port)
+  # Domain configuration
+  domain        = var.atlantis_domain
+  atlantis_port = tostring(local.services.atlantis.port)
 
   # GitHub configuration (from terraform.tfvars)
   github_user           = var.atlantis_github_user
@@ -519,33 +487,4 @@ module "atlantis01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.atlantis.cpu
   memory_limit = local.services.atlantis.memory
-}
-
-# Dedicated Caddy instance for GitOps network
-# Handles Atlantis webhook traffic with GitHub IP allowlisting
-module "caddy_gitops01" {
-  source = "./modules/caddy-gitops"
-
-  count = var.enable_gitops ? 1 : 0
-
-  instance_name        = "caddy-gitops01"
-  profile_name         = "caddy-gitops"
-  cloudflare_api_token = var.cloudflare_api_token
-
-  # Profile composition - container-base provides boot.autorestart
-  # caddy-gitops module manages root disk with size limit and its own network NICs
-  profiles = [
-    module.base.container_base_profile.name,
-  ]
-
-  # Service blocks - only Atlantis on this Caddy instance
-  service_blocks = [module.atlantis01[0].caddy_config_block]
-
-  # Network configuration - gitops network + external only
-  gitops_network   = module.base.gitops_network.name
-  external_network = "incusbr0"
-
-  # Resource limits (lighter than main Caddy since fewer services)
-  cpu_limit    = local.services.caddy_gitops.cpu
-  memory_limit = local.services.caddy_gitops.memory
 }

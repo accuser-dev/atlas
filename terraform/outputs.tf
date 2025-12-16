@@ -16,11 +16,6 @@ output "production_network_is_physical" {
 # Service Configuration
 # =============================================================================
 
-output "grafana_caddy_config" {
-  description = "Generated Caddy configuration for Grafana"
-  value       = module.grafana01.caddy_config_block
-}
-
 output "loki_endpoint" {
   description = "Loki endpoint URL for internal use (configure as Grafana data source)"
   value       = module.loki01.loki_endpoint
@@ -144,17 +139,3 @@ output "atlantis_instance_status" {
   value       = var.enable_gitops ? module.atlantis01[0].instance_status : null
 }
 
-output "atlantis_caddy_config" {
-  description = "Generated Caddy configuration for Atlantis"
-  value       = var.enable_gitops ? module.atlantis01[0].caddy_config_block : null
-}
-
-output "caddy_gitops_instance_status" {
-  description = "Caddy GitOps instance status (if enabled)"
-  value       = var.enable_gitops ? module.caddy_gitops01[0].instance_status : null
-}
-
-output "caddy_gitops_metrics_endpoint" {
-  description = "Caddy GitOps metrics endpoint URL (if enabled)"
-  value       = var.enable_gitops ? module.caddy_gitops01[0].metrics_endpoint : null
-}

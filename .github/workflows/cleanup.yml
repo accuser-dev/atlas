@@ -21,7 +21,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        package: [atlantis, caddy]
+        package: [atlantis]
       fail-fast: false
 
     steps:
@@ -61,7 +61,6 @@ jobs:
           echo "| Package | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| atlas/atlantis | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| atlas/caddy | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail if cleanup failed
         if: needs.cleanup.result == 'failure'

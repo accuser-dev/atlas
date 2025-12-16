@@ -133,45 +133,10 @@ variable "atlantis_port" {
   }
 }
 
-# Reverse Proxy Configuration (for Caddy)
+# Domain Configuration (used for webhook URL)
 variable "domain" {
-  description = "Domain name for Atlantis webhook endpoint (for reverse proxy configuration)"
+  description = "Domain name for Atlantis webhook endpoint"
   type        = string
-}
-
-variable "allowed_ip_range" {
-  description = "IP range allowed to access Atlantis (CIDR notation). For GitHub webhooks, use GitHub's IP ranges."
-  type        = string
-  default     = "192.30.252.0/22 185.199.108.0/22 140.82.112.0/20 143.55.64.0/20"
-}
-
-# Rate Limiting
-variable "enable_rate_limiting" {
-  description = "Enable rate limiting for webhook endpoint"
-  type        = bool
-  default     = true
-}
-
-variable "rate_limit_requests" {
-  description = "Maximum requests allowed per window"
-  type        = number
-  default     = 100
-
-  validation {
-    condition     = var.rate_limit_requests >= 1 && var.rate_limit_requests <= 10000
-    error_message = "Rate limit must be between 1 and 10000 requests"
-  }
-}
-
-variable "rate_limit_window" {
-  description = "Time window for rate limiting (e.g., 1m, 5m, 1h)"
-  type        = string
-  default     = "1m"
-
-  validation {
-    condition     = can(regex("^[0-9]+(s|m|h)$", var.rate_limit_window))
-    error_message = "Rate limit window must be in format like '1m', '30s', or '1h'"
-  }
 }
 
 # Snapshot Scheduling

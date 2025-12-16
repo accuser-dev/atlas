@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Terraform infrastructure project that manages Incus containers for a complete monitoring stack including Caddy reverse proxy, Grafana, Prometheus, and Loki. The setup provisions containerized services with automatic HTTPS certificate management, persistent storage, and dynamic configuration generation.
+This is a Terraform infrastructure project that manages Incus containers for a complete monitoring stack including Grafana, Prometheus, and Loki. External access is provided via Cloudflare Tunnel. The setup provisions containerized services with persistent storage and dynamic configuration generation.
 
 The project is organized into two main directories:
 - **`docker/`** - Custom Docker images for each service
@@ -16,8 +16,6 @@ The project is organized into two main directories:
 
 | Service | CPU (cores) | Memory | Purpose |
 |---------|-------------|--------|---------|
-| Caddy | 2 | 1GB | Reverse proxy, TLS termination |
-| Caddy GitOps | 1 | 256MB | GitOps webhook proxy (optional) |
 | Grafana | 2 | 1GB | Dashboards, visualization |
 | Prometheus | 2 | 2GB | Metrics storage |
 | Loki | 2 | 2GB | Log aggregation |
@@ -28,7 +26,7 @@ The project is organized into two main directories:
 | CoreDNS | 1 | 128MB | Split-horizon DNS |
 | Cloudflared | 1 | 256MB | Tunnel client (optional) |
 | Atlantis | 2 | 1GB | GitOps controller (optional) |
-| **Total** | **14-17** | **7.5-8.8GB** | |
+| **Total** | **11-14** | **6.5-7.5GB** | |
 
 **Notes:**
 - Resource limits are enforced with hard memory limits (OOM kill on exceed)
@@ -72,9 +70,9 @@ The production network supports two deployment modes:
 *Physical mode:* Production network attaches directly to a physical LAN interface. Containers get LAN IPs directly - no proxy devices needed.
 
 **External Access:**
-- Caddy: Ports 80, 443 (HTTP/HTTPS)
+- Cloudflared: Outbound only (no inbound ports) - provides external access to Grafana, Atlantis via Cloudflare Tunnel
 - Mosquitto: Ports 1883, 8883 (MQTT/MQTTS) - via proxy devices in bridge mode, direct in physical mode
-- Cloudflared: Outbound only (no inbound ports)
+- CoreDNS: Port 53 (UDP/TCP) - via proxy devices in bridge mode, direct in physical mode
 
 ### Minimum Host Requirements
 
@@ -96,23 +94,8 @@ For a complete deployment with all services:
 
 ```
 atlas/
-├── docker/                    # Custom Docker images
-│   ├── caddy/                # Caddy reverse proxy with Cloudflare DNS
-│   │   ├── Dockerfile
-│   │   └── README.md
-│   ├── grafana/              # Grafana with optional plugins
-│   │   ├── Dockerfile
-│   │   └── README.md
-│   ├── loki/                 # Loki log aggregation
-│   │   ├── Dockerfile
-│   │   └── README.md
-│   ├── prometheus/           # Prometheus metrics collection
-│   │   ├── Dockerfile
-│   │   └── README.md
-│   ├── cloudflared/          # Cloudflare Tunnel client for Zero Trust
-│   │   ├── Dockerfile
-│   │   └── README.md
-│   └── step-ca/              # Internal ACME CA for TLS certificates
+├── docker/                    # Custom Docker images (Atlantis only - other services use system containers)
+│   └── atlantis/             # Atlantis GitOps controller
 │       ├── Dockerfile
 │       └── README.md
 ├── terraform/                 # Terraform infrastructure
@@ -123,13 +106,16 @@ atlas/
 │   │   ├── versions.tf       # Version constraints (local state)
 │   │   └── README.md         # Bootstrap documentation
 │   ├── modules/              # Reusable Terraform modules
-│   │   ├── caddy/
+│   │   ├── alertmanager/
+│   │   ├── atlantis/
 │   │   ├── cloudflared/
+│   │   ├── coredns/
 │   │   ├── grafana/
 │   │   ├── incus-loki/
 │   │   ├── incus-metrics/
 │   │   ├── loki/
 │   │   ├── mosquitto/
+│   │   ├── node-exporter/
 │   │   ├── prometheus/
 │   │   └── step-ca/
 │   ├── init.sh               # Initialization wrapper script
@@ -177,10 +163,7 @@ make bootstrap-apply     # Apply bootstrap
 
 # Build Docker images locally (for testing only)
 make build-all
-make build-caddy
-make build-grafana
-make build-loki
-make build-prometheus
+make build-atlantis
 
 # OpenTofu operations (after bootstrap)
 make init                # Initialize OpenTofu with remote backend
@@ -309,18 +292,16 @@ tofu init -migrate-state
 
 **Production Images (GitHub Container Registry):**
 
+Only Atlantis uses an OCI container image. Other services use Alpine Linux system containers with cloud-init.
+
 Images are automatically built and published by GitHub Actions when code is pushed to the `main` branch:
-- Caddy: `ghcr.io/accuser-dev/atlas/caddy:latest`
-- Grafana: `ghcr.io/accuser-dev/atlas/grafana:latest`
-- Loki: `ghcr.io/accuser-dev/atlas/loki:latest`
-- Prometheus: `ghcr.io/accuser-dev/atlas/prometheus:latest`
-- step-ca: `ghcr.io/accuser-dev/atlas/step-ca:latest`
+- Atlantis: `ghcr.io/accuser-dev/atlas/atlantis:latest`
 
 **Local Development:**
 ```bash
-# Build images locally for testing
-make build-all
-IMAGE_TAG=v1.0.0 make build-all
+# Build Atlantis image locally for testing
+make build-atlantis
+IMAGE_TAG=v1.0.0 make build-atlantis
 ```
 
 ### Working with tfvars
@@ -381,18 +362,11 @@ The project uses Terraform modules for scalability and reusability:
 - [terraform/terraform.tfvars](terraform/terraform.tfvars) - Variable values (gitignored, contains secrets)
 
 **Terraform Modules:**
-- [terraform/modules/caddy/](terraform/modules/caddy/) - Reverse proxy with dynamic Caddyfile generation
-  - [main.tf](terraform/modules/caddy/main.tf) - Profile, container, and Caddyfile templating
-  - [variables.tf](terraform/modules/caddy/variables.tf) - Module input variables
-  - [outputs.tf](terraform/modules/caddy/outputs.tf) - Module outputs
-  - [templates/Caddyfile.tftpl](terraform/modules/caddy/templates/Caddyfile.tftpl) - Caddyfile template
-  - [versions.tf](terraform/modules/caddy/versions.tf) - Provider requirements
-
 - [terraform/modules/grafana/](terraform/modules/grafana/) - Grafana observability platform
   - [main.tf](terraform/modules/grafana/main.tf) - Profile, container, and storage volume
   - [variables.tf](terraform/modules/grafana/variables.tf) - Module input variables including domain config
-  - [outputs.tf](terraform/modules/grafana/outputs.tf) - Module outputs including Caddy config block
-  - [templates/caddyfile.tftpl](terraform/modules/grafana/templates/caddyfile.tftpl) - Caddy reverse proxy template
+  - [outputs.tf](terraform/modules/grafana/outputs.tf) - Module outputs
+  - [templates/cloud-init.yaml.tftpl](terraform/modules/grafana/templates/cloud-init.yaml.tftpl) - Cloud-init configuration
   - [versions.tf](terraform/modules/grafana/versions.tf) - Provider requirements
 
 - [terraform/modules/loki/](terraform/modules/loki/) - Log aggregation system (internal only)
@@ -408,10 +382,6 @@ The project uses Terraform modules for scalability and reusability:
   - [versions.tf](terraform/modules/prometheus/versions.tf) - Provider requirements
 
 **Docker Images:**
-- [docker/caddy/](docker/caddy/) - Custom Caddy image with Cloudflare DNS plugin
-  - [Dockerfile](docker/caddy/Dockerfile) - Image build definition
-  - [README.md](docker/caddy/README.md) - Build and customization instructions
-
 - [docker/atlantis/](docker/atlantis/) - Custom Atlantis image with OpenTofu support
   - [Dockerfile](docker/atlantis/Dockerfile) - Image build definition
   - [README.md](docker/atlantis/README.md) - GitOps configuration instructions
@@ -429,44 +399,23 @@ The project uses Terraform modules for scalability and reusability:
    - NAT enabled for external connectivity (configurable for both IPv4 and IPv6)
    - Management network hosts internal services (monitoring stack)
 
-3. **Caddy Module** ([terraform/modules/caddy/](terraform/modules/caddy/))
-   - Reverse proxy with automatic HTTPS via Let's Encrypt
-   - Dynamic Caddyfile generation from service module outputs
-   - Cloudflare DNS-01 ACME challenge support
-   - Rate limiting protection (mholt/caddy-ratelimit plugin)
-   - Triple network interfaces (production + management + external)
-   - Accepts `service_blocks` list for dynamic configuration
-   - Custom Docker image: [docker/caddy/](docker/caddy/)
-
-4. **Caddy Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
-   - Instance name: `caddy01`
-   - Image: `ghcr.io/accuser-dev/atlas/caddy:latest` (published from [docker/caddy/](docker/caddy/))
-   - Resource limits: 2 CPUs, 1GB memory (configurable)
-   - Triple network interfaces:
-     - `eth0`: Connected to "production" network (public-facing apps)
-     - `eth1`: Connected to "management" network (internal services like Grafana)
-     - `eth2`: Connected to "incusbr0" bridge (external access)
-   - Caddyfile dynamically generated from module outputs
-
-5. **Grafana Module** ([terraform/modules/grafana/](terraform/modules/grafana/))
+3. **Grafana Module** ([terraform/modules/grafana/](terraform/modules/grafana/))
    - Visualization and dashboarding platform
-   - Uses Alpine Linux system container with cloud-init (no Docker image)
+   - Uses Alpine Linux system container with cloud-init
    - Persistent storage for dashboards and configuration (10GB)
    - Admin credentials configured via Terraform variables
-   - Generates Caddy reverse proxy configuration block
-   - Domain-based access with IP restrictions
-   - Rate limiting support (configurable requests/window)
-   - Datasources and dashboards provisioned via Terraform file injection
+   - Domain configuration for Cloudflare Tunnel access
+   - Datasources and dashboards provisioned via cloud-init
 
-6. **Grafana Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
+4. **Grafana Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `grafana01`
    - Image: `images:alpine/3.21/cloud` (system container)
-   - Domain: `grafana.accuser.dev` (publicly accessible via Caddy)
+   - Domain: `grafana.accuser.dev` (accessible via Cloudflare Tunnel)
    - Resource limits: 2 CPUs, 1GB memory
    - Storage: 10GB persistent volume for `/var/lib/grafana`
    - Network: Connected to management network
 
-7. **Loki Module** ([terraform/modules/loki/](terraform/modules/loki/))
+5. **Loki Module** ([terraform/modules/loki/](terraform/modules/loki/))
    - Log aggregation system (internal only)
    - Uses Alpine Linux system container with cloud-init (no Docker image)
    - Persistent storage for log data (50GB)
