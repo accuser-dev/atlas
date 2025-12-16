@@ -9,9 +9,15 @@ variable "profile_name" {
 }
 
 variable "image" {
-  description = "Container image to use"
+  description = "Container image to use (system container with cloud-init)"
   type        = string
-  default     = "ghcr:accuser-dev/atlas/step-ca:latest"
+  default     = "images:alpine/3.21/cloud"
+}
+
+variable "step_version" {
+  description = "Version of step-cli and step-ca to install"
+  type        = string
+  default     = "0.29.0"
 }
 
 variable "cpu_limit" {
@@ -69,13 +75,6 @@ variable "ca_dns_names" {
   description = "DNS names for the CA certificate (comma-separated)"
   type        = string
   default     = ""
-}
-
-variable "ca_password" {
-  description = "Password for CA private keys (generated if not provided)"
-  type        = string
-  default     = ""
-  sensitive   = true
 }
 
 variable "cert_duration" {

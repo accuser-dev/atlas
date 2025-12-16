@@ -25,7 +25,7 @@ output "caddy_config_block" {
     allowed_ip_range          = var.allowed_ip_range
     instance_name             = var.instance_name
     port                      = var.grafana_port
-    backend_tls               = var.enable_tls
+    backend_tls               = false # System containers don't use TLS
     enable_rate_limiting      = var.enable_rate_limiting
     rate_limit_requests       = var.rate_limit_requests
     rate_limit_window         = var.rate_limit_window
@@ -35,8 +35,8 @@ output "caddy_config_block" {
 }
 
 output "tls_enabled" {
-  description = "Whether TLS is enabled for this instance"
-  value       = var.enable_tls
+  description = "Whether TLS is enabled for this instance (always false for system containers)"
+  value       = false
 }
 
 output "dns_records" {

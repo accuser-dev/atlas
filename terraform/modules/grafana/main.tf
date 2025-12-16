@@ -1,3 +1,26 @@
+# =============================================================================
+# Grafana Module
+# =============================================================================
+# Visualization and dashboarding platform
+# Uses Alpine Linux system container with cloud-init for configuration
+
+locals {
+  # Read dashboard JSON if default dashboards are enabled
+  dashboard_json = var.enable_default_dashboards ? file("${path.module}/dashboards/atlas-health.json") : ""
+
+  # Cloud-init configuration
+  cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
+    grafana_version           = var.grafana_version
+    grafana_port              = var.grafana_port
+    domain                    = var.domain
+    admin_user                = var.admin_user
+    admin_password            = var.admin_password
+    datasources               = var.datasources
+    enable_default_dashboards = var.enable_default_dashboards
+    dashboard_json_base64     = var.enable_default_dashboards ? base64encode(local.dashboard_json) : ""
+  })
+}
+
 resource "incus_storage_volume" "grafana_data" {
   count = var.enable_data_persistence ? 1 : 0
 
@@ -7,11 +30,6 @@ resource "incus_storage_volume" "grafana_data" {
   config = merge(
     {
       size = var.data_volume_size
-      # Set initial ownership for Grafana user (UID 472) to allow writes from non-root container
-      # Requires Incus 6.8+ (https://linuxcontainers.org/incus/news/2024_12_13_07_12.html)
-      "initial.uid"  = "472"
-      "initial.gid"  = "472"
-      "initial.mode" = "0755"
     },
     var.enable_snapshots ? {
       "snapshots.schedule" = var.snapshot_schedule
@@ -65,63 +83,18 @@ resource "incus_profile" "grafana" {
   ]
 }
 
-locals {
-  # TLS environment variables (only set when TLS is enabled)
-  tls_env_vars = var.enable_tls ? {
-    ENABLE_TLS         = "true"
-    STEPCA_URL         = var.stepca_url
-    STEPCA_FINGERPRINT = var.stepca_fingerprint
-    CERT_DURATION      = var.cert_duration
-  } : {}
-}
-
 resource "incus_instance" "grafana" {
   name     = var.instance_name
   image    = var.image
   type     = "container"
   profiles = concat(var.profiles, [incus_profile.grafana.name])
 
-  config = merge(
-    { for k, v in var.environment_variables : "environment.${k}" => v },
-    { for k, v in local.tls_env_vars : "environment.${k}" => v },
-  )
-
-  # Provision datasources if configured
-  dynamic "file" {
-    for_each = length(var.datasources) > 0 ? [1] : []
-    content {
-      content = templatefile("${path.module}/templates/datasources.yaml.tftpl", {
-        datasources = var.datasources
-      })
-      target_path = "/etc/grafana/provisioning/datasources/datasources.yaml"
-      mode        = "0644"
-    }
+  config = {
+    "cloud-init.user-data" = local.cloud_init_content
   }
 
-  # Provision dashboard provider configuration
-  dynamic "file" {
-    for_each = var.enable_default_dashboards ? [1] : []
-    content {
-      content     = file("${path.module}/templates/dashboards.yaml.tftpl")
-      target_path = "/etc/grafana/provisioning/dashboards/dashboards.yaml"
-      mode        = "0644"
-    }
-  }
-
-  # Provision Atlas Health dashboard
-  dynamic "file" {
-    for_each = var.enable_default_dashboards ? [1] : []
-    content {
-      content     = file("${path.module}/dashboards/atlas-health.json")
-      target_path = "/etc/grafana/provisioning/dashboards/atlas-health.json"
-      mode        = "0644"
-    }
-  }
-
-  lifecycle {
-    precondition {
-      condition     = !var.enable_tls || (var.stepca_url != "" && var.stepca_fingerprint != "")
-      error_message = "When enable_tls is true, both stepca_url and stepca_fingerprint must be provided."
-    }
-  }
+  depends_on = [
+    incus_profile.grafana,
+    incus_storage_volume.grafana_data
+  ]
 }

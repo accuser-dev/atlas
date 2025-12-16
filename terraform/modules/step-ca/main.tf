@@ -1,10 +1,22 @@
-# step-ca - Internal ACME Certificate Authority
-# Provides automated TLS certificate management for internal services
+# =============================================================================
+# step-ca Module
+# =============================================================================
+# Internal ACME Certificate Authority for automated TLS certificate management
+# Uses Alpine Linux system container with cloud-init for configuration
 
 locals {
   # Build DNS names list - always include instance name and localhost
   default_dns_names = "${var.instance_name}.incus,localhost"
   ca_dns_names      = var.ca_dns_names != "" ? "${var.ca_dns_names},${local.default_dns_names}" : local.default_dns_names
+
+  # Cloud-init configuration
+  cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
+    step_version  = var.step_version
+    ca_name       = var.ca_name
+    ca_dns_names  = local.ca_dns_names
+    acme_port     = var.acme_port
+    cert_duration = var.cert_duration
+  })
 }
 
 # Storage volume for CA data (private keys, config, certificate database)
@@ -77,18 +89,13 @@ resource "incus_profile" "step_ca" {
 
 # step-ca container
 resource "incus_instance" "step_ca" {
-  name  = var.instance_name
-  image = var.image
-  type  = "container"
-
+  name     = var.instance_name
+  image    = var.image
+  type     = "container"
   profiles = concat(var.profiles, [incus_profile.step_ca.name])
 
   config = {
-    # Environment variables for CA configuration
-    "environment.STEPCA_NAME"          = var.ca_name
-    "environment.STEPCA_DNS"           = local.ca_dns_names
-    "environment.STEPCA_ADDRESS"       = ":${var.acme_port}"
-    "environment.STEPCA_CERT_DURATION" = var.cert_duration
+    "cloud-init.user-data" = local.cloud_init_content
   }
 
   depends_on = [

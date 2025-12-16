@@ -9,9 +9,15 @@ variable "profile_name" {
 }
 
 variable "image" {
-  description = "Container image to use"
+  description = "Container image to use (system container with cloud-init)"
   type        = string
-  default     = "ghcr:accuser-dev/atlas/loki:latest"
+  default     = "images:alpine/3.21/cloud"
+}
+
+variable "loki_version" {
+  description = "Version of Loki to install"
+  type        = string
+  default     = "3.3.2"
 }
 
 variable "cpu_limit" {
@@ -59,12 +65,6 @@ variable "profiles" {
   default     = ["default"]
 }
 
-variable "environment_variables" {
-  description = "Environment variables for Loki container"
-  type        = map(string)
-  default     = {}
-}
-
 variable "enable_data_persistence" {
   description = "Enable persistent storage for Loki data"
   type        = bool
@@ -104,42 +104,6 @@ variable "loki_port" {
   validation {
     condition     = can(regex("^[0-9]+$", var.loki_port)) && tonumber(var.loki_port) >= 1 && tonumber(var.loki_port) <= 65535
     error_message = "Port must be a number between 1 and 65535"
-  }
-}
-
-# TLS Configuration
-variable "enable_tls" {
-  description = "Enable TLS for Loki using step-ca"
-  type        = bool
-  default     = false
-}
-
-variable "stepca_url" {
-  description = "URL of the step-ca server (required if enable_tls is true)"
-  type        = string
-  default     = ""
-}
-
-variable "stepca_fingerprint" {
-  description = "Fingerprint of the step-ca root certificate (required if enable_tls is true)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "cert_duration" {
-  description = "Duration for TLS certificates (e.g., 24h, 168h). Must be between 1h and 8760h (1 year)."
-  type        = string
-  default     = "24h"
-
-  validation {
-    condition     = can(regex("^[0-9]+h$", var.cert_duration))
-    error_message = "Certificate duration must be in hours format (e.g., '24h', '168h')."
-  }
-
-  validation {
-    condition     = tonumber(trimsuffix(var.cert_duration, "h")) >= 1 && tonumber(trimsuffix(var.cert_duration, "h")) <= 8760
-    error_message = "Certificate duration must be between 1h and 8760h (1 year)."
   }
 }
 

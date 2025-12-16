@@ -9,9 +9,27 @@ variable "profile_name" {
 }
 
 variable "image" {
-  description = "Container image to use"
+  description = "Container image to use (system container with cloud-init)"
   type        = string
-  default     = "ghcr:accuser-dev/atlas/grafana:latest"
+  default     = "images:alpine/3.21/cloud"
+}
+
+variable "grafana_version" {
+  description = "Version of Grafana to install"
+  type        = string
+  default     = "11.4.0"
+}
+
+variable "admin_user" {
+  description = "Grafana admin username"
+  type        = string
+  default     = "admin"
+}
+
+variable "admin_password" {
+  description = "Grafana admin password"
+  type        = string
+  sensitive   = true
 }
 
 variable "cpu_limit" {
@@ -57,12 +75,6 @@ variable "profiles" {
   description = "List of Incus profile names to apply (should include base profile and network profile)"
   type        = list(string)
   default     = ["default"]
-}
-
-variable "environment_variables" {
-  description = "Environment variables for Grafana container"
-  type        = map(string)
-  default     = {}
 }
 
 variable "enable_data_persistence" {
@@ -122,42 +134,6 @@ variable "grafana_port" {
   validation {
     condition     = can(regex("^[0-9]+$", var.grafana_port)) && tonumber(var.grafana_port) >= 1 && tonumber(var.grafana_port) <= 65535
     error_message = "Port must be a number between 1 and 65535"
-  }
-}
-
-# TLS Configuration
-variable "enable_tls" {
-  description = "Enable TLS for Grafana using step-ca"
-  type        = bool
-  default     = false
-}
-
-variable "stepca_url" {
-  description = "URL of the step-ca server (required if enable_tls is true)"
-  type        = string
-  default     = ""
-}
-
-variable "stepca_fingerprint" {
-  description = "Fingerprint of the step-ca root certificate (required if enable_tls is true)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "cert_duration" {
-  description = "Duration for TLS certificates (e.g., 24h, 168h). Must be between 1h and 8760h (1 year)."
-  type        = string
-  default     = "24h"
-
-  validation {
-    condition     = can(regex("^[0-9]+h$", var.cert_duration))
-    error_message = "Certificate duration must be in hours format (e.g., '24h', '168h')."
-  }
-
-  validation {
-    condition     = tonumber(trimsuffix(var.cert_duration, "h")) >= 1 && tonumber(trimsuffix(var.cert_duration, "h")) <= 8760
-    error_message = "Certificate duration must be between 1h and 8760h (1 year)."
   }
 }
 

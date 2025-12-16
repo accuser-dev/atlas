@@ -96,12 +96,9 @@ module "grafana01" {
   allowed_ip_range = var.allowed_ip_range
   grafana_port     = "3000"
 
-  # Environment variables for Grafana configuration
-  environment_variables = {
-    GF_SECURITY_ADMIN_USER     = "admin"
-    GF_SECURITY_ADMIN_PASSWORD = var.grafana_admin_password
-    GF_SERVER_HTTP_PORT        = "3000"
-  }
+  # Grafana admin credentials
+  admin_user     = "admin"
+  admin_password = var.grafana_admin_password
 
   # Configure datasources for Prometheus and Loki (derived from module outputs)
   datasources = [

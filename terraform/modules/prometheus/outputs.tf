@@ -20,10 +20,10 @@ output "storage_volume_name" {
 
 output "prometheus_endpoint" {
   description = "Prometheus endpoint URL for internal use"
-  value       = "${var.enable_tls ? "https" : "http"}://${var.instance_name}.incus:${var.prometheus_port}"
+  value       = "http://${var.instance_name}.incus:${var.prometheus_port}"
 }
 
 output "tls_enabled" {
-  description = "Whether TLS is enabled for this instance"
-  value       = var.enable_tls
+  description = "Whether TLS is enabled for this instance (always false for system containers)"
+  value       = false
 }
