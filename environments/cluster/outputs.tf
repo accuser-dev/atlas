@@ -82,3 +82,17 @@ output "incus_metrics_certificate_fingerprint" {
   description = "Fingerprint of the metrics certificate"
   value       = var.enable_incus_metrics ? module.incus_metrics[0].certificate_fingerprint : null
 }
+
+# =============================================================================
+# Log Shipping
+# =============================================================================
+
+output "promtail_endpoint" {
+  description = "Promtail HTTP API endpoint URL"
+  value       = module.promtail01.promtail_endpoint
+}
+
+output "promtail_loki_target" {
+  description = "Loki URL that Promtail is shipping logs to"
+  value       = module.promtail01.loki_push_url
+}
