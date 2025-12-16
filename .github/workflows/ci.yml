@@ -184,9 +184,6 @@ jobs:
             loki:
               - 'docker/loki/**'
               - 'test/docker/loki_test.sh'
-            mosquitto:
-              - 'docker/mosquitto/**'
-              - 'test/docker/mosquitto_test.sh'
             prometheus:
               - 'docker/prometheus/**'
               - 'test/docker/prometheus_test.sh'
@@ -205,7 +202,7 @@ jobs:
         run: |
           # Check if CI workflow itself changed - if so, build all images
           if [ "${{ steps.filter.outputs.ci_workflow }}" == "true" ]; then
-            echo 'matrix=["alertmanager","atlantis","caddy","cloudflared","grafana","loki","mosquitto","node-exporter","prometheus","step-ca"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["alertmanager","atlantis","caddy","cloudflared","grafana","loki","node-exporter","prometheus","step-ca"]' >> $GITHUB_OUTPUT
             echo 'has_changes=true' >> $GITHUB_OUTPUT
             echo "📋 CI workflow changed - will build all images"
           else
@@ -217,7 +214,6 @@ jobs:
             if [ "${{ steps.filter.outputs.cloudflared }}" == "true" ]; then SERVICES+=("cloudflared"); fi
             if [ "${{ steps.filter.outputs.grafana }}" == "true" ]; then SERVICES+=("grafana"); fi
             if [ "${{ steps.filter.outputs.loki }}" == "true" ]; then SERVICES+=("loki"); fi
-            if [ "${{ steps.filter.outputs.mosquitto }}" == "true" ]; then SERVICES+=("mosquitto"); fi
             if [ "${{ steps.filter.outputs.node_exporter }}" == "true" ]; then SERVICES+=("node-exporter"); fi
             if [ "${{ steps.filter.outputs.prometheus }}" == "true" ]; then SERVICES+=("prometheus"); fi
             if [ "${{ steps.filter.outputs.step_ca }}" == "true" ]; then SERVICES+=("step-ca"); fi
@@ -252,7 +248,6 @@ jobs:
           echo "| cloudflared | ${{ steps.filter.outputs.cloudflared == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| grafana | ${{ steps.filter.outputs.grafana == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| loki | ${{ steps.filter.outputs.loki == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| mosquitto | ${{ steps.filter.outputs.mosquitto == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| node-exporter | ${{ steps.filter.outputs.node_exporter == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| prometheus | ${{ steps.filter.outputs.prometheus == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| step-ca | ${{ steps.filter.outputs.step_ca == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
@@ -277,6 +272,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Read Step CLI version
+        id: step-version
+        run: |
+          if [ -f .step-version ]; then
+            echo "version=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
+          else
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build image
         uses: docker/build-push-action@v5
         with:
@@ -285,6 +289,8 @@ jobs:
           tags: atlas/${{ matrix.service }}:test
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          build-args: |
+            STEP_VERSION=${{ steps.step-version.outputs.version }}
 
       - name: Summary
         run: |
@@ -315,6 +321,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Read Step CLI version
+        id: step-version
+        run: |
+          if [ -f .step-version ]; then
+            echo "version=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
+          else
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build image for testing
         uses: docker/build-push-action@v5
         with:
@@ -322,6 +337,8 @@ jobs:
           load: true
           tags: atlas/${{ matrix.service }}:test
           cache-from: type=gha,scope=${{ matrix.service }}
+          build-args: |
+            STEP_VERSION=${{ steps.step-version.outputs.version }}
 
       - name: Run smoke tests
         env:
@@ -361,6 +378,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Read Step CLI version
+        id: step-version
+        run: |
+          if [ -f .step-version ]; then
+            echo "version=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
+          else
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build image for scanning
         uses: docker/build-push-action@v5
         with:
@@ -368,6 +394,8 @@ jobs:
           load: true
           tags: atlas/${{ matrix.service }}:test
           cache-from: type=gha,scope=${{ matrix.service }}
+          build-args: |
+            STEP_VERSION=${{ steps.step-version.outputs.version }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master

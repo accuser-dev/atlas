@@ -8,21 +8,10 @@ variable "profile_name" {
   type        = string
 }
 
-variable "container_type" {
-  description = "Container type: 'oci' for Docker/OCI image, 'system' for Alpine system container with cloud-init"
-  type        = string
-  default     = "system"
-
-  validation {
-    condition     = contains(["oci", "system"], var.container_type)
-    error_message = "Container type must be 'oci' or 'system'"
-  }
-}
-
 variable "image" {
-  description = "Container image to use (leave empty to use default based on container_type)"
+  description = "Container image to use"
   type        = string
-  default     = ""
+  default     = "images:alpine/3.21/cloud"
 }
 
 variable "cpu_limit" {
@@ -68,12 +57,6 @@ variable "profiles" {
   description = "List of Incus profile names to apply (should include base profile and network profile)"
   type        = list(string)
   default     = ["default"]
-}
-
-variable "environment_variables" {
-  description = "Environment variables for Mosquitto container"
-  type        = map(string)
-  default     = {}
 }
 
 variable "enable_data_persistence" {
