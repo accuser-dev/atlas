@@ -569,7 +569,7 @@ The project uses Terraform modules for scalability and reusability:
     - GitOps controller for PR-based infrastructure management
     - Automatic `terraform plan` on PR creation/update
     - Apply changes via PR comment `atlantis apply`
-    - Webhook endpoint proxied via dedicated Caddy GitOps instance (GitHub IP allowlisting, rate limiting)
+    - Webhook endpoint accessible via Cloudflare Tunnel
     - Persistent storage for plans cache and locks (10GB)
     - Custom Docker image: [docker/atlantis/](docker/atlantis/)
 
@@ -583,23 +583,9 @@ The project uses Terraform modules for scalability and reusability:
     - Conditionally deployed: Only created when `enable_gitops` is true (default: false)
     - See [GITOPS.md](GITOPS.md) for setup and usage instructions
 
-27. **Caddy GitOps Module** ([terraform/modules/caddy-gitops/](terraform/modules/caddy-gitops/))
-    - Dedicated Caddy instance for GitOps network webhook traffic
-    - Separate from main Caddy instance (one Caddy per network pattern)
-    - GitHub IP allowlisting for webhook security
-    - Rate limiting for webhook protection
-    - Uses same custom Caddy image as main instance
-
-28. **Caddy GitOps Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
-    - Instance name: `caddy-gitops01`
-    - Image: `ghcr.io/accuser-dev/atlas/caddy:latest`
-    - Resource limits: 1 CPU, 256MB memory
-    - Network: Connected to gitops network + external (incusbr0)
-    - Conditionally deployed: Only created when `enable_gitops` is true
-
 ### External TCP Service Pattern (Proxy Devices)
 
-For non-HTTP services that need external access (like MQTT), the project uses Incus proxy devices instead of Caddy reverse proxy:
+For non-HTTP services that need external access (like MQTT, DNS), the project uses Incus proxy devices:
 
 ```hcl
 # In the module's profile definition
@@ -620,29 +606,8 @@ device {
 - Direct port forwarding with minimal overhead
 
 **Considerations:**
-- Bypasses Caddy - no centralized HTTP logging for TCP traffic
 - Port conflicts must be managed manually
 - Each service manages its own TLS (via step-ca)
-
-### Dynamic Caddyfile Generation
-
-The project uses a template-based approach for generating Caddyfile configurations:
-
-1. **Service modules** (like Grafana) declare their domain and generate a Caddy config block via `caddy_config_block` output
-2. **Root main.tf** collects all service blocks and passes them to the Caddy module as a list
-3. **Caddy module** uses its internal template to combine service blocks with global configuration
-4. **Result**: Automatically generated, consistent reverse proxy configuration
-
-**Adding a new public service:**
-```hcl
-# In terraform/main.tf, add the service's caddy_config_block to the list
-module "caddy01" {
-  service_blocks = [
-    module.grafana01.caddy_config_block,
-    module.newservice01.caddy_config_block,  # Add here
-  ]
-}
-```
 
 ### Storage Architecture
 
@@ -766,7 +731,7 @@ cd terraform && tofu output step_ca_fingerprint_command
 Internal services (Grafana, Prometheus, Loki) communicate over the management network using HTTP. TLS is not required for internal traffic as:
 - The management network (10.20.0.0/24) is isolated
 - Traffic does not traverse external networks
-- Caddy terminates external TLS for public-facing services
+- Cloudflare Tunnel terminates external TLS for public-facing services
 
 #### Troubleshooting TLS
 
@@ -802,14 +767,6 @@ profiles = [
   module.base.management_network_profile.name, # Management network NIC
 ]
 # Service module's profile provides root disk with size limit
-```
-
-**Caddy** (reverse proxy - special case):
-```hcl
-profiles = [
-  module.base.container_base_profile.name,  # boot.autorestart only
-]
-# Caddy module manages its own root disk and multi-network NICs
 ```
 
 **Base profiles from base-infrastructure module:**
@@ -865,13 +822,14 @@ All services enforce hard memory limits and configurable resources:
 
 | Service | CPU (Default) | Memory (Default) | Validation |
 |---------|---------------|-----------------|------------|
-| Caddy   | 2 cores       | 1GB             | 1-64 CPUs, MB/GB format |
 | Grafana | 2 cores       | 1GB             | 1-64 CPUs, MB/GB format |
 | Loki    | 2 cores       | 2GB             | 1-64 CPUs, MB/GB format |
 | Prometheus | 2 cores    | 2GB             | 1-64 CPUs, MB/GB format |
 | step-ca | 1 core        | 512MB           | 1-64 CPUs, MB/GB format |
 | Alertmanager | 1 core   | 256MB           | 1-64 CPUs, MB/GB format |
 | Mosquitto | 1 core      | 256MB           | 1-64 CPUs, MB/GB format |
+| Cloudflared | 1 core    | 256MB           | 1-64 CPUs, MB/GB format |
+| Atlantis | 2 cores      | 1GB             | 1-64 CPUs, MB/GB format |
 
 All limits are validated at the Terraform variable level to ensure correctness before deployment.
 
@@ -881,13 +839,14 @@ Profiles follow a simple, service-specific naming pattern:
 
 | Service | Profile Name | Instance Name |
 |---------|--------------|---------------|
-| Caddy   | `caddy`      | `caddy01`     |
 | Grafana | `grafana`    | `grafana01`   |
 | Loki    | `loki`       | `loki01`      |
 | Prometheus | `prometheus` | `prometheus01` |
 | step-ca | `step-ca`    | `step-ca01`   |
 | Alertmanager | `alertmanager` | `alertmanager01` |
 | Mosquitto | `mosquitto` | `mosquitto01` |
+| Cloudflared | `cloudflared` | `cloudflared01` |
+| Atlantis | `atlantis`   | `atlantis01`  |
 
 Profile names are independent of instance names, allowing flexibility for multiple instances.
 
@@ -922,11 +881,10 @@ This enables:
 - Connected to management network by default
 - Internal-only communication
 
-**Caddy** (special case - reverse proxy):
-- Three network interfaces:
-  - `eth0`: Production network (public-facing apps)
-  - `eth1`: Management network (internal services)
-  - `eth2`: External network (incusbr0 bridge for internet access)
+**Production network services** (Mosquitto, CoreDNS):
+- Single network interface (`eth0`)
+- Connected to production network for external/LAN access
+- May use proxy devices for port forwarding in bridge mode
 
 #### Profile Dependencies
 
@@ -960,25 +918,7 @@ This approach enables easy scaling - new instances reuse the proven profile patt
 
 ### Adding New Service Modules
 
-**For public-facing services (with Caddy reverse proxy):**
-
-Using system containers (recommended):
-1. Create Terraform module in `terraform/modules/yourservice/`
-2. Set default image to `images:alpine/3.21/cloud`
-3. Create `templates/cloud-init.yaml.tftpl` for service configuration
-4. Add `domain`, `allowed_ip_range`, and port variables to module
-5. Create `templates/caddyfile.tftpl` for reverse proxy config
-6. Add `caddy_config_block` output using templatefile()
-7. Instantiate module in [terraform/main.tf](terraform/main.tf)
-8. Add module's `caddy_config_block` to Caddy's `service_blocks` list
-
-Using OCI containers (only for services requiring custom builds):
-1. Create Docker image in `docker/yourservice/` with Dockerfile
-2. Add service to GitHub Actions matrix in `.github/workflows/release.yml`
-3. Create Terraform module and set image to `ghcr:accuser-dev/atlas/yourservice:latest`
-4. Push to GitHub to build and publish image
-
-**For internal-only services (no public access):**
+**For internal services (most common):**
 
 1. Create Terraform module in `terraform/modules/yourservice/`
 2. Set default image to `images:alpine/3.21/cloud`
@@ -987,6 +927,28 @@ Using OCI containers (only for services requiring custom builds):
 5. Add endpoint output for internal connectivity
 6. Instantiate module in [terraform/main.tf](terraform/main.tf)
 7. Connect from other services using `yourservice.incus:port`
+
+**For externally accessible services:**
+
+Configure external access via Cloudflare Tunnel:
+1. Create internal service as above
+2. Add a public hostname in Cloudflare Zero Trust dashboard
+3. Point it to the internal service endpoint (e.g., `http://grafana01.incus:3000`)
+4. Configure access policies as needed
+
+**For TCP services needing direct external access (like MQTT):**
+
+Use Incus proxy devices (bridge mode) or direct LAN attachment (physical mode):
+1. Create service on production network
+2. Add proxy device for port forwarding in bridge mode
+3. In physical mode, containers get LAN IPs directly
+
+**For OCI containers (only for services requiring custom builds like Atlantis):**
+
+1. Create Docker image in `docker/yourservice/` with Dockerfile
+2. Add service to GitHub Actions matrix in `.github/workflows/release.yml`
+3. Create Terraform module and set image to `ghcr:accuser-dev/atlas/yourservice:latest`
+4. Push to GitHub to build and publish image
 
 **Example - Adding a new Grafana instance:**
 
@@ -1003,9 +965,7 @@ module "grafana02" {
     module.base.management_network_profile.name,
   ]
 
-  domain           = "grafana-dev.accuser.dev"
-  allowed_ip_range = "192.168.68.0/22"  # Required: Set to your network CIDR
-
+  domain         = "grafana-dev.accuser.dev"
   admin_user     = "admin"
   admin_password = "secure-password"
 
@@ -1013,21 +973,15 @@ module "grafana02" {
   data_volume_name        = "grafana02-data"
   data_volume_size        = "10GB"
 }
-
-# Add to Caddy's service_blocks
-module "caddy01" {
-  service_blocks = [
-    module.grafana01.caddy_config_block,
-    module.grafana02.caddy_config_block,  # Add here
-  ]
-}
 ```
+
+Then configure external access via Cloudflare Tunnel dashboard.
 
 ### Key Design Patterns
 
 **Modular Architecture:**
 - Most services use Alpine Linux system containers with cloud-init
-- OCI containers (Docker images) only used for Caddy and Atlantis
+- OCI containers (Docker images) only used for Atlantis
 - Each service type has its own Terraform module in `terraform/modules/`
 - Modules are instantiated in the root [terraform/main.tf](terraform/main.tf)
 - Easy to scale by adding new module instances
@@ -1040,11 +994,11 @@ module "caddy01" {
 4. cloud-init installs packages and configures services at boot
 5. Root module orchestrates dependencies and network setup
 
-**Dynamic Configuration:**
-- Services declare their own reverse proxy configuration
-- Caddy module assembles configurations into complete Caddyfile
-- Type-safe: All values validated by Terraform
-- DRY principle: No duplicate configuration
+**External Access via Cloudflare Tunnel:**
+- Cloudflared connects to Cloudflare's edge network
+- Zero Trust policies control access to services
+- No inbound firewall rules required
+- Configure routes in Cloudflare dashboard
 
 **Network Architecture:**
 - Two managed networks: production (10.10.0.0/24), management (10.20.0.0/24)
@@ -1053,19 +1007,15 @@ module "caddy01" {
 - Production network: public-facing services (Mosquitto)
 - Management network: internal services (monitoring stack: Grafana, Loki, Prometheus)
 - Services on same network can communicate via internal DNS
-- Caddy reverse proxy with multi-NIC setup (production, management, optional external)
-- IP-based access control for security
-- Automatic HTTPS via Let's Encrypt with Cloudflare DNS validation
+- External HTTPS access via Cloudflare Tunnel (Zero Trust)
 
 **Production Network Modes:**
 - **Bridge mode** (default): NAT'd network with proxy devices for external access
-  - Caddy has 3 NICs: production, management, external (incusbr0)
   - Mosquitto exposed via proxy devices on host ports
 - **Physical mode** (IncusOS): Direct LAN attachment via physical interface
   - **Prerequisites:** Enable 'instances' role on the interface: `incus network set eno1 role instances`
   - Set `production_network_name`, `production_network_type`, and `production_network_parent`
   - **Best practice:** Set `production_network_name` to match the interface name (e.g., `eno1`) to avoid ghost networks
-  - Caddy has 2 NICs: production (direct LAN), management
   - Mosquitto gets LAN IP directly - no proxy devices needed
   - Containers accessible on LAN via their IPs
 
@@ -1089,12 +1039,10 @@ tofu import module.base.incus_network.production eno1
 - NAT66 configurable per-network via `*_network_ipv6_nat` variables
 - Example: `production_network_ipv6 = "fd00:10:10::1/64"`
 
-**Rate Limiting:**
-- Built-in rate limiting via mholt/caddy-ratelimit plugin
-- Default limits: 100 requests/min for general endpoints, 10 requests/min for login endpoints
-- Sliding window algorithm for smooth rate limiting
-- Per-service zones prevent cross-service interference
-- Configurable via Terraform variables (`enable_rate_limiting`, `rate_limit_requests`, etc.)
+**Access Control:**
+- External access managed via Cloudflare Zero Trust policies
+- Rate limiting configured in Cloudflare dashboard
+- No inbound firewall rules required on infrastructure
 - Protects against brute force attacks, DoS attempts, and resource exhaustion
 
 **Storage Management:**
@@ -1114,7 +1062,7 @@ The complete observability stack is designed to work together with automatic con
 
 2. **Prometheus** (internal) - Metrics storage and health monitoring
    - Endpoint: `http://prometheus01.incus:9090`
-   - Scrapes metrics from all services (Grafana, Loki, Caddy, step-ca, self)
+   - Scrapes metrics from all services (Grafana, Loki, Cloudflared, step-ca, self)
    - Health check monitoring for infrastructure components
    - Queried by Grafana for metric visualization
    - Scrape interval: 15 seconds
@@ -1151,17 +1099,17 @@ datasources = [
 Prometheus is configured to scrape health and metrics endpoints from all services:
 - `grafana01.incus:3000` - Grafana metrics
 - `loki01.incus:3100` - Loki metrics
-- `caddy01.incus:2019` - Caddy admin API metrics
+- `cloudflared01.incus:2000` - Cloudflared metrics
 - `step-ca01.incus:9000` - step-ca health endpoint
 - `node-exporter01.incus:9100` - Host system metrics (CPU, memory, disk, network)
 - `<management-gateway>:8443` - Incus container metrics (mTLS authenticated)
 - `localhost:9090` - Prometheus self-monitoring
 
 Services expose health check endpoints that Prometheus scrapes:
-- Caddy: HTTP check on admin API (`:2019/metrics`)
 - Grafana: HTTP check on `/api/health`
 - Loki: HTTP check on `/ready`
 - Prometheus: HTTP check on `/-/ready`
+- Cloudflared: HTTP check on `/metrics`
 - step-ca: ACME health endpoint
 - Node Exporter: HTTP check on `/metrics`
 
@@ -1283,12 +1231,11 @@ These containers:
 **OCI Container Images (Docker)**
 
 Services requiring custom builds use GitHub Container Registry:
-- Caddy: `ghcr:accuser-dev/atlas/caddy:latest`
 - Atlantis: `ghcr:accuser-dev/atlas/atlantis:latest`
 
 **Image Reference Format (ghcr: vs ghcr.io/)**
 
-Terraform modules use `ghcr:` prefix (e.g., `ghcr:accuser-dev/atlas/caddy:latest`) which references an **Incus remote** named "ghcr" that points to `https://ghcr.io`. This is not a typo - it's Incus-specific syntax.
+Terraform modules use `ghcr:` prefix (e.g., `ghcr:accuser-dev/atlas/atlantis:latest`) which references an **Incus remote** named "ghcr" that points to `https://ghcr.io`. This is not a typo - it's Incus-specific syntax.
 
 The bootstrap process (`make bootstrap`) automatically configures these OCI remotes:
 - `ghcr` → `https://ghcr.io` (GitHub Container Registry)
@@ -1343,7 +1290,7 @@ module "grafana01" {
 - ⚠️ **External scripts** - Use `incus exec` via separate orchestration script
 - ❌ **Terraform provisioners** - Avoid (fragile and non-declarative)
 
-**For OCI containers (Caddy, Atlantis):**
+**For OCI containers (Atlantis):**
 - ✅ **Custom Docker images** - Pre-install packages and plugins
 - ✅ **Environment variables** - Configure at runtime via Terraform
 - ✅ **File injection** - Use Terraform `file` blocks for configuration files
@@ -1353,9 +1300,9 @@ module "grafana01" {
 
 - The `terraform/terraform.tfvars` file is gitignored and must be created manually with required secrets
 - Most services use Alpine Linux system containers (`images:alpine/3.21/cloud`) with cloud-init
-- Only Caddy and Atlantis use OCI containers from GitHub Container Registry (ghcr.io)
+- Only Atlantis uses OCI containers from GitHub Container Registry (ghcr.io)
 - OCI images are automatically built and published by the Release workflow on push to main
-- Access to services requires explicit `allowed_ip_range` configuration (no default for security)
+- External access is managed via Cloudflare Tunnel and Zero Trust policies
 - Services are distributed across production (10.10.0.0/24) and management (10.20.0.0/24) networks
 - Storage volumes use the `local` storage pool and are created automatically when modules are applied
 - Each module has a `versions.tf` specifying the Incus provider requirement
@@ -1363,7 +1310,6 @@ module "grafana01" {
 ## Outputs
 
 After applying, use `cd terraform && tofu output` to view:
-- `grafana_caddy_config` - Generated Caddy configuration for Grafana
 - `loki_endpoint` - Internal Loki endpoint URL
 - `prometheus_endpoint` - Internal Prometheus endpoint URL
 - `step_ca_acme_endpoint` - step-ca ACME endpoint URL for certificate requests
