@@ -5,13 +5,19 @@
 # Uses Alpine Linux system container with cloud-init for configuration
 
 locals {
+  # Read dashboard JSON if default dashboards are enabled
+  dashboard_json = var.enable_default_dashboards ? file("${path.module}/dashboards/atlas-health.json") : ""
+
   # Cloud-init configuration
   cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    grafana_version = var.grafana_version
-    grafana_port    = var.grafana_port
-    domain          = var.domain
-    admin_user      = var.admin_user
-    admin_password  = var.admin_password
+    grafana_version           = var.grafana_version
+    grafana_port              = var.grafana_port
+    domain                    = var.domain
+    admin_user                = var.admin_user
+    admin_password            = var.admin_password
+    datasources               = var.datasources
+    enable_default_dashboards = var.enable_default_dashboards
+    dashboard_json_base64     = var.enable_default_dashboards ? base64encode(local.dashboard_json) : ""
   })
 }
 
@@ -85,38 +91,6 @@ resource "incus_instance" "grafana" {
 
   config = {
     "cloud-init.user-data" = local.cloud_init_content
-  }
-
-  # Provision datasources if configured
-  dynamic "file" {
-    for_each = length(var.datasources) > 0 ? [1] : []
-    content {
-      content = templatefile("${path.module}/templates/datasources.yaml.tftpl", {
-        datasources = var.datasources
-      })
-      target_path = "/etc/grafana/provisioning/datasources/datasources.yaml"
-      mode        = "0644"
-    }
-  }
-
-  # Provision dashboard provider configuration
-  dynamic "file" {
-    for_each = var.enable_default_dashboards ? [1] : []
-    content {
-      content     = file("${path.module}/templates/dashboards.yaml.tftpl")
-      target_path = "/etc/grafana/provisioning/dashboards/dashboards.yaml"
-      mode        = "0644"
-    }
-  }
-
-  # Provision Atlas Health dashboard
-  dynamic "file" {
-    for_each = var.enable_default_dashboards ? [1] : []
-    content {
-      content     = file("${path.module}/dashboards/atlas-health.json")
-      target_path = "/etc/grafana/provisioning/dashboards/atlas-health.json"
-      mode        = "0644"
-    }
   }
 
   depends_on = [
