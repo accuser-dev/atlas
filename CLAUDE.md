@@ -564,16 +564,16 @@ The project uses Terraform modules for scalability and reusability:
 
 17. **CoreDNS Module** ([terraform/modules/coredns/](terraform/modules/coredns/))
     - Split-horizon DNS server for internal service resolution
+    - Uses Alpine Linux system container with cloud-init (no Docker image)
     - Authoritative for internal zone (e.g., `accuser.dev`)
     - Forwards `.incus` queries to Incus DNS resolver
     - Forwards external queries to upstream DNS (Cloudflare, Google)
     - External access via Incus proxy devices (UDP+TCP on port 53)
     - Zone file generated from Terraform service module outputs
-    - Custom Docker image: [docker/coredns/](docker/coredns/)
 
 18. **CoreDNS Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `coredns01`
-    - Image: `ghcr.io/accuser-dev/atlas/coredns:latest` (published from [docker/coredns/](docker/coredns/))
+    - Image: `images:alpine/3.21/cloud` (system container)
     - Internal endpoint: `coredns01.incus:53`
     - External access: Host port 53 (UDP+TCP) via proxy devices (bridge mode)
     - Resource limits: 1 CPU, 128MB memory
