@@ -1,0 +1,15 @@
+# Terraform S3 Backend Configuration for Cluster Environment
+# Copy this file to backend.hcl and fill in the values
+# DO NOT COMMIT backend.hcl - IT CONTAINS SECRETS
+
+# The bucket and credentials come from iapetus bootstrap
+# State is stored separately from iapetus (different key in same bucket)
+
+bucket     = "atlas-terraform-state"
+access_key = "<your-access-key>"
+secret_key = "<your-secret-key>"
+
+# Endpoint points to iapetus S3 storage bucket API
+endpoints = {
+  s3 = "http://<iapetus-ip>:8555"
+}

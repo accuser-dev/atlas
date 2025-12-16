@@ -1,0 +1,74 @@
+# =============================================================================
+# Cluster Environment Configuration
+# =============================================================================
+# Copy this file to terraform.tfvars and customize for your environment
+# DO NOT COMMIT terraform.tfvars - IT MAY CONTAIN SECRETS
+
+# =============================================================================
+# Incus Remote Configuration
+# =============================================================================
+
+# Name of the Incus remote for the cluster
+# Configure via: incus remote add cluster01 https://<cluster-ip>:8443
+incus_remote = "cluster01"
+
+# Set to true to auto-accept remote certificate (use with caution)
+accept_remote_certificate = false
+
+# =============================================================================
+# Cluster Nodes
+# =============================================================================
+
+# Names of the cluster nodes (for node-exporter pinning)
+cluster_nodes = ["prometheus", "epimetheus", "menoetius"]
+
+# =============================================================================
+# Network Configuration
+# =============================================================================
+
+# Production network settings
+# For physical mode on IncusOS, set:
+#   production_network_type   = "physical"
+#   production_network_parent = "eno1"
+#   production_network_name   = "eno1"  # Match interface name
+production_network_name   = "production"
+production_network_type   = "bridge"
+production_network_parent = ""
+production_network_ipv4   = "10.10.0.1/24"
+production_network_nat    = true
+
+# Management network settings
+management_network_ipv4 = "10.20.0.1/24"
+management_network_nat  = true
+
+# =============================================================================
+# Cross-Environment Integration
+# =============================================================================
+
+# Central Loki instance on iapetus for log shipping
+# Promtail will push logs to this endpoint
+loki_push_url = "http://<iapetus-loki-ip>:3100/loki/api/v1/push"
+
+# Central step-ca on iapetus (optional, for TLS)
+# step_ca_url         = "https://<iapetus-step-ca-ip>:9000"
+# step_ca_fingerprint = "<fingerprint-from-iapetus>"
+
+# =============================================================================
+# DNS Configuration
+# =============================================================================
+
+dns_domain           = "cluster.local"
+dns_upstream_servers = ["1.1.1.1", "8.8.8.8"]
+
+# For physical mode, set the external IP for the NS record
+# dns_nameserver_ip = "192.168.1.x"
+
+# =============================================================================
+# Incus Metrics
+# =============================================================================
+
+enable_incus_metrics  = true
+incus_metrics_address = "127.0.0.1:8443"
+
+# Set to ACME domain if Incus has ACME cert configured
+# incus_metrics_server_name = "cluster.example.com"

@@ -1,0 +1,127 @@
+#cloud-config
+# step-ca system container configuration
+# Uses Alpine Linux with OpenRC service management
+
+package_update: true
+
+packages:
+  - curl
+  - tar
+  - jq
+
+write_files:
+  # step-ca initialization and startup script
+  - path: /usr/local/bin/step-ca-init.sh
+    permissions: '0755'
+    content: |
+      #!/bin/sh
+      # Initialize and start step-ca Certificate Authority
+      set -eu
+
+      STEPPATH="/home/step"
+      CONFIG_FILE="$${STEPPATH}/config/ca.json"
+      PASSWORD_FILE="$${STEPPATH}/secrets/password"
+
+      log_info()  { echo "INFO:  $*"; }
+      log_error() { echo "ERROR: $*" >&2; }
+
+      # Generate random password if not exists
+      generate_password() {
+        head -c 32 /dev/urandom | base64 | tr -d '\n'
+      }
+
+      # Initialize CA if not already done
+      if [ ! -f "$${CONFIG_FILE}" ]; then
+        log_info "Initializing Step CA..."
+
+        mkdir -p "$${STEPPATH}/secrets"
+        PASSWORD=$(generate_password)
+        echo "$${PASSWORD}" > "$${PASSWORD_FILE}"
+        chmod 600 "$${PASSWORD_FILE}"
+
+        step ca init \
+          --name="${ca_name}" \
+          --dns="${ca_dns_names}" \
+          --address=":${acme_port}" \
+          --provisioner="acme" \
+          --password-file="$${PASSWORD_FILE}" \
+          --provisioner-password-file="$${PASSWORD_FILE}" \
+          --acme \
+          --deployment-type=standalone
+
+        # Update certificate durations
+        if [ -f "$${CONFIG_FILE}" ]; then
+          cp "$${CONFIG_FILE}" "$${CONFIG_FILE}.bak"
+          jq '.authority.claims.defaultTLSCertDuration = "${cert_duration}" |
+              .authority.claims.maxTLSCertDuration = "168h" |
+              .authority.claims.minTLSCertDuration = "1h"' \
+            "$${CONFIG_FILE}.bak" > "$${CONFIG_FILE}"
+        fi
+
+        log_info "CA initialization complete"
+      fi
+
+      # Export fingerprint for easy access
+      if [ -f "$${STEPPATH}/certs/root_ca.crt" ]; then
+        FINGERPRINT=$(step certificate fingerprint "$${STEPPATH}/certs/root_ca.crt")
+        echo "$${FINGERPRINT}" > "$${STEPPATH}/fingerprint"
+        chmod 644 "$${STEPPATH}/fingerprint"
+        log_info "CA FINGERPRINT: $${FINGERPRINT}"
+      fi
+
+      # Start step-ca
+      log_info "Starting Step CA server..."
+      exec step-ca "$${CONFIG_FILE}" --password-file="$${PASSWORD_FILE}"
+
+  # OpenRC init script for step-ca
+  - path: /etc/init.d/step-ca
+    permissions: '0755'
+    content: |
+      #!/sbin/openrc-run
+
+      name="step-ca"
+      description="Smallstep Certificate Authority"
+      command="/usr/local/bin/step-ca-init.sh"
+      command_background=true
+      command_user="step"
+      pidfile="/run/$${RC_SVCNAME}.pid"
+      output_log="/var/log/step-ca.log"
+      error_log="/var/log/step-ca.log"
+
+      depend() {
+        need net
+        after firewall
+      }
+
+      start_pre() {
+        # Ensure step user owns the data directory
+        chown -R step:step /home/step 2>/dev/null || true
+      }
+
+runcmd:
+  # Download and install step-ca and step-cli
+  - |
+    STEP_VERSION="${step_version}"
+    cd /tmp
+    # Download step-cli
+    curl -sLO "https://github.com/smallstep/cli/releases/download/v$${STEP_VERSION}/step_linux_$${STEP_VERSION}_amd64.tar.gz"
+    tar -xzf "step_linux_$${STEP_VERSION}_amd64.tar.gz"
+    mv "step_$${STEP_VERSION}/bin/step" /usr/local/bin/step
+    chmod +x /usr/local/bin/step
+    rm -rf "step_linux_$${STEP_VERSION}_amd64.tar.gz" "step_$${STEP_VERSION}"
+    # Download step-ca
+    curl -sLO "https://github.com/smallstep/certificates/releases/download/v$${STEP_VERSION}/step-ca_linux_$${STEP_VERSION}_amd64.tar.gz"
+    tar -xzf "step-ca_linux_$${STEP_VERSION}_amd64.tar.gz"
+    mv "step-ca_$${STEP_VERSION}/bin/step-ca" /usr/local/bin/step-ca
+    chmod +x /usr/local/bin/step-ca
+    rm -rf "step-ca_linux_$${STEP_VERSION}_amd64.tar.gz" "step-ca_$${STEP_VERSION}"
+  # Create step user and home directory
+  - adduser -D -h /home/step -s /sbin/nologin step 2>/dev/null || true
+  - mkdir -p /home/step
+  - chown -R step:step /home/step
+  # Create log file
+  - touch /var/log/step-ca.log
+  - chown step:step /var/log/step-ca.log
+  # Enable and start step-ca service
+  - rc-update add step-ca default
+  - rc-service step-ca start

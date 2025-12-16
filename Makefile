@@ -1,5 +1,9 @@
 # Atlas Infrastructure Makefile
-# Manages Docker image builds and OpenTofu deployments
+# Manages Docker image builds and OpenTofu deployments for multiple environments
+
+# Environment selection (default: iapetus)
+ENV ?= iapetus
+ENV_DIR := environments/$(ENV)
 
 .PHONY: help build-all build-atlantis \
         list-images \
@@ -13,7 +17,12 @@
 help:
 	@echo "Atlas Infrastructure Management"
 	@echo ""
-	@echo "Bootstrap Commands (run once for fresh Incus installation):"
+	@echo "Current environment: $(ENV)"
+	@echo "Environment directory: $(ENV_DIR)"
+	@echo ""
+	@echo "Usage: make <target> [ENV=iapetus|cluster]"
+	@echo ""
+	@echo "Bootstrap Commands (run once per environment):"
 	@echo "  make bootstrap         - Complete bootstrap process (init + apply)"
 	@echo "  make bootstrap-init    - Initialize bootstrap OpenTofu"
 	@echo "  make bootstrap-plan    - Plan bootstrap changes"
@@ -58,6 +67,12 @@ help:
 	@echo "  make clean-docker      - Clean Docker build cache"
 	@echo "  make clean-tofu        - Clean OpenTofu state and cache"
 	@echo "  make clean-bootstrap   - Clean bootstrap OpenTofu state"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make plan                    # Plan iapetus (default)"
+	@echo "  make plan ENV=cluster        # Plan cluster environment"
+	@echo "  make deploy ENV=iapetus      # Deploy to iapetus"
+	@echo "  make bootstrap ENV=cluster   # Bootstrap cluster environment"
 
 # Docker image configuration
 IMAGE_TAG ?= latest
@@ -103,71 +118,73 @@ list-images:
 bootstrap: bootstrap-init bootstrap-apply
 	@echo ""
 	@echo "========================================"
-	@echo "Bootstrap complete!"
+	@echo "Bootstrap complete for $(ENV)!"
 	@echo "========================================"
 	@echo ""
 	@echo "Next steps:"
 	@echo "1. Initialize main OpenTofu project:"
-	@echo "   make init"
+	@echo "   make init ENV=$(ENV)"
 	@echo ""
 	@echo "2. Deploy infrastructure:"
-	@echo "   make deploy"
+	@echo "   make deploy ENV=$(ENV)"
 
 bootstrap-init:
-	@echo "Initializing bootstrap OpenTofu..."
-	cd terraform/bootstrap && tofu init
+	@echo "Initializing bootstrap OpenTofu for $(ENV)..."
+	cd $(ENV_DIR)/bootstrap && tofu init
 
 bootstrap-plan:
-	@echo "Planning bootstrap changes..."
-	cd terraform/bootstrap && tofu plan
+	@echo "Planning bootstrap changes for $(ENV)..."
+	cd $(ENV_DIR)/bootstrap && tofu plan
 
 bootstrap-apply:
-	@echo "Applying bootstrap configuration..."
+	@echo "Applying bootstrap configuration for $(ENV)..."
 	@echo "This will create:"
 	@echo "  - Incus storage buckets configuration"
 	@echo "  - Storage pool for OpenTofu state"
 	@echo "  - Storage bucket for OpenTofu state"
 	@echo "  - S3 access credentials"
 	@echo ""
-	cd terraform/bootstrap && tofu apply
+	cd $(ENV_DIR)/bootstrap && tofu apply
 	@echo ""
 	@echo "Bootstrap applied successfully!"
-	@echo "Backend configuration saved to: terraform/backend.hcl"
+	@echo "Backend configuration saved to: $(ENV_DIR)/backend.hcl"
 
 # OpenTofu commands
 init:
-	@echo "Initializing OpenTofu with remote backend..."
-	@if [ -f terraform/backend.hcl ]; then \
-		cd terraform && tofu init -backend-config=backend.hcl; \
+	@echo "Initializing OpenTofu with remote backend for $(ENV)..."
+	@if [ -f $(ENV_DIR)/backend.hcl ]; then \
+		cd $(ENV_DIR) && tofu init -backend-config=backend.hcl; \
 	else \
-		echo "ERROR: backend.hcl not found!"; \
+		echo "ERROR: backend.hcl not found for $(ENV)!"; \
 		echo ""; \
 		echo "You must run bootstrap first:"; \
-		echo "  make bootstrap"; \
+		echo "  make bootstrap ENV=$(ENV)"; \
 		echo ""; \
 		exit 1; \
 	fi
 
 plan:
-	@echo "Planning OpenTofu changes..."
-	cd terraform && tofu plan
+	@echo "Planning OpenTofu changes for $(ENV)..."
+	cd $(ENV_DIR) && tofu plan
 
 apply:
 	@echo "=========================================="
 	@echo "WARNING: Applying infrastructure changes"
+	@echo "Environment: $(ENV)"
 	@echo "=========================================="
 	@echo ""
 	@echo "This will modify your infrastructure based on the current configuration."
 	@echo ""
-	@echo "Recommended: Review the plan first with 'make plan'"
+	@echo "Recommended: Review the plan first with 'make plan ENV=$(ENV)'"
 	@echo ""
 	@echo "OpenTofu will prompt for confirmation before applying."
 	@echo ""
-	cd terraform && tofu apply
+	cd $(ENV_DIR) && tofu apply
 
 destroy:
 	@echo "=========================================="
 	@echo "⚠️  WARNING: DESTRUCTIVE OPERATION"
+	@echo "Environment: $(ENV)"
 	@echo "=========================================="
 	@echo ""
 	@echo "This will DESTROY all infrastructure managed by OpenTofu:"
@@ -181,7 +198,7 @@ destroy:
 	@echo ""
 	@echo "OpenTofu will prompt for confirmation before destroying."
 	@echo ""
-	cd terraform && tofu destroy
+	cd $(ENV_DIR) && tofu destroy
 	@$(MAKE) clean-images
 
 # Clean cached Incus images
@@ -204,17 +221,17 @@ clean-images:
 # Import existing resources into state
 # Note: Module names use underscores (step_ca01) while Incus uses hyphens (step-ca01)
 import:
-	@echo "Importing existing Incus resources into OpenTofu state..."
+	@echo "Importing existing Incus resources into OpenTofu state for $(ENV)..."
 	@echo "This will import networks, profiles, volumes, and instances that already exist."
 	@echo ""
-	@cd terraform && \
+	@cd $(ENV_DIR) && \
 	for net in $(ATLAS_NETWORKS); do \
 		if incus network show $$net >/dev/null 2>&1; then \
 			echo "Importing network: $$net"; \
 			tofu import "incus_network.$$net" "$$net" 2>/dev/null || true; \
 		fi; \
 	done
-	@cd terraform && \
+	@cd $(ENV_DIR) && \
 	for profile in $(ATLAS_PROFILES); do \
 		if incus profile show $$profile >/dev/null 2>&1; then \
 			echo "Importing profile: $$profile"; \
@@ -222,7 +239,7 @@ import:
 			tofu import "module.$${module}01.incus_profile.$$module" "$$profile" 2>/dev/null || true; \
 		fi; \
 	done
-	@cd terraform && \
+	@cd $(ENV_DIR) && \
 	for vol in $(ATLAS_VOLUMES); do \
 		if incus storage volume show local $$vol >/dev/null 2>&1; then \
 			echo "Importing volume: $$vol"; \
@@ -232,7 +249,7 @@ import:
 			tofu import "module.$$module.incus_storage_volume.$${resource}_data[0]" "local/$$vol" 2>/dev/null || true; \
 		fi; \
 	done
-	@cd terraform && \
+	@cd $(ENV_DIR) && \
 	for inst in $(ATLAS_SERVICES); do \
 		if incus info $$inst >/dev/null 2>&1; then \
 			echo "Importing instance: $$inst"; \
@@ -242,7 +259,7 @@ import:
 		fi; \
 	done
 	@echo ""
-	@echo "Import complete. Run 'make plan' to see any remaining drift."
+	@echo "Import complete. Run 'make plan ENV=$(ENV)' to see any remaining drift."
 
 # Clean orphaned Incus resources (not managed by Terraform)
 clean-incus:
@@ -281,17 +298,17 @@ clean-incus:
 		fi; \
 	done
 	@echo ""
-	@echo "Cleanup complete. Run 'make deploy' for a fresh deployment."
+	@echo "Cleanup complete. Run 'make deploy ENV=$(ENV)' for a fresh deployment."
 
 # Pre-deployment validation
 validate:
-	@terraform/scripts/validate.sh
+	@$(ENV_DIR)/scripts/validate.sh
 
 # Combined deployment
 deploy: apply
-	@echo "Deployment complete!"
+	@echo "Deployment complete for $(ENV)!"
 	@echo ""
-	@echo "Run 'cd terraform && tofu output' to see endpoints"
+	@echo "Run 'cd $(ENV_DIR) && tofu output' to see endpoints"
 
 # Cleanup targets
 clean: clean-docker clean-tofu
@@ -302,22 +319,23 @@ clean-docker:
 	docker builder prune -f
 
 clean-tofu:
-	@echo "Cleaning OpenTofu cache..."
-	rm -rf terraform/.terraform
-	rm -f terraform/.terraform.lock.hcl
+	@echo "Cleaning OpenTofu cache for $(ENV)..."
+	rm -rf $(ENV_DIR)/.terraform
+	rm -f $(ENV_DIR)/.terraform.lock.hcl
 	@echo "Note: OpenTofu state files preserved"
 
 clean-bootstrap:
-	@echo "Cleaning bootstrap OpenTofu..."
-	rm -rf terraform/bootstrap/.terraform
-	rm -f terraform/bootstrap/.terraform.lock.hcl
-	rm -f terraform/bootstrap/.credentials
+	@echo "Cleaning bootstrap OpenTofu for $(ENV)..."
+	rm -rf $(ENV_DIR)/bootstrap/.terraform
+	rm -f $(ENV_DIR)/bootstrap/.terraform.lock.hcl
+	rm -f $(ENV_DIR)/bootstrap/.credentials
 	@echo "Note: Bootstrap state files preserved"
 
 # Development helpers
 format:
 	@echo "Formatting OpenTofu files..."
-	cd terraform && tofu fmt -recursive
+	tofu fmt -recursive modules/
+	tofu fmt -recursive environments/
 
 # Backup commands
 backup-snapshot:

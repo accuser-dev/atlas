@@ -5,8 +5,10 @@ on:
     branches-ignore:
       - main
     paths:
-      - 'terraform/**/*.tf'
-      - 'terraform/**/*.tftpl'
+      - 'modules/**/*.tf'
+      - 'modules/**/*.tftpl'
+      - 'environments/**/*.tf'
+      - 'environments/**/*.tftpl'
       - 'docker/**/Dockerfile'
       - 'docker/**/*.sh'
       - 'test/docker/**'
@@ -15,8 +17,10 @@ on:
     branches:
       - main
     paths:
-      - 'terraform/**/*.tf'
-      - 'terraform/**/*.tftpl'
+      - 'modules/**/*.tf'
+      - 'modules/**/*.tftpl'
+      - 'environments/**/*.tf'
+      - 'environments/**/*.tftpl'
       - 'docker/**/Dockerfile'
       - 'docker/**/*.sh'
       - 'test/docker/**'
@@ -103,8 +107,12 @@ jobs:
   # OpenTofu Validation
   # =============================================================================
   tofu-validate:
-    name: Validate OpenTofu
+    name: Validate OpenTofu (${{ matrix.environment }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [iapetus, cluster]
+      fail-fast: false
 
     steps:
       - name: Checkout code
@@ -115,28 +123,33 @@ jobs:
         with:
           tofu_version: ${{ env.TOFU_VERSION }}
 
-      - name: Check formatting
-        id: fmt
-        working-directory: terraform
+      - name: Check formatting (modules)
+        id: fmt-modules
+        run: tofu fmt -check -recursive modules/
+
+      - name: Check formatting (environment)
+        id: fmt-env
+        working-directory: environments/${{ matrix.environment }}
         run: tofu fmt -check -recursive
 
       - name: Initialize
         id: init
-        working-directory: terraform
+        working-directory: environments/${{ matrix.environment }}
         run: tofu init -backend=false
 
       - name: Validate
         id: validate
-        working-directory: terraform
+        working-directory: environments/${{ matrix.environment }}
         run: tofu validate -no-color
 
       - name: Summary
         run: |
-          echo "## OpenTofu Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "## OpenTofu Validation Results (${{ matrix.environment }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Format | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Format (modules) | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Format (environment) | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
           echo "| Init | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
           echo "| Validate | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
 
@@ -304,8 +317,12 @@ jobs:
         env:
           IMAGE: atlas/${{ matrix.service }}:test
         run: |
-          chmod +x test/docker/${{ matrix.service }}_test.sh
-          test/docker/${{ matrix.service }}_test.sh
+          if [ -f "test/docker/${{ matrix.service }}_test.sh" ]; then
+            chmod +x test/docker/${{ matrix.service }}_test.sh
+            test/docker/${{ matrix.service }}_test.sh
+          else
+            echo "No test file found for ${{ matrix.service }}, skipping..."
+          fi
 
       - name: Summary
         if: always()

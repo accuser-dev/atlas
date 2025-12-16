@@ -5,8 +5,10 @@ on:
     branches:
       - main
     paths:
-      - 'terraform/**/*.tf'
-      - 'terraform/**/*.tftpl'
+      - 'modules/**/*.tf'
+      - 'modules/**/*.tftpl'
+      - 'environments/**/*.tf'
+      - 'environments/**/*.tftpl'
       - 'docker/**/Dockerfile'
       - 'docker/**/*.sh'
       - '.github/workflows/release.yml'
@@ -35,8 +37,8 @@ jobs:
         with:
           tofu_version: ${{ env.TOFU_VERSION }}
 
-      - name: Validate OpenTofu
-        working-directory: terraform
+      - name: Validate OpenTofu (iapetus)
+        working-directory: environments/iapetus
         run: |
           tofu init -backend=false
           tofu validate -no-color
@@ -216,7 +218,7 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "To deploy the updated images:" >> $GITHUB_STEP_SUMMARY
               echo '```bash' >> $GITHUB_STEP_SUMMARY
-              echo "cd terraform && tofu apply" >> $GITHUB_STEP_SUMMARY
+              echo "make deploy ENV=iapetus" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
             fi
           else
