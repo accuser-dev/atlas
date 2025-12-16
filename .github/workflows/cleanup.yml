@@ -21,7 +21,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        package: [alertmanager, caddy, cloudflared, grafana, loki, node-exporter, prometheus, step-ca]
+        package: [alertmanager, caddy, cloudflared, grafana, loki, prometheus, step-ca]
       fail-fast: false
 
     steps:
@@ -65,7 +65,6 @@ jobs:
           echo "| atlas/cloudflared | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| atlas/grafana | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| atlas/loki | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| atlas/node-exporter | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| atlas/prometheus | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| atlas/step-ca | ${{ needs.cleanup.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
 

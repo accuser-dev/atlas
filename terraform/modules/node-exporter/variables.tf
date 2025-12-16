@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use"
   type        = string
-  default     = "ghcr:accuser-dev/atlas/node-exporter:latest"
+  default     = "images:alpine/3.21/cloud"
 }
 
 variable "cpu_limit" {
@@ -28,7 +28,7 @@ variable "cpu_limit" {
 variable "memory_limit" {
   description = "Memory limit for the container"
   type        = string
-  default     = "256MB"
+  default     = "128MB"
 
   validation {
     condition     = can(regex("^[0-9]+(MB|GB)$", var.memory_limit))
@@ -45,7 +45,7 @@ variable "storage_pool" {
 variable "root_disk_size" {
   description = "Size limit for the root disk (container filesystem)"
   type        = string
-  default     = "1GB"
+  default     = "512MB"
 
   validation {
     condition     = can(regex("^[0-9]+(MB|GB)$", var.root_disk_size))
@@ -68,10 +68,4 @@ variable "node_exporter_port" {
     condition     = can(regex("^[0-9]+$", var.node_exporter_port)) && tonumber(var.node_exporter_port) >= 1 && tonumber(var.node_exporter_port) <= 65535
     error_message = "Port must be a number between 1 and 65535"
   }
-}
-
-variable "environment_variables" {
-  description = "Environment variables for Node Exporter container"
-  type        = map(string)
-  default     = {}
 }

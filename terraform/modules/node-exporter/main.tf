@@ -1,5 +1,15 @@
+# =============================================================================
 # Node Exporter Module
+# =============================================================================
 # Deploys Prometheus Node Exporter for host-level metrics collection
+# Uses Alpine Linux system container with cloud-init for configuration
+
+locals {
+  # Cloud-init configuration
+  cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
+    node_exporter_port = var.node_exporter_port
+  })
+}
 
 # Service-specific profile
 # Contains resource limits, root disk, and service-specific devices (host mounts)
@@ -63,10 +73,8 @@ resource "incus_instance" "node_exporter" {
   type     = "container"
   profiles = concat(var.profiles, [incus_profile.node_exporter.name])
 
-  config = merge(
-    {
-      "security.privileged" = "false"
-    },
-    { for k, v in var.environment_variables : "environment.${k}" => v }
-  )
+  config = {
+    "security.privileged"  = "false"
+    "cloud-init.user-data" = local.cloud_init_content
+  }
 }

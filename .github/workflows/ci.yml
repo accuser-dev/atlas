@@ -190,9 +190,6 @@ jobs:
             step_ca:
               - 'docker/step-ca/**'
               - 'test/docker/step-ca_test.sh'
-            node_exporter:
-              - 'docker/node-exporter/**'
-              - 'test/docker/node-exporter_test.sh'
             ci_workflow:
               - '.github/workflows/ci.yml'
               - '.trivyignore'
@@ -202,7 +199,7 @@ jobs:
         run: |
           # Check if CI workflow itself changed - if so, build all images
           if [ "${{ steps.filter.outputs.ci_workflow }}" == "true" ]; then
-            echo 'matrix=["alertmanager","atlantis","caddy","cloudflared","grafana","loki","node-exporter","prometheus","step-ca"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["alertmanager","atlantis","caddy","cloudflared","grafana","loki","prometheus","step-ca"]' >> $GITHUB_OUTPUT
             echo 'has_changes=true' >> $GITHUB_OUTPUT
             echo "📋 CI workflow changed - will build all images"
           else
@@ -214,7 +211,6 @@ jobs:
             if [ "${{ steps.filter.outputs.cloudflared }}" == "true" ]; then SERVICES+=("cloudflared"); fi
             if [ "${{ steps.filter.outputs.grafana }}" == "true" ]; then SERVICES+=("grafana"); fi
             if [ "${{ steps.filter.outputs.loki }}" == "true" ]; then SERVICES+=("loki"); fi
-            if [ "${{ steps.filter.outputs.node_exporter }}" == "true" ]; then SERVICES+=("node-exporter"); fi
             if [ "${{ steps.filter.outputs.prometheus }}" == "true" ]; then SERVICES+=("prometheus"); fi
             if [ "${{ steps.filter.outputs.step_ca }}" == "true" ]; then SERVICES+=("step-ca"); fi
 
@@ -248,7 +244,6 @@ jobs:
           echo "| cloudflared | ${{ steps.filter.outputs.cloudflared == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| grafana | ${{ steps.filter.outputs.grafana == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| loki | ${{ steps.filter.outputs.loki == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| node-exporter | ${{ steps.filter.outputs.node_exporter == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| prometheus | ${{ steps.filter.outputs.prometheus == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| step-ca | ${{ steps.filter.outputs.step_ca == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
 

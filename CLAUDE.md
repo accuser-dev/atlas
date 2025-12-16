@@ -1279,6 +1279,7 @@ These health checks are monitored by Docker and can be viewed with `incus exec <
 
 4. **Node Exporter** (internal) - Host-level metrics collection
    - Endpoint: `http://node-exporter01.incus:9100`
+   - Uses Alpine Linux system container with cloud-init (no Docker image)
    - Collects host system metrics:
      - CPU usage and load averages
      - Memory usage and swap
