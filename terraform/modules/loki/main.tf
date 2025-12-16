@@ -1,3 +1,19 @@
+# =============================================================================
+# Loki Module
+# =============================================================================
+# Log aggregation system
+# Uses Alpine Linux system container with cloud-init for configuration
+
+locals {
+  # Cloud-init configuration
+  cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
+    loki_version           = var.loki_version
+    loki_port              = var.loki_port
+    retention_period       = var.retention_period
+    retention_delete_delay = var.retention_delete_delay
+  })
+}
+
 resource "incus_storage_volume" "loki_data" {
   count = var.enable_data_persistence ? 1 : 0
 
@@ -7,11 +23,6 @@ resource "incus_storage_volume" "loki_data" {
   config = merge(
     {
       size = var.data_volume_size
-      # Set initial ownership for Loki user (UID 10001) to allow writes from non-root container
-      # Requires Incus 6.8+ (https://linuxcontainers.org/incus/news/2024_12_13_07_12.html)
-      "initial.uid"  = "10001"
-      "initial.gid"  = "10001"
-      "initial.mode" = "0755"
     },
     var.enable_snapshots ? {
       "snapshots.schedule" = var.snapshot_schedule
@@ -64,38 +75,18 @@ resource "incus_profile" "loki" {
   ]
 }
 
-locals {
-  # TLS environment variables (only set when TLS is enabled)
-  tls_env_vars = var.enable_tls ? {
-    ENABLE_TLS         = "true"
-    STEPCA_URL         = var.stepca_url
-    STEPCA_FINGERPRINT = var.stepca_fingerprint
-    CERT_DURATION      = var.cert_duration
-  } : {}
-
-  # Retention environment variables
-  retention_env_vars = {
-    RETENTION_PERIOD       = var.retention_period
-    RETENTION_DELETE_DELAY = var.retention_delete_delay
-  }
-}
-
 resource "incus_instance" "loki" {
   name     = var.instance_name
   image    = var.image
   type     = "container"
   profiles = concat(var.profiles, [incus_profile.loki.name])
 
-  config = merge(
-    { for k, v in var.environment_variables : "environment.${k}" => v },
-    { for k, v in local.tls_env_vars : "environment.${k}" => v },
-    { for k, v in local.retention_env_vars : "environment.${k}" => v if v != "" },
-  )
-
-  lifecycle {
-    precondition {
-      condition     = !var.enable_tls || (var.stepca_url != "" && var.stepca_fingerprint != "")
-      error_message = "When enable_tls is true, both stepca_url and stepca_fingerprint must be provided."
-    }
+  config = {
+    "cloud-init.user-data" = local.cloud_init_content
   }
+
+  depends_on = [
+    incus_profile.loki,
+    incus_storage_volume.loki_data
+  ]
 }

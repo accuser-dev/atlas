@@ -73,17 +73,6 @@ jobs:
               - 'docker/atlantis/**'
             caddy:
               - 'docker/caddy/**'
-            grafana:
-              - 'docker/grafana/**'
-              - '.step-version'
-            loki:
-              - 'docker/loki/**'
-              - '.step-version'
-            prometheus:
-              - 'docker/prometheus/**'
-              - '.step-version'
-            step_ca:
-              - 'docker/step-ca/**'
             release_workflow:
               - '.github/workflows/release.yml'
 
@@ -92,7 +81,7 @@ jobs:
         run: |
           # Check if release workflow itself changed - if so, build all images
           if [ "${{ steps.filter.outputs.release_workflow }}" == "true" ]; then
-            echo 'matrix=["atlantis","caddy","grafana","loki","prometheus","step-ca"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["atlantis","caddy"]' >> $GITHUB_OUTPUT
             echo 'has_docker_changes=true' >> $GITHUB_OUTPUT
             echo "📋 Release workflow changed - will build all images"
           else
@@ -100,10 +89,6 @@ jobs:
             SERVICES=()
             if [ "${{ steps.filter.outputs.atlantis }}" == "true" ]; then SERVICES+=("atlantis"); fi
             if [ "${{ steps.filter.outputs.caddy }}" == "true" ]; then SERVICES+=("caddy"); fi
-            if [ "${{ steps.filter.outputs.grafana }}" == "true" ]; then SERVICES+=("grafana"); fi
-            if [ "${{ steps.filter.outputs.loki }}" == "true" ]; then SERVICES+=("loki"); fi
-            if [ "${{ steps.filter.outputs.prometheus }}" == "true" ]; then SERVICES+=("prometheus"); fi
-            if [ "${{ steps.filter.outputs.step_ca }}" == "true" ]; then SERVICES+=("step-ca"); fi
 
             if [ ${#SERVICES[@]} -eq 0 ]; then
               echo 'matrix=[]' >> $GITHUB_OUTPUT
@@ -129,10 +114,6 @@ jobs:
           echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| atlantis | ${{ steps.filter.outputs.atlantis == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| caddy | ${{ steps.filter.outputs.caddy == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| grafana | ${{ steps.filter.outputs.grafana == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| loki | ${{ steps.filter.outputs.loki == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| prometheus | ${{ steps.filter.outputs.prometheus == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| step-ca | ${{ steps.filter.outputs.step_ca == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # Build and Push Docker Images

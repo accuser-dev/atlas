@@ -412,17 +412,9 @@ The project uses Terraform modules for scalability and reusability:
   - [Dockerfile](docker/caddy/Dockerfile) - Image build definition
   - [README.md](docker/caddy/README.md) - Build and customization instructions
 
-- [docker/grafana/](docker/grafana/) - Custom Grafana image with optional plugins
-  - [Dockerfile](docker/grafana/Dockerfile) - Image build definition
-  - [README.md](docker/grafana/README.md) - Plugin installation and provisioning guide
-
-- [docker/loki/](docker/loki/) - Custom Loki image
-  - [Dockerfile](docker/loki/Dockerfile) - Image build definition
-  - [README.md](docker/loki/README.md) - Configuration instructions
-
-- [docker/prometheus/](docker/prometheus/) - Custom Prometheus image with optional rules
-  - [Dockerfile](docker/prometheus/Dockerfile) - Image build definition
-  - [README.md](docker/prometheus/README.md) - Alert and recording rules guide
+- [docker/atlantis/](docker/atlantis/) - Custom Atlantis image with OpenTofu support
+  - [Dockerfile](docker/atlantis/Dockerfile) - Image build definition
+  - [README.md](docker/atlantis/README.md) - GitOps configuration instructions
 
 ### Infrastructure Components
 
@@ -458,16 +450,17 @@ The project uses Terraform modules for scalability and reusability:
 
 5. **Grafana Module** ([terraform/modules/grafana/](terraform/modules/grafana/))
    - Visualization and dashboarding platform
+   - Uses Alpine Linux system container with cloud-init (no Docker image)
    - Persistent storage for dashboards and configuration (10GB)
-   - Environment variable support for configuration
+   - Admin credentials configured via Terraform variables
    - Generates Caddy reverse proxy configuration block
    - Domain-based access with IP restrictions
    - Rate limiting support (configurable requests/window)
-   - Custom Docker image: [docker/grafana/](docker/grafana/)
+   - Datasources and dashboards provisioned via Terraform file injection
 
 6. **Grafana Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `grafana01`
-   - Image: `ghcr.io/accuser-dev/atlas/grafana:latest` (published from [docker/grafana/](docker/grafana/))
+   - Image: `images:alpine/3.21/cloud` (system container)
    - Domain: `grafana.accuser.dev` (publicly accessible via Caddy)
    - Resource limits: 2 CPUs, 1GB memory
    - Storage: 10GB persistent volume for `/var/lib/grafana`
@@ -475,15 +468,15 @@ The project uses Terraform modules for scalability and reusability:
 
 7. **Loki Module** ([terraform/modules/loki/](terraform/modules/loki/))
    - Log aggregation system (internal only)
+   - Uses Alpine Linux system container with cloud-init (no Docker image)
    - Persistent storage for log data (50GB)
    - Configurable retention (default: 30 days / 720h)
    - No public-facing reverse proxy configuration
    - Internal endpoint for Grafana data source
-   - Custom Docker image: [docker/loki/](docker/loki/)
 
 8. **Loki Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
    - Instance name: `loki01`
-   - Image: `ghcr.io/accuser-dev/atlas/loki:latest` (published from [docker/loki/](docker/loki/))
+   - Image: `images:alpine/3.21/cloud` (system container)
    - Internal endpoint: `http://loki01.incus:3100`
    - Resource limits: 2 CPUs, 2GB memory
    - Storage: 50GB persistent volume for `/loki`
@@ -492,16 +485,16 @@ The project uses Terraform modules for scalability and reusability:
 
 9. **Prometheus Module** ([terraform/modules/prometheus/](terraform/modules/prometheus/))
    - Metrics collection and time-series database (internal only)
+   - Uses Alpine Linux system container with cloud-init (no Docker image)
    - Persistent storage for metrics data (100GB)
    - Configurable retention (time-based and size-based)
-   - Optional prometheus.yml configuration file injection
+   - prometheus.yml configuration via Terraform variable
    - No public-facing reverse proxy configuration
    - Internal endpoint for Grafana data source
-   - Custom Docker image: [docker/prometheus/](docker/prometheus/)
 
 10. **Prometheus Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `prometheus01`
-    - Image: `ghcr.io/accuser-dev/atlas/prometheus:latest` (published from [docker/prometheus/](docker/prometheus/))
+    - Image: `images:alpine/3.21/cloud` (system container)
     - Internal endpoint: `http://prometheus01.incus:9090`
     - Resource limits: 2 CPUs, 2GB memory
     - Storage: 100GB persistent volume for `/prometheus`
@@ -510,15 +503,15 @@ The project uses Terraform modules for scalability and reusability:
 
 11. **step-ca Module** ([terraform/modules/step-ca/](terraform/modules/step-ca/))
     - Internal ACME Certificate Authority for TLS certificates
+    - Uses Alpine Linux system container with cloud-init (no Docker image)
     - Persistent storage for CA data and certificates (1GB)
     - Configurable CA name and DNS names
     - ACME endpoint for automated certificate issuance
     - Internal endpoint for services requesting certificates
-    - Custom Docker image: [docker/step-ca/](docker/step-ca/)
 
 12. **step-ca Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `step-ca01`
-    - Image: `ghcr.io/accuser-dev/atlas/step-ca:latest` (published from [docker/step-ca/](docker/step-ca/))
+    - Image: `images:alpine/3.21/cloud` (system container)
     - CA name: "Atlas Internal CA"
     - DNS names: `step-ca01.incus,step-ca01,localhost`
     - ACME endpoint: `https://step-ca01.incus:9000`
@@ -534,7 +527,6 @@ The project uses Terraform modules for scalability and reusability:
     - Configurable notification routes (Slack, email, webhook)
     - Silencing and inhibition rules support
     - Integration with Prometheus via alertmanagers config
-    - Optional TLS support via step-ca
 
 14. **Alertmanager Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `alertmanager01`
@@ -793,7 +785,7 @@ See [BACKUP.md](BACKUP.md) for detailed backup procedures and disaster recovery 
 
 ### TLS Configuration
 
-The project includes an internal ACME Certificate Authority (step-ca) for automated TLS certificate management. Services can request certificates from step-ca to enable encrypted communication.
+The project includes an internal ACME Certificate Authority (step-ca) for automated TLS certificate management. External services (like Mosquitto) can request certificates from step-ca to enable encrypted communication.
 
 #### How TLS Works
 
@@ -802,9 +794,7 @@ The project includes an internal ACME Certificate Authority (step-ca) for automa
 3. **Certificate request** - Services request certificates via ACME protocol
 4. **Automatic renewal** - Certificates are short-lived (24h default) and renewed automatically
 
-#### Enabling TLS for Services
-
-**Step 1: Deploy step-ca and retrieve the fingerprint**
+#### step-ca Setup
 
 After deploying with `make deploy`, retrieve the CA fingerprint:
 
@@ -816,62 +806,18 @@ incus exec step-ca01 -- cat /home/step/fingerprint
 cd terraform && tofu output step_ca_fingerprint_command
 ```
 
-**Step 2: Enable TLS in service modules**
-
-Update `terraform/main.tf` to enable TLS for a service:
-
-```hcl
-module "grafana01" {
-  source = "./modules/grafana"
-
-  # ... existing configuration ...
-
-  # Enable TLS
-  enable_tls         = true
-  stepca_url         = "https://step-ca01.incus:9000"
-  stepca_fingerprint = "abc123..."  # From step 1
-}
-```
-
-**Step 3: Re-deploy**
-
-```bash
-make deploy
-```
-
-#### TLS-Enabled Services
-
-The following services support TLS via step-ca:
-
-| Service | TLS Variable | Default Port (TLS) |
-|---------|--------------|-------------------|
-| Grafana | `enable_tls` | 3000 (HTTPS) |
-| Prometheus | `enable_tls` | 9090 (HTTPS) |
-| Loki | `enable_tls` | 3100 (HTTPS) |
-
 #### Certificate Lifecycle
 
-- **Duration**: 24 hours (configurable via `cert_duration`)
-- **Renewal**: Automatic via entrypoint scripts on container restart
-- **Storage**: Certificates stored in `/etc/<service>/tls/` inside containers
+- **Duration**: 24 hours (configurable via `cert_duration` variable)
 - **Root CA**: Available at `/home/step/certs/root_ca.crt` in step-ca container
+- **ACME endpoint**: `https://step-ca01.incus:9000`
 
-#### Two-Phase Deployment for TLS
+#### Internal Service Communication
 
-Since the CA fingerprint is generated at runtime, TLS requires a two-phase deployment:
-
-```bash
-# Phase 1: Deploy infrastructure (step-ca generates fingerprint)
-make deploy
-
-# Get the fingerprint
-FINGERPRINT=$(incus exec step-ca01 -- cat /home/step/fingerprint)
-echo "CA Fingerprint: $FINGERPRINT"
-
-# Phase 2: Update terraform.tfvars or main.tf with fingerprint, re-deploy
-# Edit main.tf to add enable_tls = true and stepca_fingerprint = "..."
-make deploy
-```
+Internal services (Grafana, Prometheus, Loki) communicate over the management network using HTTP. TLS is not required for internal traffic as:
+- The management network (10.20.0.0/24) is isolated
+- Traffic does not traverse external networks
+- Caddy terminates external TLS for public-facing services
 
 #### Troubleshooting TLS
 
@@ -1067,34 +1013,35 @@ This approach enables easy scaling - new instances reuse the proven profile patt
 
 **For public-facing services (with Caddy reverse proxy):**
 
+Using system containers (recommended):
+1. Create Terraform module in `terraform/modules/yourservice/`
+2. Set default image to `images:alpine/3.21/cloud`
+3. Create `templates/cloud-init.yaml.tftpl` for service configuration
+4. Add `domain`, `allowed_ip_range`, and port variables to module
+5. Create `templates/caddyfile.tftpl` for reverse proxy config
+6. Add `caddy_config_block` output using templatefile()
+7. Instantiate module in [terraform/main.tf](terraform/main.tf)
+8. Add module's `caddy_config_block` to Caddy's `service_blocks` list
+
+Using OCI containers (only for services requiring custom builds):
 1. Create Docker image in `docker/yourservice/` with Dockerfile
 2. Add service to GitHub Actions matrix in `.github/workflows/release.yml`
-3. Create Terraform module in `terraform/modules/yourservice/`
-4. Add `domain`, `allowed_ip_range`, and port variables to module
-5. Set default image to `ghcr:accuser-dev/atlas/yourservice:latest`
-6. Create `templates/caddyfile.tftpl` for reverse proxy config
-7. Add `caddy_config_block` output using templatefile()
-8. Instantiate module in [terraform/main.tf](terraform/main.tf)
-9. Add module's `caddy_config_block` to Caddy's `service_blocks` list
-10. Push to GitHub to build and publish image
+3. Create Terraform module and set image to `ghcr:accuser-dev/atlas/yourservice:latest`
+4. Push to GitHub to build and publish image
 
 **For internal-only services (no public access):**
 
-1. Create Docker image in `docker/yourservice/` with Dockerfile
-2. Add service to GitHub Actions matrix in `.github/workflows/release.yml`
-3. Create Terraform module in `terraform/modules/yourservice/`
-4. Set default image to `ghcr:accuser-dev/atlas/yourservice:latest`
-5. Add storage and network configuration to module
-6. Add endpoint output for internal connectivity
-7. Instantiate module in [terraform/main.tf](terraform/main.tf)
-8. Connect from other services using `yourservice.incus:port`
-9. Push to GitHub to build and publish image
+1. Create Terraform module in `terraform/modules/yourservice/`
+2. Set default image to `images:alpine/3.21/cloud`
+3. Create `templates/cloud-init.yaml.tftpl` for service configuration
+4. Add storage and network configuration to module
+5. Add endpoint output for internal connectivity
+6. Instantiate module in [terraform/main.tf](terraform/main.tf)
+7. Connect from other services using `yourservice.incus:port`
 
 **Example - Adding a new Grafana instance:**
 
-1. The Grafana image is already published to ghcr.io via GitHub Actions
-
-2. Add to `terraform/main.tf`:
+Add to `terraform/main.tf`:
 ```hcl
 module "grafana02" {
   source = "./modules/grafana"
@@ -1102,25 +1049,20 @@ module "grafana02" {
   instance_name = "grafana02"
   profile_name  = "grafana02"
 
-  network_name = incus_network.management.name
+  profiles = [
+    module.base.container_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
 
   domain           = "grafana-dev.accuser.dev"
   allowed_ip_range = "192.168.68.0/22"  # Required: Set to your network CIDR
 
-  # Uses ghcr.io image by default (ghcr:accuser-dev/atlas/grafana:latest)
-  # Optional: Override to use official image
-  # image = "docker:grafana/grafana:latest"
-
-  environment_variables = {
-    GF_SECURITY_ADMIN_USER     = "admin"
-    GF_SECURITY_ADMIN_PASSWORD = "secure-password"
-  }
+  admin_user     = "admin"
+  admin_password = "secure-password"
 
   enable_data_persistence = true
   data_volume_name        = "grafana02-data"
   data_volume_size        = "10GB"
-
-  depends_on = [incus_network.production]
 }
 
 # Add to Caddy's service_blocks
@@ -1135,17 +1077,18 @@ module "caddy01" {
 ### Key Design Patterns
 
 **Modular Architecture:**
-- Each service type has its own Docker image in `docker/`
+- Most services use Alpine Linux system containers with cloud-init
+- OCI containers (Docker images) only used for Caddy and Atlantis
 - Each service type has its own Terraform module in `terraform/modules/`
 - Modules are instantiated in the root [terraform/main.tf](terraform/main.tf)
 - Easy to scale by adding new module instances
 - Module parameters allow customization per instance
 
 **Container Configuration Flow:**
-1. Module defines profile with resource limits and network connectivity
+1. Module defines profile with resource limits and root disk
 2. Module creates storage volume (if persistence enabled)
-3. Module creates container that references the profile
-4. Module injects configuration files and environment variables
+3. Module creates container with cloud-init configuration
+4. cloud-init installs packages and configures services at boot
 5. Root module orchestrates dependencies and network setup
 
 **Dynamic Configuration:**
@@ -1265,15 +1208,18 @@ Prometheus is configured to scrape health and metrics endpoints from all service
 - `<management-gateway>:8443` - Incus container metrics (mTLS authenticated)
 - `localhost:9090` - Prometheus self-monitoring
 
-All Docker containers include built-in health checks that run every 30 seconds:
-- Caddy: `caddy version` command
+Services expose health check endpoints that Prometheus scrapes:
+- Caddy: HTTP check on admin API (`:2019/metrics`)
 - Grafana: HTTP check on `/api/health`
 - Loki: HTTP check on `/ready`
 - Prometheus: HTTP check on `/-/ready`
-- step-ca: `step ca health` command
+- step-ca: ACME health endpoint
 - Node Exporter: HTTP check on `/metrics`
 
-These health checks are monitored by Docker and can be viewed with `incus exec <container> -- docker ps`.
+System containers use OpenRC for service management. Check service status with:
+```bash
+incus exec <container> -- rc-service <service-name> status
+```
 
 **Infrastructure Monitoring:**
 
@@ -1364,25 +1310,36 @@ All alerts include detailed annotations with current values and context.
    cd terraform && tofu output
    ```
 
-### Docker Image Configuration
+### Container Image Configuration
 
-**Default: GitHub Container Registry Images**
+**System Containers (Alpine + cloud-init)**
 
-All modules are configured to use custom images published to GitHub Container Registry:
+Most services use Alpine Linux system containers with cloud-init configuration:
+- Grafana: `images:alpine/3.21/cloud`
+- Loki: `images:alpine/3.21/cloud`
+- Prometheus: `images:alpine/3.21/cloud`
+- step-ca: `images:alpine/3.21/cloud`
+- Node Exporter: `images:alpine/3.21/cloud`
+- Alertmanager: `images:alpine/3.21/cloud`
+- Mosquitto: `images:alpine/3.21/cloud`
+- CoreDNS: `images:alpine/3.21/cloud`
+- Cloudflared: `images:alpine/3.21/cloud`
+
+These containers:
+- Download and install binaries at first boot via cloud-init
+- Use OpenRC for service management
+- Store configuration in Terraform templates (`templates/cloud-init.yaml.tftpl`)
+- Require no external image registry
+
+**OCI Container Images (Docker)**
+
+Services requiring custom builds use GitHub Container Registry:
 - Caddy: `ghcr:accuser-dev/atlas/caddy:latest`
-- Grafana: `ghcr:accuser-dev/atlas/grafana:latest`
-- Loki: `ghcr:accuser-dev/atlas/loki:latest`
-- Prometheus: `ghcr:accuser-dev/atlas/prometheus:latest`
-
-These images are:
-- Built automatically by the Release workflow on push to main
-- Published to GitHub Container Registry (ghcr.io)
-- Extended from official images with custom plugins and configuration
-- Publicly accessible (no authentication required)
+- Atlantis: `ghcr:accuser-dev/atlas/atlantis:latest`
 
 **Image Reference Format (ghcr: vs ghcr.io/)**
 
-Terraform modules use `ghcr:` prefix (e.g., `ghcr:accuser-dev/atlas/grafana:latest`) which references an **Incus remote** named "ghcr" that points to `https://ghcr.io`. This is not a typo - it's Incus-specific syntax.
+Terraform modules use `ghcr:` prefix (e.g., `ghcr:accuser-dev/atlas/caddy:latest`) which references an **Incus remote** named "ghcr" that points to `https://ghcr.io`. This is not a typo - it's Incus-specific syntax.
 
 The bootstrap process (`make bootstrap`) automatically configures these OCI remotes:
 - `ghcr` → `https://ghcr.io` (GitHub Container Registry)
@@ -1402,9 +1359,9 @@ incus remote add ghcr https://ghcr.io --protocol=oci --public
 
 The pipeline is split into two workflows:
 - `ci.yml` - Validation and testing (feature branches, PRs)
-- `release.yml` - Build and publish (main branch only)
+- `release.yml` - Build and publish OCI images (main branch only)
 
-**Image Publishing Workflow:**
+**Image Publishing Workflow (OCI containers only):**
 
 1. Edit Dockerfile in `docker/*/Dockerfile`
 2. Create feature branch and push changes
@@ -1430,28 +1387,29 @@ module "grafana01" {
 
 ### Post-Creation Configuration
 
-**For Docker containers**:
-- ✅ **Custom Docker images** - Pre-install packages and plugins (recommended)
-- ✅ **Environment variables** - Configure at runtime via Terraform
-- ✅ **File injection** - Use Terraform `file` blocks for configuration files
+**For system containers (recommended):**
+- ✅ **Cloud-init** - Primary method for configuration (`images:alpine/3.21/cloud`)
+- ✅ **File injection** - Use Terraform `file` blocks for post-boot configuration
+- ✅ **Version variables** - Pin service versions via Terraform variables
 - ⚠️ **External scripts** - Use `incus exec` via separate orchestration script
 - ❌ **Terraform provisioners** - Avoid (fragile and non-declarative)
-- ❌ **Cloud-init** - Not available for Docker protocol images
 
-**For system containers** (future use):
-- ✅ **Cloud-init** - Use when launching system container images (`images:ubuntu/22.04`)
-- ✅ **Custom images** - Pre-configure with Packer or image builds
+**For OCI containers (Caddy, Atlantis):**
+- ✅ **Custom Docker images** - Pre-install packages and plugins
+- ✅ **Environment variables** - Configure at runtime via Terraform
+- ✅ **File injection** - Use Terraform `file` blocks for configuration files
+- ❌ **Cloud-init** - Not available for Docker protocol images
 
 ## Important Notes
 
 - The `terraform/terraform.tfvars` file is gitignored and must be created manually with required secrets
-- All services use custom images published to GitHub Container Registry (ghcr.io) by default
-- Images are automatically built and published by the Release workflow on push to main
+- Most services use Alpine Linux system containers (`images:alpine/3.21/cloud`) with cloud-init
+- Only Caddy and Atlantis use OCI containers from GitHub Container Registry (ghcr.io)
+- OCI images are automatically built and published by the Release workflow on push to main
 - Access to services requires explicit `allowed_ip_range` configuration (no default for security)
-- All services use the `production` network for connectivity
+- Services are distributed across production (10.10.0.0/24) and management (10.20.0.0/24) networks
 - Storage volumes use the `local` storage pool and are created automatically when modules are applied
 - Each module has a `versions.tf` specifying the Incus provider requirement
-- Images must be public in GitHub Container Registry for Incus to pull without authentication
 
 ## Outputs
 

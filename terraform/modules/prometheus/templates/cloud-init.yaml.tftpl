@@ -1,0 +1,96 @@
+#cloud-config
+# Prometheus system container configuration
+# Uses Alpine Linux with OpenRC service management
+
+package_update: true
+
+packages:
+  - curl
+  - tar
+
+write_files:
+  # Prometheus configuration file
+  - path: /etc/prometheus/prometheus.yml
+    permissions: '0644'
+    content: |
+      ${indent(6, prometheus_config)}
+
+%{ if alert_rules != "" ~}
+  # Alert rules file
+  - path: /etc/prometheus/alerts/alerts.yml
+    permissions: '0644'
+    content: |
+      ${indent(6, alert_rules)}
+%{ endif ~}
+
+%{ if incus_metrics_certificate != "" ~}
+  # Incus metrics certificate for mTLS
+  - path: /etc/prometheus/tls/metrics.crt
+    permissions: '0644'
+    content: |
+      ${indent(6, incus_metrics_certificate)}
+%{ endif ~}
+
+%{ if incus_metrics_private_key != "" ~}
+  # Incus metrics private key
+  - path: /etc/prometheus/tls/metrics.key
+    permissions: '0644'
+    content: |
+      ${indent(6, incus_metrics_private_key)}
+%{ endif ~}
+
+  # OpenRC init script for Prometheus
+  - path: /etc/init.d/prometheus
+    permissions: '0755'
+    content: |
+      #!/sbin/openrc-run
+
+      name="prometheus"
+      description="Prometheus monitoring system"
+      command="/usr/local/bin/prometheus"
+      command_args="--config.file=/etc/prometheus/prometheus.yml \
+        --storage.tsdb.path=/prometheus \
+        --storage.tsdb.retention.time=${retention_time} \
+%{ if retention_size != "" ~}
+        --storage.tsdb.retention.size=${retention_size} \
+%{ endif ~}
+        --web.listen-address=:${prometheus_port} \
+        --web.enable-lifecycle"
+      command_background=true
+      command_user="prometheus"
+      pidfile="/run/$${RC_SVCNAME}.pid"
+      output_log="/var/log/prometheus.log"
+      error_log="/var/log/prometheus.log"
+
+      depend() {
+        need net
+        after firewall
+      }
+
+      start_pre() {
+        # Ensure prometheus user owns the data directory
+        chown -R prometheus:prometheus /prometheus 2>/dev/null || true
+        chown -R prometheus:prometheus /etc/prometheus 2>/dev/null || true
+      }
+
+runcmd:
+  # Download and install Prometheus
+  - |
+    PROMETHEUS_VERSION="${prometheus_version}"
+    cd /tmp
+    curl -sLO "https://github.com/prometheus/prometheus/releases/download/v$${PROMETHEUS_VERSION}/prometheus-$${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+    tar -xzf "prometheus-$${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+    mv "prometheus-$${PROMETHEUS_VERSION}.linux-amd64/prometheus" /usr/local/bin/prometheus
+    mv "prometheus-$${PROMETHEUS_VERSION}.linux-amd64/promtool" /usr/local/bin/promtool
+    chmod +x /usr/local/bin/prometheus /usr/local/bin/promtool
+    rm -rf "prometheus-$${PROMETHEUS_VERSION}.linux-amd64.tar.gz" "prometheus-$${PROMETHEUS_VERSION}.linux-amd64"
+  # Create prometheus user and directories
+  - adduser -D -H -s /sbin/nologin prometheus 2>/dev/null || true
+  - mkdir -p /prometheus /etc/prometheus/tls /etc/prometheus/alerts
+  - chown -R prometheus:prometheus /prometheus /etc/prometheus
+  # Create log file with proper permissions
+  - touch /var/log/prometheus.log
+  - chown prometheus:prometheus /var/log/prometheus.log
+  # Enable and start prometheus service
+  - rc-update add prometheus default
+  - rc-service prometheus start
