@@ -272,6 +272,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Read Step CLI version
+        id: step-version
+        run: |
+          if [ -f .step-version ]; then
+            echo "version=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
+          else
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build image
         uses: docker/build-push-action@v5
         with:
@@ -280,6 +289,8 @@ jobs:
           tags: atlas/${{ matrix.service }}:test
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          build-args: |
+            STEP_VERSION=${{ steps.step-version.outputs.version }}
 
       - name: Summary
         run: |
@@ -310,6 +321,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Read Step CLI version
+        id: step-version
+        run: |
+          if [ -f .step-version ]; then
+            echo "version=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
+          else
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build image for testing
         uses: docker/build-push-action@v5
         with:
@@ -317,6 +337,8 @@ jobs:
           load: true
           tags: atlas/${{ matrix.service }}:test
           cache-from: type=gha,scope=${{ matrix.service }}
+          build-args: |
+            STEP_VERSION=${{ steps.step-version.outputs.version }}
 
       - name: Run smoke tests
         env:
@@ -356,6 +378,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Read Step CLI version
+        id: step-version
+        run: |
+          if [ -f .step-version ]; then
+            echo "version=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
+          else
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build image for scanning
         uses: docker/build-push-action@v5
         with:
@@ -363,6 +394,8 @@ jobs:
           load: true
           tags: atlas/${{ matrix.service }}:test
           cache-from: type=gha,scope=${{ matrix.service }}
+          build-args: |
+            STEP_VERSION=${{ steps.step-version.outputs.version }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
