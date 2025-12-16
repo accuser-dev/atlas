@@ -1,7 +1,7 @@
 # Atlas Infrastructure Makefile
 # Manages Docker image builds and OpenTofu deployments
 
-.PHONY: help build-all build-atlantis build-caddy build-grafana build-loki build-prometheus \
+.PHONY: help build-all build-atlantis \
         list-images \
         bootstrap bootstrap-init bootstrap-plan bootstrap-apply \
         init plan apply destroy import clean-incus clean-images \
@@ -22,10 +22,6 @@ help:
 	@echo "Docker Commands:"
 	@echo "  make build-all         - Build all Docker images locally (for testing)"
 	@echo "  make build-atlantis    - Build Atlantis image"
-	@echo "  make build-caddy       - Build Caddy image"
-	@echo "  make build-grafana     - Build Grafana image"
-	@echo "  make build-loki        - Build Loki image"
-	@echo "  make build-prometheus  - Build Prometheus image"
 	@echo "  make list-images       - List Docker images"
 	@echo ""
 	@echo "Note: Production images are built and published via GitHub Actions"
@@ -81,19 +77,15 @@ STEP_VERSION := $(shell cat .step-version 2>/dev/null || echo "0.28.6")
 # =============================================================================
 
 ATLAS_NETWORKS := development testing staging production management gitops
-ATLAS_PROFILES := caddy grafana loki prometheus step-ca node-exporter alertmanager mosquitto cloudflared atlantis caddy-gitops
-ATLAS_SERVICES := caddy01 grafana01 loki01 prometheus01 step-ca01 node-exporter01 alertmanager01 mosquitto01 cloudflared01 atlantis01 caddy-gitops01
+ATLAS_PROFILES := grafana loki prometheus step-ca node-exporter alertmanager mosquitto cloudflared atlantis coredns
+ATLAS_SERVICES := grafana01 loki01 prometheus01 step-ca01 node-exporter01 alertmanager01 mosquitto01 cloudflared01 atlantis01 coredns01
 ATLAS_VOLUMES := grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data atlantis01-data
 
 # Docker image names (local builds for testing)
 ATLANTIS_IMAGE := atlas/atlantis:$(IMAGE_TAG)
-CADDY_IMAGE := atlas/caddy:$(IMAGE_TAG)
-GRAFANA_IMAGE := atlas/grafana:$(IMAGE_TAG)
-LOKI_IMAGE := atlas/loki:$(IMAGE_TAG)
-PROMETHEUS_IMAGE := atlas/prometheus:$(IMAGE_TAG)
 
 # Build all Docker images
-build-all: build-atlantis build-caddy build-grafana build-loki build-prometheus
+build-all: build-atlantis
 	@echo "All images built successfully"
 
 # Build individual Docker images
@@ -101,26 +93,6 @@ build-atlantis:
 	@echo "Building Atlantis image..."
 	docker build -t $(ATLANTIS_IMAGE) docker/atlantis/
 	@echo "Atlantis image built: $(ATLANTIS_IMAGE)"
-
-build-caddy:
-	@echo "Building Caddy image..."
-	docker build -t $(CADDY_IMAGE) docker/caddy/
-	@echo "Caddy image built: $(CADDY_IMAGE)"
-
-build-grafana:
-	@echo "Building Grafana image (Step CLI v$(STEP_VERSION))..."
-	docker build --build-arg STEP_VERSION=$(STEP_VERSION) -t $(GRAFANA_IMAGE) docker/grafana/
-	@echo "Grafana image built: $(GRAFANA_IMAGE)"
-
-build-loki:
-	@echo "Building Loki image (Step CLI v$(STEP_VERSION))..."
-	docker build --build-arg STEP_VERSION=$(STEP_VERSION) -t $(LOKI_IMAGE) docker/loki/
-	@echo "Loki image built: $(LOKI_IMAGE)"
-
-build-prometheus:
-	@echo "Building Prometheus image (Step CLI v$(STEP_VERSION))..."
-	docker build --build-arg STEP_VERSION=$(STEP_VERSION) -t $(PROMETHEUS_IMAGE) docker/prometheus/
-	@echo "Prometheus image built: $(PROMETHEUS_IMAGE)"
 
 # List Docker images
 list-images:

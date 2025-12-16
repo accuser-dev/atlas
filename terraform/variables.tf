@@ -9,18 +9,6 @@ variable "cloudflare_api_token" {
   }
 }
 
-# Access Control
-variable "allowed_ip_range" {
-  description = "IP range allowed to access public services (CIDR notation). Set to your home/office network for security. Required - no default for security reasons."
-  type        = string
-  # No default - must be explicitly set for security
-
-  validation {
-    condition     = can(cidrhost(var.allowed_ip_range, 0))
-    error_message = "Must be valid CIDR notation (e.g., 192.168.1.0/24 or 0.0.0.0/0)"
-  }
-}
-
 # Grafana Configuration
 variable "grafana_admin_password" {
   description = "Grafana admin password (should be strong and unique)"
@@ -251,12 +239,6 @@ variable "atlantis_repo_allowlist" {
   description = "List of repositories Atlantis is allowed to manage"
   type        = list(string)
   default     = ["github.com/accuser-dev/atlas"]
-}
-
-variable "atlantis_allowed_ip_range" {
-  description = "IP range allowed to access Atlantis webhook (default: GitHub webhook IPs)"
-  type        = string
-  default     = "192.30.252.0/22 185.199.108.0/22 140.82.112.0/20 143.55.64.0/20"
 }
 
 # =============================================================================
