@@ -166,9 +166,6 @@ jobs:
           # For PRs: compare against base branch; for pushes: compare against previous commit
           base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           filters: |
-            alertmanager:
-              - 'docker/alertmanager/**'
-              - 'test/docker/alertmanager_test.sh'
             atlantis:
               - 'docker/atlantis/**'
               - 'test/docker/atlantis_test.sh'
@@ -199,13 +196,12 @@ jobs:
         run: |
           # Check if CI workflow itself changed - if so, build all images
           if [ "${{ steps.filter.outputs.ci_workflow }}" == "true" ]; then
-            echo 'matrix=["alertmanager","atlantis","caddy","cloudflared","grafana","loki","prometheus","step-ca"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["atlantis","caddy","cloudflared","grafana","loki","prometheus","step-ca"]' >> $GITHUB_OUTPUT
             echo 'has_changes=true' >> $GITHUB_OUTPUT
             echo "📋 CI workflow changed - will build all images"
           else
             # Build only changed images (works for both PRs and feature branches)
             SERVICES=()
-            if [ "${{ steps.filter.outputs.alertmanager }}" == "true" ]; then SERVICES+=("alertmanager"); fi
             if [ "${{ steps.filter.outputs.atlantis }}" == "true" ]; then SERVICES+=("atlantis"); fi
             if [ "${{ steps.filter.outputs.caddy }}" == "true" ]; then SERVICES+=("caddy"); fi
             if [ "${{ steps.filter.outputs.cloudflared }}" == "true" ]; then SERVICES+=("cloudflared"); fi
@@ -238,7 +234,6 @@ jobs:
           fi
           echo "| Service | Changed |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| alertmanager | ${{ steps.filter.outputs.alertmanager == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| atlantis | ${{ steps.filter.outputs.atlantis == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| caddy | ${{ steps.filter.outputs.caddy == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| cloudflared | ${{ steps.filter.outputs.cloudflared == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
