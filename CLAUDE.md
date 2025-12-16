@@ -311,7 +311,6 @@ tofu init -migrate-state
 
 Images are automatically built and published by GitHub Actions when code is pushed to the `main` branch:
 - Caddy: `ghcr.io/accuser-dev/atlas/caddy:latest`
-- Cloudflared: `ghcr.io/accuser-dev/atlas/cloudflared:latest`
 - Grafana: `ghcr.io/accuser-dev/atlas/grafana:latest`
 - Loki: `ghcr.io/accuser-dev/atlas/loki:latest`
 - Prometheus: `ghcr.io/accuser-dev/atlas/prometheus:latest`
@@ -584,14 +583,14 @@ The project uses Terraform modules for scalability and reusability:
 
 19. **Cloudflared Module** ([terraform/modules/cloudflared/](terraform/modules/cloudflared/))
     - Cloudflare Tunnel client for secure remote access via Zero Trust
+    - Uses Alpine Linux system container with cloud-init (no Docker image)
     - Token-based authentication (managed via Cloudflare dashboard)
     - Metrics endpoint for Prometheus scraping
     - No persistent storage required (stateless)
-    - Custom Docker image: [docker/cloudflared/](docker/cloudflared/)
 
 20. **Cloudflared Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `cloudflared01`
-    - Image: `ghcr.io/accuser-dev/atlas/cloudflared:latest` (published from [docker/cloudflared/](docker/cloudflared/))
+    - Image: `images:alpine/3.21/cloud` (system container)
     - Metrics endpoint: `http://cloudflared01.incus:2000`
     - Resource limits: 1 CPU, 256MB memory
     - Network: Connected to management network (internal access to all services)

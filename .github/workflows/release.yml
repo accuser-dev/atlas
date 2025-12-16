@@ -73,8 +73,6 @@ jobs:
               - 'docker/atlantis/**'
             caddy:
               - 'docker/caddy/**'
-            cloudflared:
-              - 'docker/cloudflared/**'
             grafana:
               - 'docker/grafana/**'
               - '.step-version'
@@ -94,7 +92,7 @@ jobs:
         run: |
           # Check if release workflow itself changed - if so, build all images
           if [ "${{ steps.filter.outputs.release_workflow }}" == "true" ]; then
-            echo 'matrix=["atlantis","caddy","cloudflared","grafana","loki","prometheus","step-ca"]' >> $GITHUB_OUTPUT
+            echo 'matrix=["atlantis","caddy","grafana","loki","prometheus","step-ca"]' >> $GITHUB_OUTPUT
             echo 'has_docker_changes=true' >> $GITHUB_OUTPUT
             echo "📋 Release workflow changed - will build all images"
           else
@@ -102,7 +100,6 @@ jobs:
             SERVICES=()
             if [ "${{ steps.filter.outputs.atlantis }}" == "true" ]; then SERVICES+=("atlantis"); fi
             if [ "${{ steps.filter.outputs.caddy }}" == "true" ]; then SERVICES+=("caddy"); fi
-            if [ "${{ steps.filter.outputs.cloudflared }}" == "true" ]; then SERVICES+=("cloudflared"); fi
             if [ "${{ steps.filter.outputs.grafana }}" == "true" ]; then SERVICES+=("grafana"); fi
             if [ "${{ steps.filter.outputs.loki }}" == "true" ]; then SERVICES+=("loki"); fi
             if [ "${{ steps.filter.outputs.prometheus }}" == "true" ]; then SERVICES+=("prometheus"); fi
@@ -132,7 +129,6 @@ jobs:
           echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| atlantis | ${{ steps.filter.outputs.atlantis == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| caddy | ${{ steps.filter.outputs.caddy == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| cloudflared | ${{ steps.filter.outputs.cloudflared == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| grafana | ${{ steps.filter.outputs.grafana == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| loki | ${{ steps.filter.outputs.loki == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| prometheus | ${{ steps.filter.outputs.prometheus == 'true' && '✅' || '—' }} |" >> $GITHUB_STEP_SUMMARY
@@ -261,7 +257,7 @@ jobs:
 # NOTE: GitHub packages are private by default. To allow Incus to pull images
 # without authentication, you must manually set each package to public:
 #   1. Go to https://github.com/orgs/accuser/packages or your user packages page
-#   2. Click on each package (atlantis, caddy, cloudflared, grafana, loki, prometheus, step-ca)
+#   2. Click on each package (atlantis, caddy, grafana, loki, prometheus, step-ca)
 #   3. Go to Package settings
 #   4. Under "Danger Zone", change visibility to "Public"
 #
