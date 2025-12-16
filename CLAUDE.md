@@ -109,9 +109,6 @@ atlas/
 │   ├── prometheus/           # Prometheus metrics collection
 │   │   ├── Dockerfile
 │   │   └── README.md
-│   ├── mosquitto/            # Eclipse Mosquitto MQTT broker
-│   │   ├── Dockerfile
-│   │   └── README.md
 │   ├── cloudflared/          # Cloudflare Tunnel client for Zero Trust
 │   │   ├── Dockerfile
 │   │   └── README.md
@@ -317,7 +314,6 @@ Images are automatically built and published by GitHub Actions when code is push
 - Cloudflared: `ghcr.io/accuser-dev/atlas/cloudflared:latest`
 - Grafana: `ghcr.io/accuser-dev/atlas/grafana:latest`
 - Loki: `ghcr.io/accuser-dev/atlas/loki:latest`
-- Mosquitto: `ghcr.io/accuser-dev/atlas/mosquitto:latest`
 - Prometheus: `ghcr.io/accuser-dev/atlas/prometheus:latest`
 - step-ca: `ghcr.io/accuser-dev/atlas/step-ca:latest`
 
@@ -551,15 +547,15 @@ The project uses Terraform modules for scalability and reusability:
 
 15. **Mosquitto Module** ([terraform/modules/mosquitto/](terraform/modules/mosquitto/))
     - Eclipse Mosquitto MQTT broker for IoT messaging
-    - External access via Incus proxy devices (new pattern for TCP services)
+    - Uses Alpine Linux system container with cloud-init (no Docker image)
+    - External access via Incus proxy devices (pattern for TCP services)
     - Persistent storage for retained messages and subscriptions
     - Optional TLS support via step-ca
     - Password file authentication support
-    - Custom Docker image: [docker/mosquitto/](docker/mosquitto/)
 
 16. **Mosquitto Instance** (instantiated in [terraform/main.tf](terraform/main.tf))
     - Instance name: `mosquitto01`
-    - Image: `ghcr.io/accuser-dev/atlas/mosquitto:latest` (published from [docker/mosquitto/](docker/mosquitto/))
+    - Image: `images:alpine/3.21/cloud` (system container)
     - Internal endpoint: `mqtt://mosquitto01.incus:1883`
     - External access: Host ports 1883 (MQTT) and 8883 (MQTTS) via proxy devices
     - Resource limits: 1 CPU, 256MB memory
