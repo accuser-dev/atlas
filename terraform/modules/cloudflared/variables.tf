@@ -9,9 +9,9 @@ variable "profile_name" {
 }
 
 variable "image" {
-  description = "Container image to use"
+  description = "Container image to use (system container with cloud-init)"
   type        = string
-  default     = "ghcr:accuser-dev/atlas/cloudflared:latest"
+  default     = "images:alpine/3.21/cloud"
 }
 
 variable "cpu_limit" {
@@ -59,12 +59,6 @@ variable "profiles" {
   default     = ["default"]
 }
 
-variable "environment_variables" {
-  description = "Environment variables for cloudflared container"
-  type        = map(string)
-  default     = {}
-}
-
 variable "tunnel_token" {
   description = "Cloudflare Tunnel token from Zero Trust dashboard"
   type        = string
@@ -80,4 +74,10 @@ variable "metrics_port" {
     condition     = can(regex("^[0-9]+$", var.metrics_port)) && tonumber(var.metrics_port) >= 1 && tonumber(var.metrics_port) <= 65535
     error_message = "Port must be a number between 1 and 65535"
   }
+}
+
+variable "cloudflared_version" {
+  description = "Version of cloudflared to install"
+  type        = string
+  default     = "2025.1.0"
 }
