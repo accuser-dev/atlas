@@ -1,16 +1,17 @@
-# Terraform
-terraform/**/.terraform/
-terraform/**/*.tfstate
-terraform/**/*.tfstate.*
-terraform/**/*.tfstate.backup
-terraform/**/crash.log
-terraform/**/override.tf
-terraform/**/override.tf.json
-terraform/**/*.tfvars
-terraform/**/.terraform.lock.hcl
-terraform/**/tfplan
-terraform/**/backend.hcl
-terraform/bootstrap/.credentials
+# OpenTofu / Terraform
+modules/**/.terraform/
+environments/**/.terraform/
+environments/**/*.tfstate
+environments/**/*.tfstate.*
+environments/**/*.tfstate.backup
+environments/**/crash.log
+environments/**/override.tf
+environments/**/override.tf.json
+environments/**/*.tfvars
+environments/**/.terraform.lock.hcl
+environments/**/tfplan
+environments/**/backend.hcl
+environments/**/bootstrap/.credentials
 
 # Docker build artifacts
 docker/**/.dockerignore
