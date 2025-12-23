@@ -46,6 +46,44 @@ output "node_exporter_endpoint" {
   value       = module.node_exporter01.node_exporter_endpoint
 }
 
+# =============================================================================
+# DNS Configuration
+# =============================================================================
+
+output "coredns_dns_endpoint" {
+  description = "Internal DNS endpoint using .incus DNS"
+  value       = module.coredns01.dns_endpoint
+}
+
+output "coredns_ipv4_address" {
+  description = "CoreDNS IPv4 address (use this for DHCP DNS server configuration)"
+  value       = module.coredns01.ipv4_address
+}
+
+output "coredns_external_port" {
+  description = "External DNS port on host (bridge mode only, empty if physical mode)"
+  value       = module.coredns01.external_dns_port
+}
+
+output "coredns_health_endpoint" {
+  description = "CoreDNS health check endpoint URL"
+  value       = module.coredns01.health_endpoint
+}
+
+output "coredns_metrics_endpoint" {
+  description = "CoreDNS Prometheus metrics endpoint URL"
+  value       = module.coredns01.metrics_endpoint
+}
+
+output "coredns_zone_file" {
+  description = "Generated DNS zone file content (for debugging)"
+  value       = module.coredns01.zone_file_content
+}
+
+# =============================================================================
+# Cloudflare Tunnel
+# =============================================================================
+
 output "cloudflared_metrics_endpoint" {
   description = "Cloudflared metrics endpoint URL (if enabled)"
   value       = length(module.cloudflared01) > 0 ? module.cloudflared01[0].metrics_endpoint : null
