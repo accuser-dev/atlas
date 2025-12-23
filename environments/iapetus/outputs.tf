@@ -46,58 +46,6 @@ output "node_exporter_endpoint" {
   value       = module.node_exporter01.node_exporter_endpoint
 }
 
-output "alertmanager_endpoint" {
-  description = "Alertmanager endpoint URL for alert routing"
-  value       = module.alertmanager01.alertmanager_endpoint
-}
-
-output "mosquitto_mqtt_endpoint" {
-  description = "Internal MQTT endpoint URL"
-  value       = module.mosquitto01.mqtt_endpoint
-}
-
-output "mosquitto_external_ports" {
-  description = "External host ports for MQTT access"
-  value = {
-    mqtt  = module.mosquitto01.external_mqtt_port
-    mqtts = module.mosquitto01.external_mqtts_port
-  }
-}
-
-# =============================================================================
-# DNS Configuration
-# =============================================================================
-
-output "coredns_dns_endpoint" {
-  description = "Internal DNS endpoint using .incus DNS"
-  value       = module.coredns01.dns_endpoint
-}
-
-output "coredns_ipv4_address" {
-  description = "CoreDNS IPv4 address (use this for DHCP DNS server configuration)"
-  value       = module.coredns01.ipv4_address
-}
-
-output "coredns_external_port" {
-  description = "External DNS port on host (bridge mode only, empty if physical mode)"
-  value       = module.coredns01.external_dns_port
-}
-
-output "coredns_health_endpoint" {
-  description = "CoreDNS health check endpoint URL"
-  value       = module.coredns01.health_endpoint
-}
-
-output "coredns_metrics_endpoint" {
-  description = "CoreDNS Prometheus metrics endpoint URL"
-  value       = module.coredns01.metrics_endpoint
-}
-
-output "coredns_zone_file" {
-  description = "Generated DNS zone file content (for debugging)"
-  value       = module.coredns01.zone_file_content
-}
-
 output "cloudflared_metrics_endpoint" {
   description = "Cloudflared metrics endpoint URL (if enabled)"
   value       = length(module.cloudflared01) > 0 ? module.cloudflared01[0].metrics_endpoint : null

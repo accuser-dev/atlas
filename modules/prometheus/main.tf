@@ -21,8 +21,9 @@ locals {
 resource "incus_storage_volume" "prometheus_data" {
   count = var.enable_data_persistence ? 1 : 0
 
-  name = var.data_volume_name
-  pool = var.storage_pool
+  name    = var.data_volume_name
+  pool    = var.storage_pool
+  project = "default"
 
   config = merge(
     {

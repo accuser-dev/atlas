@@ -31,11 +31,6 @@ locals {
       memory = "2GB"
       port   = 3100
     }
-    alertmanager = {
-      cpu    = "1"
-      memory = "256MB"
-      port   = 9093
-    }
     step_ca = {
       cpu    = "1"
       memory = "512MB"
@@ -46,11 +41,6 @@ locals {
       memory = "128MB"
       port   = 9100
     }
-    mosquitto = {
-      cpu    = "1"
-      memory = "256MB"
-      port   = 1883
-    }
     cloudflared = {
       cpu    = "1"
       memory = "256MB"
@@ -60,11 +50,6 @@ locals {
       cpu    = "2"
       memory = "1GB"
       port   = 4141
-    }
-    coredns = {
-      cpu    = "1"
-      memory = "128MB"
-      port   = 53
     }
   }
 
