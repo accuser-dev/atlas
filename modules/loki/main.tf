@@ -17,9 +17,8 @@ locals {
 resource "incus_storage_volume" "loki_data" {
   count = var.enable_data_persistence ? 1 : 0
 
-  name    = var.data_volume_name
-  pool    = var.storage_pool
-  project = "default"
+  name = var.data_volume_name
+  pool = var.storage_pool
 
   config = merge(
     {
