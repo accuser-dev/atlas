@@ -125,3 +125,55 @@ output "atlantis_instance_status" {
   value       = var.enable_gitops ? module.atlantis01[0].instance_status : null
 }
 
+# =============================================================================
+# OIDC / Authorization
+# =============================================================================
+
+output "dex_issuer_url" {
+  description = "Dex OIDC issuer URL for client configuration"
+  value       = var.enable_oidc ? module.dex01[0].issuer_url : null
+}
+
+output "dex_discovery_url" {
+  description = "Dex OIDC discovery endpoint URL"
+  value       = var.enable_oidc ? module.dex01[0].discovery_url : null
+}
+
+output "dex_http_endpoint" {
+  description = "Dex HTTP endpoint (internal)"
+  value       = var.enable_oidc ? module.dex01[0].http_endpoint : null
+}
+
+output "dex_metrics_endpoint" {
+  description = "Dex Prometheus metrics endpoint URL"
+  value       = var.enable_oidc ? module.dex01[0].metrics_endpoint : null
+}
+
+output "openfga_api_url" {
+  description = "OpenFGA API URL for Incus configuration (set as openfga.api.url)"
+  value       = var.enable_oidc ? module.openfga01[0].api_url : null
+}
+
+output "openfga_http_endpoint" {
+  description = "OpenFGA HTTP endpoint (internal)"
+  value       = var.enable_oidc ? module.openfga01[0].http_endpoint : null
+}
+
+output "openfga_metrics_endpoint" {
+  description = "OpenFGA Prometheus metrics endpoint URL"
+  value       = var.enable_oidc ? module.openfga01[0].metrics_endpoint : null
+}
+
+output "incus_oidc_config" {
+  description = "Incus OIDC configuration commands (run after deployment)"
+  value = var.enable_oidc ? join("\n", [
+    "# Configure Incus to use OIDC authentication:",
+    "incus config set oidc.issuer ${module.dex01[0].issuer_url}",
+    "incus config set oidc.client.id incus",
+    "",
+    "# Configure Incus to use OpenFGA authorization:",
+    "incus config set openfga.api.url ${module.openfga01[0].api_url}",
+    "incus config set openfga.api.token <your-preshared-key>"
+  ]) : null
+}
+

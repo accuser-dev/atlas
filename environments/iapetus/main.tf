@@ -191,6 +191,24 @@ module "prometheus01" {
               service: 'coredns'
               instance: 'coredns01'
 
+      # Dex OIDC metrics (if enabled)
+%{if var.enable_oidc~}
+      - job_name: 'dex'
+        static_configs:
+          - targets: ['dex01.incus:5558']
+            labels:
+              service: 'dex'
+              instance: 'dex01'
+
+      # OpenFGA metrics (if enabled)
+      - job_name: 'openfga'
+        static_configs:
+          - targets: ['openfga01.incus:3002']
+            labels:
+              service: 'openfga'
+              instance: 'openfga01'
+%{endif~}
+
       # Node Exporter for host metrics
       - job_name: 'node'
         static_configs:
@@ -432,4 +450,82 @@ module "atlantis01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.atlantis.cpu
   memory_limit = local.services.atlantis.memory
+}
+
+# =============================================================================
+# OIDC / Authorization
+# =============================================================================
+# Dex provides federated OIDC authentication (via GitHub)
+# OpenFGA provides fine-grained authorization for Incus
+
+module "dex01" {
+  source = "../../modules/dex"
+
+  count = var.enable_oidc ? 1 : 0
+
+  instance_name = "dex01"
+  profile_name  = "dex"
+
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
+  profiles = [
+    module.base.container_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
+
+  # Dex OIDC configuration
+  issuer_url = var.dex_issuer_url
+
+  # GitHub connector for authentication
+  github_client_id     = var.dex_github_client_id
+  github_client_secret = var.dex_github_client_secret
+  github_allowed_orgs  = var.dex_github_allowed_orgs
+
+  # Static clients - Incus will use this client
+  static_clients = [
+    {
+      id            = "incus"
+      name          = "Incus"
+      secret        = var.openfga_preshared_key # Reuse the preshared key for simplicity
+      redirect_uris = ["urn:ietf:wg:oauth:2.0:oob"] # Device authorization grant
+    }
+  ]
+
+  # Enable persistent storage for SQLite database
+  enable_data_persistence = true
+  data_volume_name        = "dex01-data"
+  data_volume_size        = "1GB"
+
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.dex.cpu
+  memory_limit = local.services.dex.memory
+}
+
+module "openfga01" {
+  source = "../../modules/openfga"
+
+  count = var.enable_oidc ? 1 : 0
+
+  instance_name = "openfga01"
+  profile_name  = "openfga"
+
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
+  profiles = [
+    module.base.container_base_profile.name,
+    module.base.management_network_profile.name,
+  ]
+
+  # OpenFGA authentication - Incus uses this key to communicate with OpenFGA
+  preshared_keys = [var.openfga_preshared_key]
+
+  # Disable playground in production (can be enabled for debugging)
+  playground_port = ""
+
+  # Enable persistent storage for SQLite database
+  enable_data_persistence = true
+  data_volume_name        = "openfga01-data"
+  data_volume_size        = "1GB"
+
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.openfga.cpu
+  memory_limit = local.services.openfga.memory
 }

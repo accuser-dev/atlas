@@ -56,6 +56,16 @@ locals {
       memory = "128MB"
       port   = 53
     }
+    dex = {
+      cpu    = "1"
+      memory = "128MB"
+      port   = 5556
+    }
+    openfga = {
+      cpu    = "1"
+      memory = "256MB"
+      port   = 8080
+    }
   }
 
   # NOTE: Network dependencies for depends_on cannot be centralized in locals

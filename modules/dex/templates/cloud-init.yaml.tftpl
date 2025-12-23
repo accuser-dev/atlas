@@ -1,0 +1,69 @@
+#cloud-config
+# Dex OIDC Provider system container configuration
+# Uses Alpine Linux with OpenRC service management
+
+package_update: true
+
+packages:
+  - curl
+
+write_files:
+  # Dex configuration file
+  - path: /etc/dex/config.yaml
+    permissions: '0600'
+    content: |
+      ${indent(6, dex_config)}
+
+  # OpenRC init script for Dex
+  - path: /etc/init.d/dex
+    permissions: '0755'
+    content: |
+      #!/sbin/openrc-run
+
+      name="Dex"
+      description="Dex OIDC Identity Provider"
+      command="/usr/local/bin/dex"
+      command_args="serve /etc/dex/config.yaml"
+      command_background=true
+      command_user="dex"
+      pidfile="/run/$${RC_SVCNAME}.pid"
+      output_log="/var/log/dex.log"
+      error_log="/var/log/dex.log"
+
+      depend() {
+        need net
+        after firewall
+      }
+
+      start_pre() {
+        # Ensure data directory exists with correct permissions
+        checkpath --directory --owner dex:dex --mode 0755 /var/lib/dex
+      }
+
+runcmd:
+  # Create dex user and group
+  - addgroup -S dex 2>/dev/null || true
+  - adduser -S -G dex -h /var/lib/dex -s /sbin/nologin dex 2>/dev/null || true
+
+  # Create necessary directories
+  - mkdir -p /var/lib/dex /etc/dex
+  - chown -R dex:dex /var/lib/dex
+  - chown -R dex:dex /etc/dex
+
+  # Download and install Dex binary
+  - |
+    DEX_VERSION="${dex_version}"
+    cd /tmp
+    curl -sLO "https://github.com/dexidp/dex/releases/download/v$${DEX_VERSION}/dex-linux-amd64.tar.gz"
+    tar -xzf dex-linux-amd64.tar.gz
+    mv dex /usr/local/bin/dex
+    chmod +x /usr/local/bin/dex
+    rm -rf dex-linux-amd64.tar.gz
+
+  # Create log file with proper permissions
+  - touch /var/log/dex.log
+  - chown dex:dex /var/log/dex.log
+
+  # Enable and start Dex service
+  - rc-update add dex default
+  - rc-service dex start

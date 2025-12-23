@@ -1,0 +1,83 @@
+#cloud-config
+# OpenFGA Authorization Server system container configuration
+# Uses Alpine Linux with OpenRC service management
+
+package_update: true
+
+packages:
+  - curl
+
+write_files:
+  # OpenRC init script for OpenFGA
+  - path: /etc/init.d/openfga
+    permissions: '0755'
+    content: |
+      #!/sbin/openrc-run
+
+      name="OpenFGA"
+      description="OpenFGA Fine-Grained Authorization Server"
+      command="/usr/local/bin/openfga"
+      command_args="run \
+        --datastore-engine sqlite \
+        --datastore-uri 'file:/var/lib/openfga/openfga.db' \
+        --http-addr 0.0.0.0:${http_port} \
+        --grpc-addr 0.0.0.0:${grpc_port} \
+%{ if playground_port != "" ~}
+        --playground-enabled \
+        --playground-port ${playground_port} \
+%{ else ~}
+        --playground-enabled=false \
+%{ endif ~}
+        --profiler-enabled \
+        --profiler-addr 0.0.0.0:${metrics_port} \
+        --authn-method preshared \
+        --authn-preshared-keys '${join(",", preshared_keys)}'"
+      command_background=true
+      command_user="openfga"
+      pidfile="/run/$${RC_SVCNAME}.pid"
+      output_log="/var/log/openfga.log"
+      error_log="/var/log/openfga.log"
+
+      depend() {
+        need net
+        after firewall
+      }
+
+      start_pre() {
+        # Ensure data directory exists with correct permissions
+        checkpath --directory --owner openfga:openfga --mode 0755 /var/lib/openfga
+      }
+
+runcmd:
+  # Create openfga user and group
+  - addgroup -S openfga 2>/dev/null || true
+  - adduser -S -G openfga -h /var/lib/openfga -s /sbin/nologin openfga 2>/dev/null || true
+
+  # Create necessary directories
+  - mkdir -p /var/lib/openfga
+  - chown -R openfga:openfga /var/lib/openfga
+
+  # Download and install OpenFGA binary
+  - |
+    OPENFGA_VERSION="${openfga_version}"
+    cd /tmp
+    curl -sLO "https://github.com/openfga/openfga/releases/download/v$${OPENFGA_VERSION}/openfga_$${OPENFGA_VERSION}_linux_amd64.tar.gz"
+    tar -xzf "openfga_$${OPENFGA_VERSION}_linux_amd64.tar.gz"
+    mv openfga /usr/local/bin/openfga
+    chmod +x /usr/local/bin/openfga
+    rm -rf "openfga_$${OPENFGA_VERSION}_linux_amd64.tar.gz"
+
+  # Run database migration
+  - |
+    /usr/local/bin/openfga migrate \
+      --datastore-engine sqlite \
+      --datastore-uri 'file:/var/lib/openfga/openfga.db'
+    chown openfga:openfga /var/lib/openfga/openfga.db 2>/dev/null || true
+
+  # Create log file with proper permissions
+  - touch /var/log/openfga.log
+  - chown openfga:openfga /var/log/openfga.log
+
+  # Enable and start OpenFGA service
+  - rc-update add openfga default
+  - rc-service openfga start

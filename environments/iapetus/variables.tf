@@ -273,3 +273,45 @@ variable "dns_additional_records" {
   }))
   default = []
 }
+
+# =============================================================================
+# OIDC/Authorization Configuration
+# =============================================================================
+
+variable "enable_oidc" {
+  description = "Enable OIDC authentication infrastructure (Dex and OpenFGA)"
+  type        = bool
+  default     = false
+}
+
+variable "dex_issuer_url" {
+  description = "The public issuer URL for Dex (e.g., 'https://dex.accuser.dev/dex'). Must be accessible by clients."
+  type        = string
+  default     = ""
+}
+
+variable "dex_github_client_id" {
+  description = "GitHub OAuth application client ID for Dex"
+  type        = string
+  default     = ""
+}
+
+variable "dex_github_client_secret" {
+  description = "GitHub OAuth application client secret for Dex"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "dex_github_allowed_orgs" {
+  description = "List of GitHub organizations allowed to authenticate via Dex. Empty means all users."
+  type        = list(string)
+  default     = []
+}
+
+variable "openfga_preshared_key" {
+  description = "Preshared key for OpenFGA API authentication. Used by Incus to communicate with OpenFGA."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
