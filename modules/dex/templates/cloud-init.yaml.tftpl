@@ -53,12 +53,8 @@ runcmd:
   # Download and install Dex binary
   - |
     DEX_VERSION="${dex_version}"
-    cd /tmp
-    curl -sLO "https://github.com/dexidp/dex/releases/download/v$${DEX_VERSION}/dex-linux-amd64.tar.gz"
-    tar -xzf dex-linux-amd64.tar.gz
-    mv dex /usr/local/bin/dex
+    curl -sL "https://github.com/dexidp/dex/releases/download/v$${DEX_VERSION}/dex_linux_amd64" -o /usr/local/bin/dex
     chmod +x /usr/local/bin/dex
-    rm -rf dex-linux-amd64.tar.gz
 
   # Create log file with proper permissions
   - touch /var/log/dex.log

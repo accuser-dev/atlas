@@ -13,9 +13,9 @@ variable "profile_name" {
 }
 
 variable "image" {
-  description = "Container image to use (system container with cloud-init)"
+  description = "Container image to use (OCI Dex image)"
   type        = string
-  default     = "images:alpine/3.21/cloud"
+  default     = "ghcr:dexidp/dex:v2.41.1"
 }
 
 variable "cpu_limit" {
@@ -169,12 +169,3 @@ variable "data_volume_size" {
   }
 }
 
-# =============================================================================
-# Version Configuration
-# =============================================================================
-
-variable "dex_version" {
-  description = "Version of Dex to install"
-  type        = string
-  default     = "2.41.1"
-}

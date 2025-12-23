@@ -19,13 +19,6 @@ locals {
     github_allowed_orgs  = var.github_allowed_orgs
     static_clients       = var.static_clients
   })
-
-  # Cloud-init configuration
-  cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    dex_config  = local.dex_config
-    dex_version = var.dex_version
-    http_port   = var.http_port
-  })
 }
 
 # Storage volume for Dex data (SQLite database)
@@ -36,7 +29,8 @@ resource "incus_storage_volume" "dex_data" {
   pool = var.storage_pool
 
   config = {
-    size = var.data_volume_size
+    size               = var.data_volume_size
+    "security.shifted" = "true"
   }
 }
 
@@ -70,7 +64,7 @@ resource "incus_profile" "dex" {
       properties = {
         source = incus_storage_volume.dex_data[0].name
         pool   = var.storage_pool
-        path   = "/var/lib/dex"
+        path   = "/var/dex"
       }
     }
   }
@@ -87,6 +81,25 @@ resource "incus_instance" "dex" {
   profiles = concat(var.profiles, [incus_profile.dex.name])
 
   config = {
-    "cloud-init.user-data" = local.cloud_init_content
+    # Override OCI UID/GID to run as root to allow writing to /var/dex
+    "oci.uid"        = "0"
+    "oci.gid"        = "0"
+    "oci.entrypoint" = "dex serve /etc/dex/config.yaml"
+  }
+
+  # Inject Dex configuration file
+  # Mode 0644 allows the dex user (uid 1001) to read the config
+  file {
+    content     = local.dex_config
+    target_path = "/etc/dex/config.yaml"
+    mode        = "0644"
+    uid         = 1001
+    gid         = 1001
+  }
+
+  # Workaround for Incus provider issue with OCI containers
+  # The provider sometimes fails to read PID after creation but the container works
+  lifecycle {
+    ignore_changes = [image]
   }
 }
