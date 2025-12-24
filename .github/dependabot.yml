@@ -16,10 +16,11 @@ updates:
 
   # Docker base image updates
   # Creates PRs when new versions of base images are released
-  # Each image is tracked separately for granular control
+  # Note: Only Atlantis uses a custom Dockerfile. Other services use
+  # Alpine cloud-init containers or upstream OCI images directly.
 
   - package-ecosystem: "docker"
-    directory: "/docker/caddy"
+    directory: "/docker/atlantis"
     schedule:
       interval: "weekly"
     target-branch: "main"
@@ -27,48 +28,4 @@ updates:
     labels:
       - "dependencies"
       - "docker"
-      - "caddy"
-
-  - package-ecosystem: "docker"
-    directory: "/docker/grafana"
-    schedule:
-      interval: "weekly"
-    target-branch: "main"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "docker"
-      - "grafana"
-
-  - package-ecosystem: "docker"
-    directory: "/docker/loki"
-    schedule:
-      interval: "weekly"
-    target-branch: "main"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "docker"
-      - "loki"
-
-  - package-ecosystem: "docker"
-    directory: "/docker/prometheus"
-    schedule:
-      interval: "weekly"
-    target-branch: "main"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "docker"
-      - "prometheus"
-
-  - package-ecosystem: "docker"
-    directory: "/docker/step-ca"
-    schedule:
-      interval: "weekly"
-    target-branch: "main"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "docker"
-      - "step-ca"
+      - "atlantis"

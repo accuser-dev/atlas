@@ -79,6 +79,7 @@ resource "incus_instance" "dex" {
   image    = var.image
   type     = "container"
   profiles = concat(var.profiles, [incus_profile.dex.name])
+  running  = false # Start after config is pushed via null_resource
 
   config = {
     # Override OCI UID/GID to run as root to allow writing to /var/dex
@@ -87,19 +88,40 @@ resource "incus_instance" "dex" {
     "oci.entrypoint" = "dex serve /etc/dex/config.yaml"
   }
 
-  # Inject Dex configuration file
-  # Mode 0644 allows the dex user (uid 1001) to read the config
-  file {
-    content     = local.dex_config
-    target_path = "/etc/dex/config.yaml"
-    mode        = "0644"
-    uid         = 1001
-    gid         = 1001
-  }
-
   # Workaround for Incus provider issue with OCI containers
   # The provider sometimes fails to read PID after creation but the container works
   lifecycle {
-    ignore_changes = [image]
+    ignore_changes = [image, running]
   }
+}
+
+# Write config to a temporary file and push to container
+# This works around Incus provider file block issues with OCI containers
+resource "local_file" "dex_config" {
+  content         = local.dex_config
+  filename        = "${path.module}/.dex-config-${var.instance_name}.yaml"
+  file_permission = "0600"
+}
+
+resource "null_resource" "dex_config_push" {
+  triggers = {
+    config_hash   = sha256(local.dex_config)
+    instance_name = var.instance_name
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Stop container if running to update config
+      incus stop ${var.instance_name} --force 2>/dev/null || true
+      # Push new config
+      incus file push ${local_file.dex_config.filename} ${var.instance_name}/etc/dex/config.yaml --mode=0644 --uid=1001 --gid=1001
+      # Start container
+      incus start ${var.instance_name}
+    EOT
+  }
+
+  depends_on = [
+    incus_instance.dex,
+    local_file.dex_config
+  ]
 }

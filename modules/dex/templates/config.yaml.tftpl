@@ -65,7 +65,11 @@ staticClients:
 %{ for client in static_clients ~}
 - id: ${client.id}
   name: ${client.name}
+%{ if try(client.public, false) ~}
+  public: true
+%{ else ~}
   secret: ${client.secret}
+%{ endif ~}
   redirectURIs:
 %{ for uri in client.redirect_uris ~}
   - ${uri}

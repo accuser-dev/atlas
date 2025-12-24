@@ -131,11 +131,12 @@ variable "github_allowed_orgs" {
 # =============================================================================
 
 variable "static_clients" {
-  description = "List of static OAuth2 clients to register with Dex"
+  description = "List of static OAuth2 clients to register with Dex. Set public=true for CLI clients that don't use a secret."
   type = list(object({
-    id           = string
-    name         = string
-    secret       = string
+    id            = string
+    name          = string
+    secret        = optional(string, "")
+    public        = optional(bool, false)
     redirect_uris = list(string)
   }))
   default   = []

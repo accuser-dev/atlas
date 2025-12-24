@@ -481,12 +481,16 @@ module "dex01" {
   github_allowed_orgs  = var.dex_github_allowed_orgs
 
   # Static clients - Incus will use this client
+  # Incus is a public client (CLI-based), so no secret is required
   static_clients = [
     {
-      id            = "incus"
-      name          = "Incus"
-      secret        = var.openfga_preshared_key # Reuse the preshared key for simplicity
-      redirect_uris = ["urn:ietf:wg:oauth:2.0:oob"] # Device authorization grant
+      id     = "incus"
+      name   = "Incus"
+      public = true  # Public client - no secret required for CLI/device flow
+      redirect_uris = [
+        "urn:ietf:wg:oauth:2.0:oob",                        # Device authorization grant (CLI)
+        "https://iapetus.accuser.dev:8443/oidc/callback",   # Incus OIDC callback
+      ]
     }
   ]
 
