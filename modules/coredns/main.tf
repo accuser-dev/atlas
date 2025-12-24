@@ -97,6 +97,9 @@ locals {
     corefile_content  = local.corefile_content
     zone_file_content = local.zone_file_content
     domain            = var.domain
+    ipv4_address      = var.ipv4_address
+    ipv4_gateway      = var.ipv4_gateway
+    dns_servers       = var.static_ip_dns_servers
   })
 }
 
@@ -109,4 +112,5 @@ resource "incus_instance" "coredns" {
   config = {
     "cloud-init.user-data" = local.cloud_init_content
   }
+
 }

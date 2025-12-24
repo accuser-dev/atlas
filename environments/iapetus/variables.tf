@@ -258,7 +258,13 @@ variable "dns_upstream_servers" {
 }
 
 variable "dns_nameserver_ip" {
-  description = "IP address for the NS record in the zone file. Required when production network is physical mode. In bridge mode, the production network gateway is used."
+  description = "Static IP address for CoreDNS container. Required when production network is physical mode. In bridge mode, the production network gateway is used."
+  type        = string
+  default     = ""
+}
+
+variable "dns_gateway_ip" {
+  description = "Gateway IP for CoreDNS static IP configuration. Required when dns_nameserver_ip is set."
   type        = string
   default     = ""
 }

@@ -8,6 +8,36 @@ packages:
   - wget
 
 write_files:
+%{ if ipv4_address != "" ~}
+  # Static IP configuration for Alpine Linux
+  - path: /etc/network/interfaces
+    permissions: '0644'
+    content: |
+      auto lo
+      iface lo inet loopback
+
+      auto eth0
+      iface eth0 inet static
+        address ${ipv4_address}
+        netmask 255.255.255.0
+%{ if ipv4_gateway != "" ~}
+        gateway ${ipv4_gateway}
+%{ endif ~}
+
+  - path: /etc/resolv.conf
+    permissions: '0644'
+    content: |
+%{ for dns in dns_servers ~}
+      nameserver ${dns}
+%{ endfor ~}
+
+  # Disable cloud-init network config on subsequent boots
+  - path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    permissions: '0644'
+    content: |
+      network: {config: disabled}
+%{ endif ~}
+
   - path: /etc/coredns/Corefile
     permissions: '0644'
     content: |
@@ -39,6 +69,10 @@ write_files:
       }
 
 runcmd:
+%{ if ipv4_address != "" ~}
+  # Apply static IP configuration
+  - rc-service networking restart
+%{ endif ~}
   # Enable and start CoreDNS service
   - rc-update add coredns default
   - rc-service coredns start

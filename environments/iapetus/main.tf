@@ -336,6 +336,11 @@ module "coredns01" {
     module.base.production_network_profile.name,
   ]
 
+  # Static IP configuration for DNS server (required for clients to find it)
+  # In physical mode, dns_nameserver_ip and gateway must be set in tfvars
+  ipv4_address = var.dns_nameserver_ip
+  ipv4_gateway = var.dns_gateway_ip
+
   # Zone configuration - split-horizon for accuser.dev
   domain = var.dns_domain
 
@@ -348,9 +353,8 @@ module "coredns01" {
   # Additional static DNS records (hosts, cluster nodes, manually configured services)
   additional_records = var.dns_additional_records
 
-  # Nameserver IP - use production network gateway in bridge mode
-  # In physical mode, dns_nameserver_ip must be set in tfvars
-  nameserver_ip = module.base.production_network_is_physical ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0]
+  # Nameserver IP - use the static IP if set, otherwise production network gateway (bridge mode)
+  nameserver_ip = var.dns_nameserver_ip != "" ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0]
 
   # Forwarding configuration
   incus_dns_server     = split("/", var.management_network_ipv4)[0] # Management network gateway

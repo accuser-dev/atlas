@@ -63,6 +63,24 @@ variable "profiles" {
   default     = []
 }
 
+variable "ipv4_address" {
+  description = "Static IPv4 address for the container (e.g., '10.10.0.53'). Leave empty for DHCP."
+  type        = string
+  default     = ""
+}
+
+variable "ipv4_gateway" {
+  description = "Gateway IP for static IP configuration (e.g., '10.10.0.1'). Required when ipv4_address is set."
+  type        = string
+  default     = ""
+}
+
+variable "static_ip_dns_servers" {
+  description = "DNS servers for the container when using static IP. Defaults to upstream DNS servers."
+  type        = list(string)
+  default     = ["1.1.1.1", "1.0.0.1"]
+}
+
 # =============================================================================
 # DNS Port Configuration
 # =============================================================================
