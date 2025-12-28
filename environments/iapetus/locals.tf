@@ -66,6 +66,11 @@ locals {
       memory = "256MB"
       port   = 8080
     }
+    haproxy = {
+      cpu    = "1"
+      memory = "256MB"
+      port   = 8443
+    }
   }
 
   # NOTE: Network dependencies for depends_on cannot be centralized in locals

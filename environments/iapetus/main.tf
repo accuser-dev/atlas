@@ -492,8 +492,15 @@ module "dex01" {
       name   = "Incus"
       public = true  # Public client - no secret required for CLI/device flow
       redirect_uris = [
-        "urn:ietf:wg:oauth:2.0:oob",                        # Device authorization grant (CLI)
-        "https://iapetus.accuser.dev:8443/oidc/callback",   # Incus OIDC callback
+        "urn:ietf:wg:oauth:2.0:oob",                                  # Device authorization grant (CLI)
+        "/device/callback",                                           # Dex internal device flow callback
+        "https://iapetus.accuser.dev:8443/oidc/callback",             # Incus OIDC callback (iapetus)
+        "https://operations-center.accuser.dev:8443/oidc/callback",   # Incus OIDC callback (operations-center)
+        "https://atlas.accuser.dev:8443/oidc/callback",               # Incus OIDC callback (atlas)
+        "https://192.168.71.2:8443/oidc/callback",          # Incus OIDC callback (prometheus)
+        "https://192.168.71.5:8443/oidc/callback",          # Incus OIDC callback (epimetheus)
+        "https://192.168.71.8:8443/oidc/callback",            # Incus OIDC callback (menotius)
+        "https://cluster01.accuser.dev:8443/oidc/callback",      # Incus OIDC callback (cluster01)
       ]
     }
   ]
@@ -536,4 +543,64 @@ module "openfga01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.openfga.cpu
   memory_limit = local.services.openfga.memory
+}
+
+# =============================================================================
+# HAProxy Load Balancer (Optional)
+# =============================================================================
+# Provides load balancing for Incus cluster nodes
+
+module "haproxy01" {
+  source = "../../modules/haproxy"
+
+  count = var.enable_haproxy ? 1 : 0
+
+  instance_name = "haproxy01"
+  profile_name  = "haproxy"
+
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
+  profiles = [
+    module.base.container_base_profile.name,
+    module.base.production_network_profile.name,
+  ]
+
+  # Stats interface configuration
+  stats_port     = 8404
+  stats_user     = "admin"
+  stats_password = var.haproxy_stats_password
+
+  # Incus cluster load balancing configuration
+  frontends = [
+    {
+      name            = "incus_https"
+      bind_port       = 8443
+      mode            = "tcp"
+      default_backend = "incus_cluster"
+      options         = ["option tcplog"]
+    }
+  ]
+
+  backends = [
+    {
+      name    = "incus_cluster"
+      mode    = "tcp"
+      balance = "roundrobin"
+      options = [
+        "option tcp-check",
+        "tcp-check connect ssl"
+      ]
+      servers = [
+        for idx, ip in var.incus_cluster_nodes : {
+          name    = "node${idx + 1}"
+          address = ip
+          port    = 8443
+          options = "check verify none"
+        }
+      ]
+    }
+  ]
+
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.haproxy.cpu
+  memory_limit = local.services.haproxy.memory
 }

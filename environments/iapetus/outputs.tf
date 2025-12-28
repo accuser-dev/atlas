@@ -177,3 +177,17 @@ output "incus_oidc_config" {
   ]) : null
 }
 
+# =============================================================================
+# HAProxy Load Balancer
+# =============================================================================
+
+output "haproxy_ipv4_address" {
+  description = "HAProxy IPv4 address"
+  value       = var.enable_haproxy ? module.haproxy01[0].ipv4_address : null
+}
+
+output "haproxy_stats_endpoint" {
+  description = "HAProxy stats endpoint URL"
+  value       = var.enable_haproxy ? module.haproxy01[0].stats_endpoint : null
+}
+

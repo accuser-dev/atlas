@@ -1,0 +1,18 @@
+#cloud-config
+# HAProxy load balancer cloud-init configuration
+
+package_update: true
+
+packages:
+  - haproxy
+
+write_files:
+  - path: /etc/haproxy/haproxy.cfg
+    permissions: '0644'
+    content: |
+      ${indent(6, haproxy_config)}
+
+runcmd:
+  # Enable and start HAProxy service
+  - rc-update add haproxy default
+  - rc-service haproxy start

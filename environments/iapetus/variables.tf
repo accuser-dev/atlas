@@ -321,3 +321,27 @@ variable "openfga_preshared_key" {
   sensitive   = true
   default     = ""
 }
+
+# =============================================================================
+# HAProxy Configuration
+# =============================================================================
+
+variable "enable_haproxy" {
+  description = "Enable HAProxy load balancer for Incus cluster"
+  type        = bool
+  default     = false
+}
+
+variable "haproxy_stats_password" {
+  description = "Password for HAProxy stats interface"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "incus_cluster_nodes" {
+  description = "List of Incus cluster node IP addresses for HAProxy backend"
+  type        = list(string)
+  default     = []
+}
+
