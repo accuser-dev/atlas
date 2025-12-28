@@ -496,10 +496,7 @@ module "dex01" {
         "/device/callback",                                           # Dex internal device flow callback
         "https://iapetus.accuser.dev:8443/oidc/callback",             # Incus OIDC callback (iapetus)
         "https://operations-center.accuser.dev:8443/oidc/callback",   # Incus OIDC callback (operations-center)
-        "https://atlas.accuser.dev:8443/oidc/callback",               # Incus OIDC callback (atlas)
-        "https://192.168.71.2:8443/oidc/callback",          # Incus OIDC callback (prometheus)
-        "https://192.168.71.5:8443/oidc/callback",          # Incus OIDC callback (epimetheus)
-        "https://192.168.71.8:8443/oidc/callback",            # Incus OIDC callback (menotius)
+        "https://atlas.accuser.dev:8443/oidc/callback",       # Incus OIDC callback (menotius)
         "https://cluster01.accuser.dev:8443/oidc/callback",      # Incus OIDC callback (cluster01)
       ]
     }
