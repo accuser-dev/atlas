@@ -9,10 +9,10 @@ terraform {
   }
 
   # Remote state backend using Incus S3-compatible storage buckets
+  # Uses the same bucket as iapetus but with a different key prefix
   # Configuration is provided via backend-config or environment variables
-  # State is stored separately from iapetus environment
   backend "s3" {
-    key                         = "cluster/terraform.tfstate"
+    key                         = "cluster01/terraform.tfstate"
     region                      = "main"
     skip_credentials_validation = true
     skip_metadata_api_check     = true

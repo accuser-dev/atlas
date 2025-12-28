@@ -12,18 +12,10 @@ variable "accept_remote_certificate" {
 }
 
 # =============================================================================
-# Cluster Node Configuration
-# =============================================================================
-
-variable "cluster_nodes" {
-  description = "List of cluster node names for pinning services like node-exporter"
-  type        = list(string)
-  default     = ["prometheus", "epimetheus", "menoetius"]
-}
-
-# =============================================================================
 # Network Configuration
 # =============================================================================
+# Note: Cluster node names are discovered dynamically via the Incus API
+# See main.tf for the external data source that queries cluster membership
 
 variable "production_network_name" {
   description = "Name of the production network"
@@ -72,8 +64,14 @@ variable "production_network_ipv6_nat" {
   default     = false
 }
 
+variable "management_network_name" {
+  description = "Name of the management network. On clusters, use the existing bridge (e.g., 'incusbr0')."
+  type        = string
+  default     = "incusbr0"
+}
+
 variable "management_network_ipv4" {
-  description = "IPv4 CIDR for management network"
+  description = "IPv4 CIDR for management network (not used when using external network)"
   type        = string
   default     = "10.20.0.1/24"
 }

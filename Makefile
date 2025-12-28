@@ -20,7 +20,7 @@ help:
 	@echo "Current environment: $(ENV)"
 	@echo "Environment directory: $(ENV_DIR)"
 	@echo ""
-	@echo "Usage: make <target> [ENV=iapetus|cluster]"
+	@echo "Usage: make <target> [ENV=iapetus|cluster01]"
 	@echo ""
 	@echo "Bootstrap Commands (run once per environment):"
 	@echo "  make bootstrap         - Complete bootstrap process (init + apply)"
@@ -70,9 +70,9 @@ help:
 	@echo ""
 	@echo "Examples:"
 	@echo "  make plan                    # Plan iapetus (default)"
-	@echo "  make plan ENV=cluster        # Plan cluster environment"
+	@echo "  make plan ENV=cluster01      # Plan cluster01 environment"
 	@echo "  make deploy ENV=iapetus      # Deploy to iapetus"
-	@echo "  make bootstrap ENV=cluster   # Bootstrap cluster environment"
+	@echo "  make bootstrap ENV=cluster01 # Bootstrap cluster01 environment"
 
 # Docker image configuration
 IMAGE_TAG ?= latest

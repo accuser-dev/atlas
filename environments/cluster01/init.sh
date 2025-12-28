@@ -19,10 +19,10 @@ if [ ! -f "${BACKEND_CONFIG}" ]; then
   echo ""
   echo "To set up the backend:"
   echo "  1. Get credentials from iapetus bootstrap (make bootstrap ENV=iapetus)"
-  echo "  2. Copy environments/cluster/backend.hcl.example to backend.hcl"
+  echo "  2. Copy environments/cluster01/backend.hcl.example to backend.hcl"
   echo "  3. Update the endpoint to point to iapetus S3 API"
   echo ""
-  echo "Or manually create environments/cluster/backend.hcl with:"
+  echo "Or manually create environments/cluster01/backend.hcl with:"
   echo ""
   echo '  bucket     = "atlas-terraform-state"'
   echo '  access_key = "<your-access-key>"'

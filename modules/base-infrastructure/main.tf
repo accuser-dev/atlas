@@ -5,6 +5,9 @@
 # Production network - supports both bridge (NAT) and physical (direct LAN) modes
 # Bridge mode: NAT'd network for standard deployments
 # Physical mode: Direct LAN attachment for IncusOS clusters
+#
+# For physical networks (especially on clusters), the network typically already
+# exists and is managed by IncusOS. We import it and ignore config changes.
 resource "incus_network" "production" {
   name        = var.production_network_name
   description = var.production_network_type == "physical" ? "Production network (physical LAN attachment via ${var.production_network_parent})" : "Production network for public-facing services"
@@ -33,11 +36,18 @@ resource "incus_network" "production" {
       condition     = var.production_network_type != "physical" || var.production_network_parent != ""
       error_message = "production_network_parent is required when production_network_type is 'physical'."
     }
+    # For physical networks, ignore config changes as the network is managed externally
+    # This avoids provider quirks with physical network config attributes
+    ignore_changes = [config, description]
   }
 }
 
+# Management network - created only if not using an external network
+# For clusters, use management_network_external=true and point to incusbr0
 resource "incus_network" "management" {
-  name        = "management"
+  count = var.management_network_external ? 0 : 1
+
+  name        = var.management_network_name
   description = "Management network for internal services (monitoring, etc.)"
   type        = "bridge"
 
@@ -53,6 +63,17 @@ resource "incus_network" "management" {
       "ipv6.address" = "none"
     }
   )
+}
+
+# Data source to reference an existing management network (for clusters)
+data "incus_network" "management_external" {
+  count = var.management_network_external ? 1 : 0
+  name  = var.management_network_name
+}
+
+locals {
+  # Use either the created network or the external one
+  management_network_name = var.management_network_external ? data.incus_network.management_external[0].name : incus_network.management[0].name
 }
 
 resource "incus_network" "gitops" {
@@ -116,7 +137,7 @@ resource "incus_profile" "management_network" {
     name = "mgmt"
     type = "nic"
     properties = {
-      network = incus_network.management.name
+      network = local.management_network_name
     }
   }
 }

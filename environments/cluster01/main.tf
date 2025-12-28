@@ -1,19 +1,39 @@
 # =============================================================================
 # Cluster Environment - Production Workloads
 # =============================================================================
-# This environment manages the 3-node IncusOS cluster:
-#   - prometheus (node 1)
-#   - epimetheus (node 2)
-#   - menoetius (node 3)
+# This environment manages an IncusOS cluster.
+# Cluster nodes are discovered dynamically via the Incus API.
 #
 # Services deployed here:
 #   - Prometheus (local scraping, federated by iapetus)
 #   - Promtail (ships logs to iapetus Loki)
-#   - node-exporter × 3 (pinned to each cluster node)
+#   - node-exporter × N (pinned to each cluster node)
 #   - Alertmanager
 #   - Mosquitto (MQTT broker)
 #   - CoreDNS (local DNS)
 # =============================================================================
+
+# =============================================================================
+# Cluster Node Discovery
+# =============================================================================
+# Query cluster membership dynamically from the Incus API
+# This ensures the configuration always reflects the actual cluster state
+
+data "external" "cluster_nodes" {
+  program = ["bash", "-c", <<-EOF
+    # Query cluster nodes and return as JSON string (external data source requires string values)
+    nodes=$(incus cluster list --format json 2>/dev/null | jq -c '[.[].server_name]')
+    # Escape the JSON array as a string value
+    echo "{\"nodes_json\": $(echo "$nodes" | jq -Rs '.')}"
+  EOF
+  ]
+}
+
+locals {
+  # Parse the cluster nodes from the external data source
+  # The nodes_json is a JSON-encoded string containing a JSON array
+  cluster_nodes = jsondecode(data.external.cluster_nodes.result.nodes_json)
+}
 
 # =============================================================================
 # Base Infrastructure
@@ -24,7 +44,11 @@ module "base" {
 
   storage_pool = "local"
 
-  # Network configuration
+  # Cluster configuration
+  is_cluster = true
+  # cluster_target_node not needed when using external management network
+
+  # Production network configuration (physical mode - already exists on cluster)
   production_network_name   = var.production_network_name
   production_network_type   = var.production_network_type
   production_network_parent = var.production_network_parent
@@ -34,10 +58,10 @@ module "base" {
   production_network_ipv6     = var.production_network_ipv6
   production_network_ipv6_nat = var.production_network_ipv6_nat
 
-  management_network_ipv4     = var.management_network_ipv4
-  management_network_nat      = var.management_network_nat
-  management_network_ipv6     = var.management_network_ipv6
-  management_network_ipv6_nat = var.management_network_ipv6_nat
+  # Management network - use existing incusbr0 on cluster
+  # This avoids the complexity of creating bridge networks across cluster nodes
+  management_network_name     = var.management_network_name
+  management_network_external = true
 
   # No GitOps on cluster - managed from iapetus
   enable_gitops = false
@@ -79,7 +103,7 @@ module "prometheus01" {
               instance: 'prometheus01'
 
       # Node exporters on each cluster node
-      %{for node in var.cluster_nodes~}
+      %{for node in local.cluster_nodes~}
       - job_name: 'node-${node}'
         static_configs:
           - targets: ['node-exporter-${node}.incus:9100']
@@ -187,7 +211,7 @@ module "alertmanager01" {
 module "node_exporter" {
   source = "../../modules/node-exporter"
 
-  for_each = toset(var.cluster_nodes)
+  for_each = toset(local.cluster_nodes)
 
   instance_name = "node-exporter-${each.key}"
   profile_name  = "node-exporter-${each.key}"

@@ -5,6 +5,19 @@ variable "storage_pool" {
   default     = "local"
 }
 
+# Cluster Configuration
+variable "is_cluster" {
+  description = "Whether this is a clustered Incus deployment. When true, networks are created with cluster-aware settings."
+  type        = bool
+  default     = false
+}
+
+variable "cluster_target_node" {
+  description = "Target cluster node for creating networks (required when is_cluster is true). This is the node where the network will be created first."
+  type        = string
+  default     = ""
+}
+
 # Production Network Configuration
 variable "production_network_name" {
   description = "Name of the production network. For IncusOS physical mode, set this to match the physical interface name (e.g., 'eno1') to avoid creating a ghost network."
@@ -69,8 +82,20 @@ variable "production_network_ipv6_nat" {
 }
 
 # Management Network Configuration
+variable "management_network_name" {
+  description = "Name of the management network. Set to an existing network name (e.g., 'incusbr0') to use it instead of creating a new one."
+  type        = string
+  default     = "management"
+}
+
+variable "management_network_external" {
+  description = "Set to true if the management network already exists and should not be created/managed by Terraform. Useful for clusters where incusbr0 is used."
+  type        = bool
+  default     = false
+}
+
 variable "management_network_ipv4" {
-  description = "IPv4 address for management network (monitoring, internal services)"
+  description = "IPv4 address for management network (monitoring, internal services). Ignored if management_network_external is true."
   type        = string
   default     = "10.20.0.1/24"
 

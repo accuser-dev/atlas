@@ -131,21 +131,21 @@ atlas/
 
 2. **Bootstrap cluster state**:
    ```bash
-   ENV=cluster make bootstrap
+   ENV=cluster01 make bootstrap
    ```
 
 3. **Create terraform.tfvars**:
    ```bash
-   cd environments/cluster
+   cd environments/cluster01
    cp terraform.tfvars.example terraform.tfvars
    # Edit with cluster-specific values including loki_push_url
    ```
 
-4. **Deploy cluster**:
+4. **Deploy cluster01**:
    ```bash
-   ENV=cluster make init
-   ENV=cluster make plan
-   ENV=cluster make apply
+   ENV=cluster01 make init
+   ENV=cluster01 make plan
+   ENV=cluster01 make apply
    ```
 
 ## Container Images
@@ -186,11 +186,11 @@ make plan
 make apply
 make destroy
 
-# cluster environment
-ENV=cluster make init
-ENV=cluster make plan
-ENV=cluster make apply
-ENV=cluster make destroy
+# cluster01 environment
+ENV=cluster01 make init
+ENV=cluster01 make plan
+ENV=cluster01 make apply
+ENV=cluster01 make destroy
 ```
 
 ### Full Deployment
@@ -199,8 +199,8 @@ ENV=cluster make destroy
 # Deploy iapetus
 make deploy
 
-# Deploy cluster
-ENV=cluster make deploy
+# Deploy cluster01
+ENV=cluster01 make deploy
 ```
 
 ## Configuration
@@ -319,7 +319,7 @@ The project uses separate workflows for validation and releases:
 
 ### Makefile Targets
 
-All targets support `ENV=iapetus` (default) or `ENV=cluster`:
+All targets support `ENV=iapetus` (default) or `ENV=cluster01`:
 
 ```bash
 make help              # Show all available commands

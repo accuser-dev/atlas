@@ -213,21 +213,21 @@ make deploy
 incus remote add cluster01 https://<cluster-ip>:8443
 export INCUS_REMOTE=cluster01
 
-# Then deploy cluster
-ENV=cluster make init
-ENV=cluster make deploy
+# Then deploy cluster01
+ENV=cluster01 make init
+ENV=cluster01 make deploy
 ```
 
 ### Build and Deployment (Makefile)
 
 All Makefile commands support the `ENV` variable to target specific environments:
 - `ENV=iapetus` (default) - Control plane environment
-- `ENV=cluster` - Production cluster environment
+- `ENV=cluster01` - Production cluster environment
 
 ```bash
 # Bootstrap commands (run once per environment)
 make bootstrap           # Complete bootstrap process (iapetus)
-ENV=cluster make bootstrap  # Bootstrap cluster environment
+ENV=cluster01 make bootstrap  # Bootstrap cluster01 environment
 
 # Build Docker images locally (for testing only)
 make build-all
@@ -239,14 +239,14 @@ make plan                # Plan changes for iapetus
 make apply               # Apply changes to iapetus
 make destroy             # Destroy iapetus infrastructure
 
-# Target cluster environment
-ENV=cluster make init    # Initialize cluster
-ENV=cluster make plan    # Plan cluster changes
-ENV=cluster make apply   # Apply to cluster
+# Target cluster01 environment
+ENV=cluster01 make init    # Initialize cluster01
+ENV=cluster01 make plan    # Plan cluster01 changes
+ENV=cluster01 make apply   # Apply to cluster01
 
 # Complete deployment
 make deploy              # Deploy iapetus
-ENV=cluster make deploy  # Deploy cluster
+ENV=cluster01 make deploy  # Deploy cluster01
 
 # Cleanup
 make clean               # Clean all build artifacts
@@ -274,20 +274,20 @@ For detailed backup procedures and disaster recovery playbooks, see [BACKUP.md](
 ```bash
 # Option 1: Use the Makefile (recommended)
 make init                     # iapetus
-ENV=cluster make init         # cluster
+ENV=cluster01 make init         # cluster01
 
 # Option 2: Use the init wrapper script
 cd environments/iapetus && ./init.sh
-cd environments/cluster && ./init.sh
+cd environments/cluster01 && ./init.sh
 
 # Option 3: Manual with backend config
 cd environments/iapetus && tofu init -backend-config=backend.hcl
-cd environments/cluster && tofu init -backend-config=backend.hcl
+cd environments/cluster01 && tofu init -backend-config=backend.hcl
 ```
 
 After initialization, you can run other commands directly:
 ```bash
-cd environments/iapetus  # or environments/cluster
+cd environments/iapetus  # or environments/cluster01
 
 # Validate configuration
 tofu validate
@@ -345,10 +345,10 @@ make bootstrap
 # - S3 credentials
 # - Backend config file (environments/iapetus/backend.hcl)
 
-# For cluster, configure remote first then bootstrap:
+# For cluster01, configure remote first then bootstrap:
 incus remote add cluster01 https://<cluster-ip>:8443
 export INCUS_REMOTE=cluster01
-ENV=cluster make bootstrap
+ENV=cluster01 make bootstrap
 ```
 
 See [environments/iapetus/BACKEND_SETUP.md](environments/iapetus/BACKEND_SETUP.md) for detailed instructions.
@@ -1416,7 +1416,7 @@ module "grafana01" {
 
 ## Outputs
 
-After applying, use `cd environments/iapetus && tofu output` (or `environments/cluster`) to view:
+After applying, use `cd environments/iapetus && tofu output` (or `environments/cluster01`) to view:
 
 **iapetus outputs:**
 - `loki_endpoint` - Internal Loki endpoint URL
