@@ -490,14 +490,14 @@ module "dex01" {
     {
       id     = "incus"
       name   = "Incus"
-      public = true  # Public client - no secret required for CLI/device flow
+      public = true # Public client - no secret required for CLI/device flow
       redirect_uris = [
-        "urn:ietf:wg:oauth:2.0:oob",                                  # Device authorization grant (CLI)
-        "/device/callback",                                           # Dex internal device flow callback
-        "https://iapetus.accuser.dev:8443/oidc/callback",             # Incus OIDC callback (iapetus)
-        "https://operations-center.accuser.dev:8443/oidc/callback",   # Incus OIDC callback (operations-center)
-        "https://atlas.accuser.dev:8443/oidc/callback",       # Incus OIDC callback (menotius)
-        "https://cluster01.accuser.dev:8443/oidc/callback",      # Incus OIDC callback (cluster01)
+        "urn:ietf:wg:oauth:2.0:oob",                                # Device authorization grant (CLI)
+        "/device/callback",                                         # Dex internal device flow callback
+        "https://iapetus.accuser.dev:8443/oidc/callback",           # Incus OIDC callback (iapetus)
+        "https://operations-center.accuser.dev:8443/oidc/callback", # Incus OIDC callback (operations-center)
+        "https://atlas.accuser.dev:8443/oidc/callback",             # Incus OIDC callback (menotius)
+        "https://cluster01.accuser.dev:8443/oidc/callback",         # Incus OIDC callback (cluster01)
       ]
     }
   ]
