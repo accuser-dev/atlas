@@ -186,7 +186,7 @@ locals {
     var.enable_gitops
     ? (var.network_backend == "ovn"
       ? incus_network.ovn_gitops[0].name
-      : incus_network.gitops[0].name)
+    : incus_network.gitops[0].name)
     : null
   )
 }
