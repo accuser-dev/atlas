@@ -212,3 +212,9 @@ variable "coredns_lb_address" {
 
 # Note: OVN northbound connection is provided by the ovn-central container module
 # when network_backend = "ovn". No manual configuration required.
+
+variable "skip_ovn_config" {
+  description = "Skip OVN daemon configuration (set to true if OVN is already configured via CLI or has ETag issues in clusters)"
+  type        = bool
+  default     = false
+}

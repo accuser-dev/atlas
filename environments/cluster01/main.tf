@@ -137,12 +137,19 @@ module "ovn_central" {
 # PREREQUISITE: After ovn-central is running, configure each IncusOS node as chassis:
 #   incus admin os service edit ovn --target=<node>
 #
-# This module is only applied when network_backend = "ovn"
+# NOTE: When accessing the cluster via HAProxy load balancer, the incus_server
+# resource may fail with ETag mismatch errors. Set skip_ovn_config=true and
+# configure OVN manually instead:
+#   incus config set network.ovn.northbound_connection=tcp:<ovn-central-host-ip>:6641
+#
+# This module is only applied when network_backend = "ovn" and skip_ovn_config = false
 
 module "ovn_config" {
   source = "../../modules/ovn-config"
 
-  count = var.network_backend == "ovn" ? 1 : 0
+  # Deploy when OVN backend is enabled and not skipped
+  # Skip when OVN is already configured (e.g., via CLI) or has ETag issues in clusters
+  count = var.network_backend == "ovn" && !var.skip_ovn_config ? 1 : 0
 
   # Point to the ovn-central container's northbound database
   northbound_connection = module.ovn_central[0].northbound_connection
