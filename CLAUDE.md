@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a multi-environment Terraform infrastructure project that manages Incus containers across multiple hosts. The project supports two environments with separate Terraform state:
 
 - **`iapetus`** - Control plane / aggregation (IncusOS standalone host)
-- **`cluster`** - Production workloads (3-node IncusOS cluster: prometheus, epimetheus, menoetius)
+- **`cluster01`** - Production workloads (3-node IncusOS cluster)
 
 ### Architecture Overview
 
@@ -26,7 +26,7 @@ This is a multi-environment Terraform infrastructure project that manages Incus 
                                │ incus remote + prometheus federation
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│       prometheus/epimetheus/menoetius (IncusOS 3-node cluster)      │
+│                    cluster01 (IncusOS 3-node cluster)               │
 │                        Production Workloads                         │
 ├─────────────────────────────────────────────────────────────────────┤
 │  - Prometheus (local scraping, federated by iapetus)                │
@@ -116,6 +116,74 @@ The production network supports two deployment modes:
 - Mosquitto: Ports 1883, 8883 (MQTT/MQTTS) - via proxy devices in bridge mode, direct in physical mode
 - CoreDNS: Port 53 (UDP/TCP) - via proxy devices in bridge mode, direct in physical mode
 
+### OVN Overlay Networking (Optional)
+
+OVN (Open Virtual Network) provides overlay networking for cross-environment connectivity. When enabled, it replaces bridge/physical networks with OVN networks that can span multiple Incus servers.
+
+**Benefits:**
+- Cross-environment `.incus` DNS resolution (e.g., cluster01's promtail can reach iapetus's loki01.incus)
+- Native OVN load balancers replace proxy devices
+- LAN-routable VIPs for external service access
+- Network ACLs for security policies
+
+**Architecture with OVN:**
+```
+                    OVN Interconnect (Geneve tunnels)
+iapetus ◄─────────────────────────────────────────────► cluster01
+   │              (Network Integration)                     │
+   │                                                        │
+   ├── ovn-management (10.20.0.0/24) ◄──── same L2 ────► ovn-management
+   │   └── loki01, prometheus01, grafana01                  └── promtail01, prometheus01
+   │
+   └── ovn-production (10.10.0.0/24) ◄──── same L2 ────► ovn-production
+       └── coredns01                                        └── mosquitto01, coredns01
+           └── OVN LB VIP: 192.168.68.12                        └── OVN LB VIPs: 192.168.68.10-11
+```
+
+**OVN Central (Container-Based):**
+
+OVN Central runs as a Terraform-managed container (`ovn-central01`) on cluster01's incusbr0 network:
+- Runs OVN northbound and southbound databases
+- Uses proxy devices to expose ports on the physical network (192.168.71.5:6641/6642)
+- IncusOS nodes connect as OVN chassis pointing to the container
+
+**Setup Steps:**
+1. Deploy ovn-central01 container: `tofu apply -target=module.ovn_central`
+2. Configure each IncusOS node as chassis:
+   ```bash
+   incus admin os service edit ovn --target=<node> << 'EOF'
+   {"config": {"database": "tcp:192.168.71.5:6642", "enabled": true, "tunnel_address": "<node-ip>"}}
+   EOF
+   ```
+3. Set Incus OVN config (or use `skip_ovn_config=true` if using HAProxy):
+   ```bash
+   incus config set network.ovn.northbound_connection=tcp:192.168.71.5:6641
+   ```
+4. Apply remaining Terraform: `tofu apply`
+
+**Configuration:**
+```hcl
+# In terraform.tfvars
+network_backend    = "ovn"
+ovn_uplink_network = "eno1"  # Physical network with ipv4.ovn.ranges configured
+
+# Skip OVN daemon config when using HAProxy (causes ETag mismatch errors)
+skip_ovn_config = true
+
+# OVN load balancer VIPs (must be in uplink's ipv4.ovn.ranges)
+mosquitto_lb_address = "192.168.68.10"  # cluster01
+coredns_lb_address   = "192.168.68.11"  # cluster01
+```
+
+**Known Issue:** When accessing clusters via HAProxy load balancer, the `incus_server` resource may fail with ETag mismatch errors due to requests hitting different cluster nodes. Set `skip_ovn_config=true` and configure OVN via CLI instead.
+
+**LAN VIP Allocation:**
+| VIP | Service | Environment |
+|-----|---------|-------------|
+| 192.168.68.10 | Mosquitto | cluster01 |
+| 192.168.68.11 | CoreDNS | cluster01 |
+| 192.168.68.12 | CoreDNS | iapetus |
+
 ### Minimum Host Requirements
 
 For a complete deployment with all services:
@@ -149,6 +217,7 @@ atlas/
 │   ├── loki/
 │   ├── mosquitto/
 │   ├── node-exporter/
+│   ├── ovn-load-balancer/     # OVN load balancers (optional, for OVN backend)
 │   ├── prometheus/
 │   ├── promtail/              # Log shipping to central Loki
 │   └── step-ca/
@@ -166,7 +235,7 @@ atlas/
 │   │   ├── init.sh
 │   │   └── bootstrap/         # Creates S3 bucket for state
 │   │
-│   └── cluster/               # Production cluster environment
+│   └── cluster01/             # Production cluster environment
 │       ├── main.tf            # Module instantiations for cluster
 │       ├── variables.tf
 │       ├── outputs.tf
