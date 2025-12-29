@@ -175,3 +175,30 @@ variable "external_network" {
   type        = string
   default     = "incusbr0"
 }
+
+# =============================================================================
+# OVN Configuration
+# =============================================================================
+
+variable "network_backend" {
+  description = "Network backend: 'bridge' (default) or 'ovn' for overlay networking"
+  type        = string
+  default     = "bridge"
+
+  validation {
+    condition     = contains(["bridge", "ovn"], var.network_backend)
+    error_message = "network_backend must be 'bridge' or 'ovn'."
+  }
+}
+
+variable "ovn_uplink_network" {
+  description = "Uplink network name for OVN external connectivity (required when network_backend is 'ovn')"
+  type        = string
+  default     = "ovn-uplink"
+}
+
+variable "ovn_integration" {
+  description = "Network integration name for cross-server OVN connectivity. Leave empty for local-only OVN."
+  type        = string
+  default     = ""
+}

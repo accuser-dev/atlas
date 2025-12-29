@@ -79,8 +79,9 @@ resource "incus_profile" "mosquitto" {
   }
 
   # External access via proxy device for plain MQTT
+  # Disabled when using OVN load balancer (use_ovn_lb = true)
   dynamic "device" {
-    for_each = var.enable_external_access ? [1] : []
+    for_each = var.enable_external_access && !var.use_ovn_lb ? [1] : []
     content {
       name = "mqtt-proxy"
       type = "proxy"
@@ -93,8 +94,9 @@ resource "incus_profile" "mosquitto" {
   }
 
   # External access via proxy device for MQTT over TLS
+  # Disabled when using OVN load balancer (use_ovn_lb = true)
   dynamic "device" {
-    for_each = var.enable_external_access && var.enable_tls ? [1] : []
+    for_each = var.enable_external_access && var.enable_tls && !var.use_ovn_lb ? [1] : []
     content {
       name = "mqtts-proxy"
       type = "proxy"

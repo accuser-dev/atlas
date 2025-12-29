@@ -105,3 +105,32 @@ output "promtail_loki_target" {
   description = "Loki URL that Promtail is shipping logs to"
   value       = module.promtail01.loki_push_url
 }
+
+# =============================================================================
+# OVN Configuration
+# =============================================================================
+
+output "cluster_ips" {
+  description = "List of cluster node IP addresses (discovered from Incus API)"
+  value       = local.cluster_ips
+}
+
+output "ovn_central_ipv4_address" {
+  description = "IPv4 address of the OVN Central container"
+  value       = var.network_backend == "ovn" ? module.ovn_central[0].ipv4_address : null
+}
+
+output "ovn_central_northbound_connection" {
+  description = "OVN northbound connection string (points to ovn-central container)"
+  value       = var.network_backend == "ovn" ? module.ovn_central[0].northbound_connection : null
+}
+
+output "ovn_central_southbound_connection" {
+  description = "OVN southbound connection string (for chassis configuration)"
+  value       = var.network_backend == "ovn" ? module.ovn_central[0].southbound_connection : null
+}
+
+output "network_backend" {
+  description = "Network backend in use (bridge or ovn)"
+  value       = var.network_backend
+}

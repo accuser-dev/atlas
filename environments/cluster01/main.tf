@@ -21,10 +21,13 @@
 
 data "external" "cluster_nodes" {
   program = ["bash", "-c", <<-EOF
-    # Query cluster nodes and return as JSON string (external data source requires string values)
-    nodes=$(incus cluster list --format json 2>/dev/null | jq -c '[.[].server_name]')
-    # Escape the JSON array as a string value
-    echo "{\"nodes_json\": $(echo "$nodes" | jq -Rs '.')}"
+    # Query cluster nodes and return as JSON with both names and IPs
+    # External data source requires string values
+    cluster_json=$(incus cluster list --format json 2>/dev/null)
+    nodes=$(echo "$cluster_json" | jq -c '[.[].server_name]')
+    # Extract IPs from URLs (https://192.168.71.5:8443 -> 192.168.71.5)
+    ips=$(echo "$cluster_json" | jq -c '[.[].url | gsub("https://"; "") | gsub(":8443"; "")]')
+    echo "{\"nodes_json\": $(echo "$nodes" | jq -Rs '.'), \"ips_json\": $(echo "$ips" | jq -Rs '.')}"
   EOF
   ]
 }
@@ -33,6 +36,10 @@ locals {
   # Parse the cluster nodes from the external data source
   # The nodes_json is a JSON-encoded string containing a JSON array
   cluster_nodes = jsondecode(data.external.cluster_nodes.result.nodes_json)
+  cluster_ips   = jsondecode(data.external.cluster_nodes.result.ips_json)
+
+  # Create a map of node names to their IPs for easy lookup
+  node_ip_map = zipmap(local.cluster_nodes, local.cluster_ips)
 }
 
 # =============================================================================
@@ -48,7 +55,13 @@ module "base" {
   is_cluster = true
   # cluster_target_node not needed when using external management network
 
+  # OVN configuration
+  network_backend    = var.network_backend
+  ovn_uplink_network = var.ovn_uplink_network
+  ovn_integration    = var.ovn_integration
+
   # Production network configuration (physical mode - already exists on cluster)
+  # When using OVN, this is ignored and OVN networks are created instead
   production_network_name   = var.production_network_name
   production_network_type   = var.production_network_type
   production_network_parent = var.production_network_parent
@@ -58,13 +71,83 @@ module "base" {
   production_network_ipv6     = var.production_network_ipv6
   production_network_ipv6_nat = var.production_network_ipv6_nat
 
-  # Management network - use existing incusbr0 on cluster
-  # This avoids the complexity of creating bridge networks across cluster nodes
+  # Management network - use existing incusbr0 on cluster (bridge mode only)
+  # When using OVN, OVN management network is created instead
   management_network_name     = var.management_network_name
-  management_network_external = true
+  management_network_external = var.network_backend != "ovn"
+
+  management_network_ipv4 = var.management_network_ipv4
+  management_network_nat  = var.management_network_nat
 
   # No GitOps on cluster - managed from iapetus
   enable_gitops = false
+}
+
+# =============================================================================
+# OVN Central (Container-based OVN Control Plane)
+# =============================================================================
+# Runs OVN northbound and southbound databases in a container on incusbr0.
+# This provides the OVN control plane for IncusOS chassis nodes to connect to.
+#
+# After deployment, configure each IncusOS node as a chassis:
+#   incus admin os service edit ovn --target=<node>
+#   With config: {"enabled": true, "database": "tcp:<ovn-central-ip>:6642", "tunnel_address": "<node-ip>"}
+#
+# This module is only deployed when network_backend = "ovn"
+
+module "ovn_central" {
+  source = "../../modules/ovn-central"
+
+  count = var.network_backend == "ovn" ? 1 : 0
+
+  instance_name = "ovn-central01"
+  profile_name  = "ovn-central"
+
+  # Only use container-base profile (for boot.autorestart)
+  # Network is handled directly in the ovn-central profile to avoid
+  # chicken-and-egg dependency with OVN management network
+  profiles = [
+    module.base.container_base_profile.name,
+  ]
+
+  # Use incusbr0 directly - this is a non-OVN network that exists before OVN
+  network_name = "incusbr0"
+
+  # Pin to database-leader node for stability
+  # This ensures the container and storage volume are on the same node
+  target_node = "node02"
+
+  # Physical network address for proxy device connections from other nodes
+  host_address = local.node_ip_map["node02"]
+
+  enable_data_persistence = true
+  data_volume_name        = "ovn-central01-data"
+  data_volume_size        = "1GB"
+
+  cpu_limit    = "1"
+  memory_limit = "512MB"
+}
+
+# =============================================================================
+# OVN Configuration
+# =============================================================================
+# Configure Incus daemon to connect to OVN Central container.
+# This sets network.ovn.northbound_connection to point to the ovn-central container.
+#
+# PREREQUISITE: After ovn-central is running, configure each IncusOS node as chassis:
+#   incus admin os service edit ovn --target=<node>
+#
+# This module is only applied when network_backend = "ovn"
+
+module "ovn_config" {
+  source = "../../modules/ovn-config"
+
+  count = var.network_backend == "ovn" ? 1 : 0
+
+  # Point to the ovn-central container's northbound database
+  northbound_connection = module.ovn_central[0].northbound_connection
+
+  depends_on = [module.ovn_central]
 }
 
 # =============================================================================
@@ -249,7 +332,9 @@ module "mosquitto01" {
   mqtts_port = "8883"
 
   # External access via proxy devices (bridge mode only)
-  enable_external_access = !module.base.production_network_is_physical
+  # With OVN, we use OVN load balancers instead
+  enable_external_access = var.network_backend == "bridge" && !module.base.production_network_is_physical
+  use_ovn_lb             = var.network_backend == "ovn"
   external_mqtt_port     = "1883"
   external_mqtts_port    = "8883"
 
@@ -284,7 +369,10 @@ module "coredns01" {
   incus_dns_server     = split("/", var.management_network_ipv4)[0]
   upstream_dns_servers = var.dns_upstream_servers
 
-  enable_external_access = !module.base.production_network_is_physical
+  # External access via proxy devices (bridge mode only)
+  # With OVN, we use OVN load balancers instead
+  enable_external_access = var.network_backend == "bridge" && !module.base.production_network_is_physical
+  use_ovn_lb             = var.network_backend == "ovn"
   external_dns_port      = "53"
 
   cpu_limit    = local.services.coredns.cpu
@@ -328,4 +416,72 @@ module "promtail01" {
 
   cpu_limit    = local.services.promtail.cpu
   memory_limit = local.services.promtail.memory
+}
+
+# =============================================================================
+# OVN Load Balancers (Optional - when using OVN backend)
+# =============================================================================
+# OVN load balancers replace proxy devices for external service access
+# VIPs must be within the uplink network's ipv4.ovn.ranges
+
+module "mosquitto_lb" {
+  source = "../../modules/ovn-load-balancer"
+
+  count = var.network_backend == "ovn" && var.mosquitto_lb_address != "" ? 1 : 0
+
+  network_name   = module.base.production_network_name
+  listen_address = var.mosquitto_lb_address
+  description    = "OVN load balancer for Mosquitto MQTT broker"
+
+  backends = [
+    {
+      name           = "mosquitto01"
+      target_address = module.mosquitto01.ipv4_address
+      target_port    = 1883
+    }
+  ]
+
+  ports = [
+    {
+      description = "MQTT"
+      protocol    = "tcp"
+      listen_port = 1883
+    },
+    {
+      description = "MQTTS"
+      protocol    = "tcp"
+      listen_port = 8883
+    }
+  ]
+}
+
+module "coredns_lb" {
+  source = "../../modules/ovn-load-balancer"
+
+  count = var.network_backend == "ovn" && var.coredns_lb_address != "" ? 1 : 0
+
+  network_name   = module.base.production_network_name
+  listen_address = var.coredns_lb_address
+  description    = "OVN load balancer for CoreDNS"
+
+  backends = [
+    {
+      name           = "coredns01"
+      target_address = module.coredns01.ipv4_address
+      target_port    = 53
+    }
+  ]
+
+  ports = [
+    {
+      description = "DNS over UDP"
+      protocol    = "udp"
+      listen_port = 53
+    },
+    {
+      description = "DNS over TCP"
+      protocol    = "tcp"
+      listen_port = 53
+    }
+  ]
 }

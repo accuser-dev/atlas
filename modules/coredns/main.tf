@@ -32,9 +32,9 @@ resource "incus_profile" "coredns" {
   }
 
   # External access via proxy device for DNS (UDP)
-  # Only enabled in bridge mode - physical mode gets direct LAN IP
+  # Disabled when using OVN load balancer or physical network mode
   dynamic "device" {
-    for_each = var.enable_external_access ? [1] : []
+    for_each = var.enable_external_access && !var.use_ovn_lb ? [1] : []
     content {
       name = "dns-udp-proxy"
       type = "proxy"
@@ -48,8 +48,9 @@ resource "incus_profile" "coredns" {
 
   # External access via proxy device for DNS (TCP)
   # DNS requires both UDP and TCP on port 53
+  # Disabled when using OVN load balancer or physical network mode
   dynamic "device" {
-    for_each = var.enable_external_access ? [1] : []
+    for_each = var.enable_external_access && !var.use_ovn_lb ? [1] : []
     content {
       name = "dns-tcp-proxy"
       type = "proxy"

@@ -116,9 +116,15 @@ variable "mqtts_port" {
 
 # External Access via Proxy Devices
 variable "enable_external_access" {
-  description = "Enable external access via Incus proxy devices. Set to false when production network is physical (direct LAN attachment) since containers get LAN IPs directly."
+  description = "Enable external access via Incus proxy devices. Set to false when using OVN load balancers or when production network is physical (direct LAN attachment)."
   type        = bool
   default     = true
+}
+
+variable "use_ovn_lb" {
+  description = "Use OVN load balancer instead of proxy devices for external access. When true, proxy devices are not created and access should be configured via the ovn-load-balancer module."
+  type        = bool
+  default     = false
 }
 
 variable "external_mqtt_port" {

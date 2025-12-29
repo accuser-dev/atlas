@@ -1,0 +1,139 @@
+#cloud-config
+# =============================================================================
+# OVN Central Cloud-Init Configuration
+# =============================================================================
+# Installs and configures OVN Central (northbound + southbound databases)
+# for use with Incus OVN networking
+
+package_update: true
+
+# OVN is in the edge/testing repository
+apk_repos:
+  preserve_repositories: true
+
+write_files:
+  # Enable testing repository for OVN packages
+  - path: /etc/apk/repositories
+    append: true
+    content: |
+      @testing https://dl-cdn.alpinelinux.org/alpine/edge/testing
+
+  # OVN directories setup script
+  - path: /etc/local.d/ovn-setup.start
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      # Create OVN directories
+      mkdir -p /var/lib/ovn
+      mkdir -p /var/run/ovn
+      mkdir -p /var/run/openvswitch
+      mkdir -p /var/log/ovn
+      chown -R root:root /var/lib/ovn /var/run/ovn /var/run/openvswitch /var/log/ovn
+
+  # Custom OVN northbound database service
+  - path: /etc/init.d/ovn-northd-db
+    permissions: "0755"
+    content: |
+      #!/sbin/openrc-run
+
+      name="OVN Northbound Database"
+      description="OVN Northbound OVSDB Server"
+
+      command="/usr/sbin/ovsdb-server"
+      command_args="--remote=punix:/var/run/ovn/ovnnb_db.sock \
+                    --remote=ptcp:${northbound_port}:0.0.0.0 \
+                    --pidfile=/var/run/ovn/ovnnb_db.pid \
+                    --log-file=/var/log/ovn/ovnnb_db.log \
+                    /var/lib/ovn/ovnnb_db.db"
+      command_background="yes"
+      pidfile="/var/run/ovn/ovnnb_db.pid"
+
+      depend() {
+        need net
+        after ovsdb-server
+      }
+
+      start_pre() {
+        # Initialize database if it doesn't exist
+        if [ ! -f /var/lib/ovn/ovnnb_db.db ]; then
+          /usr/bin/ovsdb-tool create /var/lib/ovn/ovnnb_db.db /usr/share/ovn/ovn-nb.ovsschema
+        fi
+        mkdir -p /var/run/ovn
+      }
+
+  # Custom OVN southbound database service
+  - path: /etc/init.d/ovn-southd-db
+    permissions: "0755"
+    content: |
+      #!/sbin/openrc-run
+
+      name="OVN Southbound Database"
+      description="OVN Southbound OVSDB Server"
+
+      command="/usr/sbin/ovsdb-server"
+      command_args="--remote=punix:/var/run/ovn/ovnsb_db.sock \
+                    --remote=ptcp:${southbound_port}:0.0.0.0 \
+                    --pidfile=/var/run/ovn/ovnsb_db.pid \
+                    --log-file=/var/log/ovn/ovnsb_db.log \
+                    /var/lib/ovn/ovnsb_db.db"
+      command_background="yes"
+      pidfile="/var/run/ovn/ovnsb_db.pid"
+
+      depend() {
+        need net
+        after ovsdb-server
+      }
+
+      start_pre() {
+        # Initialize database if it doesn't exist
+        if [ ! -f /var/lib/ovn/ovnsb_db.db ]; then
+          /usr/bin/ovsdb-tool create /var/lib/ovn/ovnsb_db.db /usr/share/ovn/ovn-sb.ovsschema
+        fi
+        mkdir -p /var/run/ovn
+      }
+
+  # OVN northd daemon service (connects NB and SB databases)
+  - path: /etc/init.d/ovn-northd
+    permissions: "0755"
+    content: |
+      #!/sbin/openrc-run
+
+      name="OVN Northd"
+      description="OVN Northbound Daemon (connects NB and SB databases)"
+
+      command="/usr/bin/ovn-northd"
+      command_args="--ovnnb-db=unix:/var/run/ovn/ovnnb_db.sock \
+                    --ovnsb-db=unix:/var/run/ovn/ovnsb_db.sock \
+                    --pidfile=/var/run/ovn/ovn-northd.pid \
+                    --log-file=/var/log/ovn/ovn-northd.log"
+      command_background="yes"
+      pidfile="/var/run/ovn/ovn-northd.pid"
+
+      depend() {
+        need ovn-northd-db ovn-southd-db
+      }
+
+runcmd:
+  # Install OVN from testing repository
+  - apk update
+  - apk add openvswitch ovn@testing
+
+  # Enable and start local.d for setup scripts
+  - rc-update add local default
+  - /etc/local.d/ovn-setup.start
+
+  # Enable OVN services
+  - rc-update add ovn-northd-db default
+  - rc-update add ovn-southd-db default
+  - rc-update add ovn-northd default
+
+  # Start OVN services
+  - rc-service ovn-northd-db start
+  - rc-service ovn-southd-db start
+  - sleep 2
+  - rc-service ovn-northd start
+
+  # Verify services are running
+  - "echo 'OVN Central services started'"
+  - "echo 'Northbound: tcp:0.0.0.0:${northbound_port}'"
+  - "echo 'Southbound: tcp:0.0.0.0:${southbound_port}'"

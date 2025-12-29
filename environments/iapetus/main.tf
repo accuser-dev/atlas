@@ -19,13 +19,18 @@ module "base" {
 
   storage_pool = "local"
 
+  # OVN configuration
+  network_backend    = var.network_backend
+  ovn_uplink_network = var.ovn_uplink_network
+  ovn_integration    = var.ovn_integration
+
   # Network configuration - simplified to production + management
   # Production network supports physical mode for IncusOS direct LAN attachment
   production_network_name   = var.production_network_name
   production_network_type   = var.production_network_type
   production_network_parent = var.production_network_parent
 
-  # IPv4/IPv6 config only used when type is 'bridge'
+  # IPv4/IPv6 config only used when type is 'bridge' or 'ovn'
   production_network_ipv4     = var.production_network_ipv4
   production_network_nat      = var.production_network_nat
   production_network_ipv6     = var.production_network_ipv6
@@ -362,7 +367,9 @@ module "coredns01" {
 
   # External access via Incus proxy devices (bridge mode only)
   # In physical mode, containers get LAN IPs directly - no proxy needed
-  enable_external_access = !module.base.production_network_is_physical
+  # With OVN, we use OVN load balancers instead
+  enable_external_access = var.network_backend == "bridge" && !module.base.production_network_is_physical
+  use_ovn_lb             = var.network_backend == "ovn"
   external_dns_port      = "53"
 
   # Resource limits (from centralized service config)
@@ -600,4 +607,41 @@ module "haproxy01" {
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.haproxy.cpu
   memory_limit = local.services.haproxy.memory
+}
+
+# =============================================================================
+# OVN Load Balancers (Optional - when using OVN backend)
+# =============================================================================
+# OVN load balancers replace proxy devices for external service access
+# VIPs must be within the uplink network's ipv4.ovn.ranges
+
+module "coredns_lb" {
+  source = "../../modules/ovn-load-balancer"
+
+  count = var.network_backend == "ovn" && var.coredns_lb_address != "" ? 1 : 0
+
+  network_name   = module.base.production_network_name
+  listen_address = var.coredns_lb_address
+  description    = "OVN load balancer for CoreDNS"
+
+  backends = [
+    {
+      name           = "coredns01"
+      target_address = module.coredns01.ipv4_address
+      target_port    = 53
+    }
+  ]
+
+  ports = [
+    {
+      description = "DNS over UDP"
+      protocol    = "udp"
+      listen_port = 53
+    },
+    {
+      description = "DNS over TCP"
+      protocol    = "tcp"
+      listen_port = 53
+    }
+  ]
 }
