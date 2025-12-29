@@ -134,3 +134,17 @@ output "network_backend" {
   description = "Network backend in use (bridge or ovn)"
   value       = var.network_backend
 }
+
+# =============================================================================
+# OVN Load Balancer VIPs
+# =============================================================================
+
+output "mosquitto_lb_address" {
+  description = "OVN load balancer VIP for Mosquitto (LAN-routable)"
+  value       = var.network_backend == "ovn" && var.mosquitto_lb_address != "" ? var.mosquitto_lb_address : null
+}
+
+output "coredns_lb_address" {
+  description = "OVN load balancer VIP for CoreDNS (LAN-routable)"
+  value       = var.network_backend == "ovn" && var.coredns_lb_address != "" ? var.coredns_lb_address : null
+}
