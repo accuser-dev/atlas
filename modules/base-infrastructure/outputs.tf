@@ -38,7 +38,7 @@ output "ovn_production_network" {
     var.network_backend == "ovn"
     ? (var.ovn_production_external
       ? data.incus_network.ovn_production_external[0]
-      : incus_network.ovn_production[0])
+    : incus_network.ovn_production[0])
     : null
   )
 }
