@@ -19,8 +19,8 @@ write_files:
       set -eu
 
       STEPPATH="/home/step"
-      CONFIG_FILE="$${STEPPATH}/config/ca.json"
-      PASSWORD_FILE="$${STEPPATH}/secrets/password"
+      CONFIG_FILE="$${STEPPATH}/.step/config/ca.json"
+      PASSWORD_FILE="$${STEPPATH}/.step/secrets/password"
 
       log_info()  { echo "INFO:  $*"; }
       log_error() { echo "ERROR: $*" >&2; }
@@ -34,7 +34,7 @@ write_files:
       if [ ! -f "$${CONFIG_FILE}" ]; then
         log_info "Initializing Step CA..."
 
-        mkdir -p "$${STEPPATH}/secrets"
+        mkdir -p "$${STEPPATH}/.step/secrets"
         PASSWORD=$(generate_password)
         echo "$${PASSWORD}" > "$${PASSWORD_FILE}"
         chmod 600 "$${PASSWORD_FILE}"
@@ -62,8 +62,8 @@ write_files:
       fi
 
       # Export fingerprint for easy access
-      if [ -f "$${STEPPATH}/certs/root_ca.crt" ]; then
-        FINGERPRINT=$(step certificate fingerprint "$${STEPPATH}/certs/root_ca.crt")
+      if [ -f "$${STEPPATH}/.step/certs/root_ca.crt" ]; then
+        FINGERPRINT=$(step certificate fingerprint "$${STEPPATH}/.step/certs/root_ca.crt")
         echo "$${FINGERPRINT}" > "$${STEPPATH}/fingerprint"
         chmod 644 "$${STEPPATH}/fingerprint"
         log_info "CA FINGERPRINT: $${FINGERPRINT}"
@@ -109,12 +109,12 @@ runcmd:
     mv "step_$${STEP_VERSION}/bin/step" /usr/local/bin/step
     chmod +x /usr/local/bin/step
     rm -rf "step_linux_$${STEP_VERSION}_amd64.tar.gz" "step_$${STEP_VERSION}"
-    # Download step-ca
+    # Download step-ca (tarball extracts directly, no subdirectory)
     curl -sLO "https://github.com/smallstep/certificates/releases/download/v$${STEP_VERSION}/step-ca_linux_$${STEP_VERSION}_amd64.tar.gz"
     tar -xzf "step-ca_linux_$${STEP_VERSION}_amd64.tar.gz"
-    mv "step-ca_$${STEP_VERSION}/bin/step-ca" /usr/local/bin/step-ca
+    mv step-ca /usr/local/bin/step-ca
     chmod +x /usr/local/bin/step-ca
-    rm -rf "step-ca_linux_$${STEP_VERSION}_amd64.tar.gz" "step-ca_$${STEP_VERSION}"
+    rm -rf "step-ca_linux_$${STEP_VERSION}_amd64.tar.gz" LICENSE README.md
   # Create step user and home directory
   - adduser -D -h /home/step -s /sbin/nologin step 2>/dev/null || true
   - mkdir -p /home/step
