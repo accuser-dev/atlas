@@ -139,13 +139,6 @@ variable "datasources" {
   default = []
 }
 
-# Dashboard Provisioning
-variable "enable_default_dashboards" {
-  description = "Enable provisioning of default Atlas dashboards (health monitoring)"
-  type        = bool
-  default     = true
-}
-
 # Snapshot Scheduling
 variable "enable_snapshots" {
   description = "Enable automatic snapshots for the data volume"
