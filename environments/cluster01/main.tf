@@ -226,13 +226,13 @@ module "prometheus01" {
               service: 'coredns'
               instance: 'coredns01'
 
-      # Promtail metrics
-      - job_name: 'promtail'
+      # Alloy metrics
+      - job_name: 'alloy'
         static_configs:
-          - targets: ['promtail01.incus:9080']
+          - targets: ['alloy01.incus:12345']
             labels:
-              service: 'promtail'
-              instance: 'promtail01'
+              service: 'alloy'
+              instance: 'alloy01'
 
       # Incus container metrics (mTLS)
       - job_name: 'incus'
@@ -404,14 +404,15 @@ module "incus_metrics" {
 }
 
 # =============================================================================
-# Log Shipping (Promtail)
+# Log Shipping (Alloy)
 # =============================================================================
+# Grafana Alloy replaces Promtail (EOL) for log shipping to Loki
 
-module "promtail01" {
-  source = "../../modules/promtail"
+module "alloy01" {
+  source = "../../modules/alloy"
 
-  instance_name = "promtail01"
-  profile_name  = "promtail"
+  instance_name = "alloy01"
+  profile_name  = "alloy"
 
   profiles = [
     module.base.container_base_profile.name,
@@ -424,8 +425,8 @@ module "promtail01" {
     environment = "cluster"
   }
 
-  cpu_limit    = local.services.promtail.cpu
-  memory_limit = local.services.promtail.memory
+  cpu_limit    = local.services.alloy.cpu
+  memory_limit = local.services.alloy.memory
 }
 
 # =============================================================================

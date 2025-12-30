@@ -96,14 +96,14 @@ output "incus_metrics_certificate_fingerprint" {
 # Log Shipping
 # =============================================================================
 
-output "promtail_endpoint" {
-  description = "Promtail HTTP API endpoint URL"
-  value       = module.promtail01.promtail_endpoint
+output "alloy_endpoint" {
+  description = "Alloy HTTP API endpoint URL"
+  value       = module.alloy01.alloy_endpoint
 }
 
-output "promtail_loki_target" {
-  description = "Loki URL that Promtail is shipping logs to"
-  value       = module.promtail01.loki_push_url
+output "alloy_loki_target" {
+  description = "Loki URL that Alloy is shipping logs to"
+  value       = module.alloy01.loki_target
 }
 
 # =============================================================================

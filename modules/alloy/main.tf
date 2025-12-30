@@ -1,24 +1,25 @@
 # =============================================================================
-# Promtail Module
+# Alloy Module
 # =============================================================================
-# Log shipping agent for sending logs to a central Loki instance
+# Grafana Alloy - OpenTelemetry collector for logs, metrics, and traces
+# Replaces Promtail for log shipping to Loki
 # Uses Alpine Linux system container with cloud-init for configuration
 
 locals {
   # Cloud-init configuration
   cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    promtail_version = var.promtail_version
-    promtail_port    = var.promtail_port
-    loki_push_url    = var.loki_push_url
-    hostname         = var.instance_name
-    extra_labels     = var.extra_labels
+    alloy_version = var.alloy_version
+    http_port     = var.http_port
+    loki_push_url = var.loki_push_url
+    hostname      = var.instance_name
+    extra_labels  = var.extra_labels
   })
 }
 
 # Service-specific profile
 # Contains resource limits, root disk with size limit, and service-specific devices
 # Network is provided by profiles passed via var.profiles
-resource "incus_profile" "promtail" {
+resource "incus_profile" "alloy" {
   name = var.profile_name
 
   config = {
@@ -39,11 +40,11 @@ resource "incus_profile" "promtail" {
   }
 }
 
-resource "incus_instance" "promtail" {
+resource "incus_instance" "alloy" {
   name     = var.instance_name
   image    = var.image
   type     = "container"
-  profiles = concat(var.profiles, [incus_profile.promtail.name])
+  profiles = concat(var.profiles, [incus_profile.alloy.name])
 
   # Pin to specific cluster node if specified
   target = var.target_node != "" ? var.target_node : null
@@ -53,6 +54,6 @@ resource "incus_instance" "promtail" {
   }
 
   depends_on = [
-    incus_profile.promtail
+    incus_profile.alloy
   ]
 }

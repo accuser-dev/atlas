@@ -1,5 +1,5 @@
 variable "instance_name" {
-  description = "Name of the Promtail instance"
+  description = "Name of the Alloy instance"
   type        = string
 }
 
@@ -14,10 +14,10 @@ variable "image" {
   default     = "images:alpine/3.21/cloud"
 }
 
-variable "promtail_version" {
-  description = "Version of Promtail to install"
+variable "alloy_version" {
+  description = "Version of Grafana Alloy to install"
   type        = string
-  default     = "3.3.2"
+  default     = "1.5.1"
 }
 
 variable "cpu_limit" {
@@ -65,19 +65,19 @@ variable "profiles" {
   default     = ["default"]
 }
 
-variable "promtail_port" {
-  description = "Port that Promtail listens on for HTTP API"
+variable "http_port" {
+  description = "Port that Alloy listens on for HTTP API and UI"
   type        = string
-  default     = "9080"
+  default     = "12345"
 
   validation {
-    condition     = can(regex("^[0-9]+$", var.promtail_port)) && tonumber(var.promtail_port) >= 1 && tonumber(var.promtail_port) <= 65535
+    condition     = can(regex("^[0-9]+$", var.http_port)) && tonumber(var.http_port) >= 1 && tonumber(var.http_port) <= 65535
     error_message = "Port must be a number between 1 and 65535"
   }
 }
 
 variable "loki_push_url" {
-  description = "URL of the Loki instance to push logs to (e.g., http://loki01.iapetus:3100/loki/api/v1/push)"
+  description = "URL of the Loki instance to push logs to (e.g., http://192.168.68.6:3100/loki/api/v1/push)"
   type        = string
 
   validation {

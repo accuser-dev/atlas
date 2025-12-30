@@ -1,0 +1,119 @@
+#cloud-config
+# Grafana Alloy system container configuration
+# Uses Alpine Linux with OpenRC service management
+
+package_update: true
+
+packages:
+  - curl
+  - gcompat
+
+write_files:
+  # Alloy configuration file (River syntax)
+  - path: /etc/alloy/config.alloy
+    permissions: '0644'
+    content: |
+      // Grafana Alloy configuration for log shipping to Loki
+      // River syntax - see https://grafana.com/docs/alloy/latest/
+
+      // =============================================================================
+      // Loki Write Endpoint
+      // =============================================================================
+      loki.write "default" {
+        endpoint {
+          url = "${loki_push_url}"
+        }
+      }
+
+      // =============================================================================
+      // Local File Log Scraping
+      // =============================================================================
+      // Scrape system log files
+      local.file_match "system_logs" {
+        path_targets = [
+          {"__path__" = "/var/log/*.log"},
+          {"__path__" = "/var/log/messages"},
+        ]
+      }
+
+      loki.source.file "system" {
+        targets    = local.file_match.system_logs.targets
+        forward_to = [loki.process.add_labels.receiver]
+      }
+
+      // =============================================================================
+      // Label Processing
+      // =============================================================================
+      loki.process "add_labels" {
+        forward_to = [loki.write.default.receiver]
+
+        // Add static labels
+        stage.static_labels {
+          values = {
+            job  = "alloy",
+            host = "${hostname}",
+%{ for key, value in extra_labels ~}
+            ${key} = "${value}",
+%{ endfor ~}
+          }
+        }
+
+        // Extract filename as label
+        stage.label_drop {
+          values = ["filename"]
+        }
+      }
+
+  # OpenRC init script for Alloy
+  - path: /etc/init.d/alloy
+    permissions: '0755'
+    content: |
+      #!/sbin/openrc-run
+
+      name="alloy"
+      description="Grafana Alloy - OpenTelemetry Collector"
+      command="/usr/local/bin/alloy"
+      command_args="run --storage.path=/var/lib/alloy --server.http.listen-addr=0.0.0.0:${http_port} /etc/alloy/config.alloy"
+      command_background=true
+      command_user="alloy"
+      pidfile="/run/$${RC_SVCNAME}.pid"
+      output_log="/var/log/alloy.log"
+      error_log="/var/log/alloy.log"
+      directory="/var/lib/alloy"
+
+      depend() {
+        need net
+        after firewall
+      }
+
+      start_pre() {
+        # Ensure alloy user owns required directories
+        mkdir -p /var/lib/alloy
+        chown -R alloy:alloy /etc/alloy 2>/dev/null || true
+        chown -R alloy:alloy /var/lib/alloy 2>/dev/null || true
+      }
+
+runcmd:
+  # Download and install Alloy
+  - |
+    ALLOY_VERSION="${alloy_version}"
+    cd /tmp
+    curl -sLO "https://github.com/grafana/alloy/releases/download/v$${ALLOY_VERSION}/alloy-linux-amd64.zip"
+    unzip -o "alloy-linux-amd64.zip"
+    mv alloy-linux-amd64 /usr/local/bin/alloy
+    chmod +x /usr/local/bin/alloy
+    rm -f "alloy-linux-amd64.zip"
+  # Create alloy user and directories
+  - addgroup -g 10001 alloy 2>/dev/null || true
+  - adduser -D -u 10001 -G alloy -H -s /sbin/nologin alloy 2>/dev/null || true
+  - mkdir -p /var/lib/alloy /etc/alloy
+  - chown -R alloy:alloy /var/lib/alloy /etc/alloy
+  # Create log file with proper permissions
+  - touch /var/log/alloy.log
+  - chown alloy:alloy /var/log/alloy.log
+  # Allow alloy to read system logs
+  - chmod 644 /var/log/*.log 2>/dev/null || true
+  - chmod 644 /var/log/messages 2>/dev/null || true
+  # Enable and start alloy service
+  - rc-update add alloy default
+  - rc-service alloy start

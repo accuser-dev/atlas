@@ -31,10 +31,10 @@ locals {
       memory = "128MB"
       port   = 53
     }
-    promtail = {
+    alloy = {
       cpu    = "1"
       memory = "256MB"
-      port   = 9080
+      port   = 12345
     }
   }
 }
