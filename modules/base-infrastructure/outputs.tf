@@ -33,8 +33,14 @@ output "gitops_network" {
 # =============================================================================
 
 output "ovn_production_network" {
-  description = "OVN production network resource (null if not using OVN backend)"
-  value       = var.network_backend == "ovn" ? incus_network.ovn_production[0] : null
+  description = "OVN production network resource (null if not using OVN backend or using external)"
+  value = (
+    var.network_backend == "ovn"
+    ? (var.ovn_production_external
+      ? data.incus_network.ovn_production_external[0]
+      : incus_network.ovn_production[0])
+    : null
+  )
 }
 
 output "ovn_management_network" {

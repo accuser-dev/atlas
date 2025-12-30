@@ -297,6 +297,9 @@ module "alertmanager01" {
 # =============================================================================
 # Node Exporters - Pinned to Each Cluster Node
 # =============================================================================
+# Node exporters stay on management network so Prometheus can reach them via
+# .incus DNS. Note: incusbr0 containers can't be resolved via .incus DNS from
+# OVN containers because each network has its own DNS zone.
 
 module "node_exporter" {
   source = "../../modules/node-exporter"

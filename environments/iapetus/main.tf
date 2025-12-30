@@ -20,9 +20,10 @@ module "base" {
   storage_pool = "local"
 
   # OVN configuration
-  network_backend    = var.network_backend
-  ovn_uplink_network = var.ovn_uplink_network
-  ovn_integration    = var.ovn_integration
+  network_backend         = var.network_backend
+  ovn_uplink_network      = var.ovn_uplink_network
+  ovn_integration         = var.ovn_integration
+  ovn_production_external = var.ovn_production_external
 
   # Network configuration - simplified to production + management
   # Production network supports physical mode for IncusOS direct LAN attachment
@@ -315,6 +316,9 @@ module "node_exporter01" {
   profile_name  = "node-exporter"
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
+  # Node-exporter stays on management network so Prometheus can reach it via .incus DNS.
+  # Note: incusbr0 containers can't be resolved via .incus DNS from OVN containers
+  # because each network has its own DNS zone.
   profiles = [
     module.base.container_base_profile.name,
     module.base.management_network_profile.name,
@@ -342,9 +346,10 @@ module "coredns01" {
   ]
 
   # Static IP configuration for DNS server (required for clients to find it)
-  # In physical mode, dns_nameserver_ip and gateway must be set in tfvars
-  ipv4_address = var.dns_nameserver_ip
-  ipv4_gateway = var.dns_gateway_ip
+  # In physical/bridge mode: dns_nameserver_ip and gateway must be set in tfvars
+  # In OVN mode: container gets dynamic IP from OVN network, LB VIP provides LAN access
+  ipv4_address = var.network_backend == "ovn" ? "" : var.dns_nameserver_ip
+  ipv4_gateway = var.network_backend == "ovn" ? "" : var.dns_gateway_ip
 
   # Zone configuration - split-horizon for accuser.dev
   domain = var.dns_domain
@@ -358,8 +363,10 @@ module "coredns01" {
   # Additional static DNS records (hosts, cluster nodes, manually configured services)
   additional_records = var.dns_additional_records
 
-  # Nameserver IP - use the static IP if set, otherwise production network gateway (bridge mode)
-  nameserver_ip = var.dns_nameserver_ip != "" ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0]
+  # Nameserver IP - the LAN-routable address where clients reach the DNS server
+  # In OVN mode: use the OVN load balancer VIP
+  # In physical/bridge mode: use the static IP or production network gateway
+  nameserver_ip = var.network_backend == "ovn" ? var.coredns_lb_address : (var.dns_nameserver_ip != "" ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0])
 
   # Forwarding configuration
   incus_dns_server     = split("/", var.management_network_ipv4)[0] # Management network gateway
@@ -642,6 +649,58 @@ module "coredns_lb" {
       description = "DNS over TCP"
       protocol    = "tcp"
       listen_port = 53
+    }
+  ]
+}
+
+module "haproxy_lb" {
+  source = "../../modules/ovn-load-balancer"
+
+  count = var.network_backend == "ovn" && var.haproxy_lb_address != "" && var.enable_haproxy ? 1 : 0
+
+  network_name   = module.base.production_network_name
+  listen_address = var.haproxy_lb_address
+  description    = "OVN load balancer for HAProxy (Incus cluster access)"
+
+  backends = [
+    {
+      name           = "haproxy01"
+      target_address = module.haproxy01[0].ipv4_address
+      target_port    = 8443
+    }
+  ]
+
+  ports = [
+    {
+      description = "Incus API (HTTPS)"
+      protocol    = "tcp"
+      listen_port = 8443
+    }
+  ]
+}
+
+module "loki_lb" {
+  source = "../../modules/ovn-load-balancer"
+
+  count = var.network_backend == "ovn" && var.loki_lb_address != "" ? 1 : 0
+
+  network_name   = module.base.management_network_name
+  listen_address = var.loki_lb_address
+  description    = "OVN load balancer for Loki (cross-environment log shipping)"
+
+  backends = [
+    {
+      name           = "loki01"
+      target_address = module.loki01.ipv4_address
+      target_port    = 3100
+    }
+  ]
+
+  ports = [
+    {
+      description = "Loki HTTP API"
+      protocol    = "tcp"
+      listen_port = 3100
     }
   ]
 }

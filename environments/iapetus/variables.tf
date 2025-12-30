@@ -372,9 +372,33 @@ variable "ovn_integration" {
   default     = ""
 }
 
+variable "ovn_production_external" {
+  description = "Use an existing OVN production network instead of creating one. Set to true when sharing ovn-production with another environment (e.g., cluster01)."
+  type        = bool
+  default     = false
+}
+
 variable "coredns_lb_address" {
-  description = "OVN load balancer VIP for CoreDNS (e.g., '192.168.68.12'). Must be in the uplink's ipv4.ovn.ranges."
+  description = "OVN load balancer VIP for CoreDNS (e.g., '192.168.68.4'). Must be in the uplink's ipv4.ovn.ranges."
   type        = string
   default     = ""
+}
+
+variable "haproxy_lb_address" {
+  description = "OVN load balancer VIP for HAProxy (e.g., '192.168.68.5'). Must be in the uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
+variable "loki_lb_address" {
+  description = "OVN load balancer VIP for Loki (e.g., '192.168.68.6'). Must be in the uplink's ipv4.ovn.ranges. Enables cross-environment log shipping."
+  type        = string
+  default     = ""
+}
+
+variable "skip_ovn_config" {
+  description = "Skip OVN daemon configuration (set to true if OVN is already configured via CLI)"
+  type        = bool
+  default     = false
 }
 

@@ -109,8 +109,9 @@ resource "incus_network" "gitops" {
 # Requires OVN central and uplink network to be configured beforehand.
 
 # OVN Production Network - overlay network for public-facing services
+# When ovn_production_external is true, use an existing network (shared across environments)
 resource "incus_network" "ovn_production" {
-  count = var.network_backend == "ovn" ? 1 : 0
+  count = var.network_backend == "ovn" && !var.ovn_production_external ? 1 : 0
 
   name        = "ovn-production"
   description = "OVN production network for public-facing services"
@@ -123,6 +124,12 @@ resource "incus_network" "ovn_production" {
     "ipv4.nat"     = tostring(var.production_network_nat)
     "ipv4.dhcp"    = "true"
   }
+}
+
+# Data source for existing OVN production network (when shared across environments)
+data "incus_network" "ovn_production_external" {
+  count = var.network_backend == "ovn" && var.ovn_production_external ? 1 : 0
+  name  = "ovn-production"
 }
 
 # OVN Management Network - overlay network for internal services
@@ -165,10 +172,12 @@ resource "incus_network" "ovn_gitops" {
 # These locals select the correct network based on the backend type
 
 locals {
-  # Production network - use OVN or bridge/physical
+  # Production network - use OVN (created or external) or bridge/physical
   production_network_name = (
     var.network_backend == "ovn"
-    ? incus_network.ovn_production[0].name
+    ? (var.ovn_production_external
+      ? data.incus_network.ovn_production_external[0].name
+      : incus_network.ovn_production[0].name)
     : incus_network.production[0].name
   )
 

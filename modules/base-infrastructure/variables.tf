@@ -202,3 +202,9 @@ variable "ovn_integration" {
   type        = string
   default     = ""
 }
+
+variable "ovn_production_external" {
+  description = "Set to true to use an existing OVN production network instead of creating one. Use this when sharing ovn-production across multiple environments connected to the same OVN Central."
+  type        = bool
+  default     = false
+}
