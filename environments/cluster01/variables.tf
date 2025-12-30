@@ -216,6 +216,12 @@ variable "alloy_syslog_lb_address" {
   default     = ""
 }
 
+variable "prometheus_lb_address" {
+  description = "OVN load balancer VIP for Prometheus (e.g., '192.168.68.13'). Enables federation from iapetus."
+  type        = string
+  default     = ""
+}
+
 # Note: OVN northbound connection is provided by the ovn-central container module
 # when network_backend = "ovn". No manual configuration required.
 

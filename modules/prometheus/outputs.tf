@@ -3,6 +3,11 @@ output "instance_name" {
   value       = incus_instance.prometheus.name
 }
 
+output "ipv4_address" {
+  description = "IPv4 address of the Prometheus instance"
+  value       = incus_instance.prometheus.ipv4_address
+}
+
 output "profile_name" {
   description = "Name of the created profile"
   value       = incus_profile.prometheus.name

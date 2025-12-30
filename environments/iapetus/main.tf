@@ -250,6 +250,21 @@ module "prometheus01" {
           insecure_skip_verify: true
 %{endif~}
 
+%{if var.cluster01_prometheus_url != ""~}
+      # Prometheus federation from cluster01
+      # Pulls all metrics from cluster01's Prometheus for unified visualization
+      - job_name: 'prometheus-cluster01'
+        honor_labels: true
+        metrics_path: '/federate'
+        params:
+          'match[]':
+            - '{job=~".+"}'
+        static_configs:
+          - targets: ['${replace(var.cluster01_prometheus_url, "http://", "")}']
+            labels:
+              cluster: 'cluster01'
+%{endif~}
+
     # Alerting rules for infrastructure monitoring
     rule_files:
       - '/etc/prometheus/alerts/*.yml'

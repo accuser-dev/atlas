@@ -158,3 +158,8 @@ output "alloy_syslog_lb_address" {
   description = "OVN load balancer VIP for Alloy syslog receiver (LAN-routable, UDP:1514)"
   value       = var.network_backend == "ovn" && var.alloy_syslog_lb_address != "" ? var.alloy_syslog_lb_address : null
 }
+
+output "prometheus_lb_address" {
+  description = "OVN load balancer VIP for Prometheus (LAN-routable, for federation from iapetus)"
+  value       = var.network_backend == "ovn" && var.prometheus_lb_address != "" ? var.prometheus_lb_address : null
+}

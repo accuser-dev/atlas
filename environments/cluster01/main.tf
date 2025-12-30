@@ -193,14 +193,14 @@ module "prometheus01" {
               instance: 'prometheus01'
 
       # Node exporters on each cluster node
-      %{for node in local.cluster_nodes~}
+%{for node in local.cluster_nodes}
       - job_name: 'node-${node}'
         static_configs:
           - targets: ['node-exporter-${node}.incus:9100']
             labels:
               service: 'node-exporter'
               node: '${node}'
-      %{endfor~}
+%{endfor}
 
       # Alertmanager
       - job_name: 'alertmanager'
@@ -523,6 +523,32 @@ module "alloy_syslog_lb" {
       description = "Syslog over UDP"
       protocol    = "udp"
       listen_port = 1514
+    }
+  ]
+}
+
+module "prometheus_lb" {
+  source = "../../modules/ovn-load-balancer"
+
+  count = var.network_backend == "ovn" && var.prometheus_lb_address != "" ? 1 : 0
+
+  network_name   = module.base.management_network_name
+  listen_address = var.prometheus_lb_address
+  description    = "OVN load balancer for Prometheus (enables federation from iapetus)"
+
+  backends = [
+    {
+      name           = "prometheus01"
+      target_address = module.prometheus01.ipv4_address
+      target_port    = 9090
+    }
+  ]
+
+  ports = [
+    {
+      description = "Prometheus HTTP"
+      protocol    = "tcp"
+      listen_port = 9090
     }
   ]
 }

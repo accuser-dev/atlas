@@ -402,3 +402,13 @@ variable "skip_ovn_config" {
   default     = false
 }
 
+# =============================================================================
+# Cross-Environment Integration
+# =============================================================================
+
+variable "cluster01_prometheus_url" {
+  description = "URL of cluster01 Prometheus for federation (e.g., 'http://192.168.68.13:9090'). Leave empty to disable federation."
+  type        = string
+  default     = ""
+}
+
