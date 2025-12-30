@@ -106,6 +106,11 @@ output "alloy_loki_target" {
   value       = module.alloy01.loki_target
 }
 
+output "alloy_syslog_endpoint" {
+  description = "Syslog receiver endpoint (UDP) - configure IncusOS hosts to send logs here"
+  value       = module.alloy01.syslog_endpoint
+}
+
 # =============================================================================
 # OVN Configuration
 # =============================================================================
@@ -147,4 +152,9 @@ output "mosquitto_lb_address" {
 output "coredns_lb_address" {
   description = "OVN load balancer VIP for CoreDNS (LAN-routable)"
   value       = var.network_backend == "ovn" && var.coredns_lb_address != "" ? var.coredns_lb_address : null
+}
+
+output "alloy_syslog_lb_address" {
+  description = "OVN load balancer VIP for Alloy syslog receiver (LAN-routable, UDP:1514)"
+  value       = var.network_backend == "ovn" && var.alloy_syslog_lb_address != "" ? var.alloy_syslog_lb_address : null
 }

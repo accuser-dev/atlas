@@ -22,3 +22,8 @@ output "loki_target" {
   description = "Loki URL that Alloy is shipping logs to"
   value       = var.loki_push_url
 }
+
+output "syslog_endpoint" {
+  description = "Syslog receiver endpoint (UDP) - configure IncusOS hosts to send logs here"
+  value       = var.enable_syslog_receiver ? "${incus_instance.alloy.ipv4_address}:${var.syslog_port}" : null
+}

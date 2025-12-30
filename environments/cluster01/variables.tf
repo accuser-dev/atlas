@@ -210,6 +210,12 @@ variable "coredns_lb_address" {
   default     = ""
 }
 
+variable "alloy_syslog_lb_address" {
+  description = "OVN load balancer VIP for Alloy syslog receiver (e.g., '192.168.68.12'). Must be in the uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
 # Note: OVN northbound connection is provided by the ovn-central container module
 # when network_backend = "ovn". No manual configuration required.
 

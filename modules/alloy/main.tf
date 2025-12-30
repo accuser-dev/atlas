@@ -8,11 +8,13 @@
 locals {
   # Cloud-init configuration
   cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    alloy_version = var.alloy_version
-    http_port     = var.http_port
-    loki_push_url = var.loki_push_url
-    hostname      = var.instance_name
-    extra_labels  = var.extra_labels
+    alloy_version          = var.alloy_version
+    http_port              = var.http_port
+    loki_push_url          = var.loki_push_url
+    hostname               = var.instance_name
+    extra_labels           = var.extra_labels
+    enable_syslog_receiver = var.enable_syslog_receiver
+    syslog_port            = var.syslog_port
   })
 }
 

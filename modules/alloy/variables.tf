@@ -97,3 +97,20 @@ variable "target_node" {
   type        = string
   default     = ""
 }
+
+variable "enable_syslog_receiver" {
+  description = "Enable syslog receiver for remote syslog input (e.g., from IncusOS hosts)"
+  type        = bool
+  default     = false
+}
+
+variable "syslog_port" {
+  description = "Port to listen on for syslog messages (UDP)"
+  type        = string
+  default     = "1514"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.syslog_port)) && tonumber(var.syslog_port) >= 1 && tonumber(var.syslog_port) <= 65535
+    error_message = "Port must be a number between 1 and 65535"
+  }
+}

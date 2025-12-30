@@ -425,6 +425,10 @@ module "alloy01" {
     environment = "cluster"
   }
 
+  # Enable syslog receiver for IncusOS host logs
+  enable_syslog_receiver = true
+  syslog_port            = "1514"
+
   cpu_limit    = local.services.alloy.cpu
   memory_limit = local.services.alloy.memory
 }
@@ -493,6 +497,32 @@ module "coredns_lb" {
       description = "DNS over TCP"
       protocol    = "tcp"
       listen_port = 53
+    }
+  ]
+}
+
+module "alloy_syslog_lb" {
+  source = "../../modules/ovn-load-balancer"
+
+  count = var.network_backend == "ovn" && var.alloy_syslog_lb_address != "" ? 1 : 0
+
+  network_name   = module.base.management_network_name
+  listen_address = var.alloy_syslog_lb_address
+  description    = "OVN load balancer for Alloy syslog receiver (IncusOS host logs)"
+
+  backends = [
+    {
+      name           = "alloy01"
+      target_address = module.alloy01.ipv4_address
+      target_port    = 1514
+    }
+  ]
+
+  ports = [
+    {
+      description = "Syslog over UDP"
+      protocol    = "udp"
+      listen_port = 1514
     }
   ]
 }

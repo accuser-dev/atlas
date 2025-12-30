@@ -41,8 +41,50 @@ write_files:
         forward_to = [loki.process.add_labels.receiver]
       }
 
+%{ if enable_syslog_receiver ~}
       // =============================================================================
-      // Label Processing
+      // Syslog Receiver (for IncusOS host logs)
+      // =============================================================================
+      loki.source.syslog "incusos" {
+        listener {
+          address              = "0.0.0.0:${syslog_port}"
+          protocol             = "udp"
+          syslog_format        = "rfc5424"
+          use_incoming_timestamp = true
+          labels               = { job = "syslog" }
+        }
+
+        forward_to = [loki.process.syslog_labels.receiver]
+      }
+
+      // Process syslog entries with host-specific labels
+      loki.process "syslog_labels" {
+        forward_to = [loki.write.default.receiver]
+
+        // Relabel to preserve syslog metadata
+        stage.labels {
+          values = {
+            hostname = "",
+            appname  = "",
+            facility = "",
+            severity = "",
+          }
+        }
+
+        // Add static labels
+        stage.static_labels {
+          values = {
+            source = "syslog",
+%{ for key, value in extra_labels ~}
+            ${key} = "${value}",
+%{ endfor ~}
+          }
+        }
+      }
+
+%{ endif ~}
+      // =============================================================================
+      // Label Processing (for file-based logs)
       // =============================================================================
       loki.process "add_labels" {
         forward_to = [loki.write.default.receiver]
