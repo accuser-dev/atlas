@@ -20,8 +20,9 @@ locals {
 resource "incus_storage_volume" "mosquitto_data" {
   count = var.enable_data_persistence ? 1 : 0
 
-  name = var.data_volume_name
-  pool = var.storage_pool
+  name    = var.data_volume_name
+  pool    = var.storage_pool
+  project = "default"
 
   config = merge(
     {
@@ -39,11 +40,6 @@ resource "incus_storage_volume" "mosquitto_data" {
   )
 
   content_type = "filesystem"
-
-  # Ignore project attribute to prevent replacement when importing existing volumes
-  lifecycle {
-    ignore_changes = [project]
-  }
 }
 
 # Service-specific profile

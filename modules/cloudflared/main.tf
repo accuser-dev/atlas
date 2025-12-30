@@ -46,4 +46,9 @@ resource "incus_instance" "cloudflared" {
   config = {
     "cloud-init.user-data" = local.cloud_init_content
   }
+
+  # Ignore image changes to prevent replacement when importing existing instances
+  lifecycle {
+    ignore_changes = [image]
+  }
 }

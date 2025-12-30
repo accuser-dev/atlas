@@ -24,8 +24,9 @@ locals {
 resource "incus_storage_volume" "openfga_data" {
   count = var.enable_data_persistence ? 1 : 0
 
-  name = var.data_volume_name
-  pool = var.storage_pool
+  name    = var.data_volume_name
+  pool    = var.storage_pool
+  project = "default"
 
   config = {
     size = var.data_volume_size
@@ -80,5 +81,10 @@ resource "incus_instance" "openfga" {
 
   config = {
     "cloud-init.user-data" = local.cloud_init_content
+  }
+
+  # Ignore image changes to prevent replacement when importing existing instances
+  lifecycle {
+    ignore_changes = [image]
   }
 }

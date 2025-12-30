@@ -66,4 +66,9 @@ resource "incus_instance" "haproxy" {
       }
     }
   }
+
+  # Ignore image changes to prevent replacement when importing existing instances
+  lifecycle {
+    ignore_changes = [image]
+  }
 }
