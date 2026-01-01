@@ -610,8 +610,9 @@ module "haproxy01" {
     {
       name    = "incus_cluster"
       mode    = "tcp"
-      balance = "roundrobin"
+      balance = "source"
       options = [
+        "hash-type consistent",
         "option tcp-check",
         "tcp-check connect ssl"
       ]
