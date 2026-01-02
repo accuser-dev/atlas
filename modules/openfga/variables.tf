@@ -95,7 +95,7 @@ variable "playground_port" {
   default     = ""
 
   validation {
-    condition     = var.playground_port == "" || (can(regex("^[0-9]+$", var.playground_port)) && tonumber(var.playground_port) >= 1 && tonumber(var.playground_port) <= 65535)
+    condition     = var.playground_port == "" || (can(regex("^[0-9]+$", var.playground_port)) && can(tonumber(var.playground_port) >= 1) && can(tonumber(var.playground_port) <= 65535))
     error_message = "Port must be empty or a number between 1 and 65535"
   }
 }
