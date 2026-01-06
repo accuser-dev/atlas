@@ -73,11 +73,15 @@ locals {
 
   # Generate Corefile content
   corefile_content = templatefile("${path.module}/templates/Corefile.tftpl", {
-    domain               = var.domain
-    dns_port             = var.dns_port
-    health_port          = var.health_port
-    incus_dns_server     = var.incus_dns_server
-    upstream_dns_servers = var.upstream_dns_servers
+    domain                   = var.domain
+    dns_port                 = var.dns_port
+    health_port              = var.health_port
+    incus_dns_server         = var.incus_dns_server
+    upstream_dns_servers     = var.upstream_dns_servers
+    secondary_zones          = var.secondary_zones
+    secondary_zone_cache_ttl = var.secondary_zone_cache_ttl
+    forward_zones            = var.forward_zones
+    forward_zone_cache_ttl   = var.forward_zone_cache_ttl
   })
 
   # Generate zone file content

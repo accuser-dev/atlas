@@ -281,6 +281,45 @@ variable "dns_additional_records" {
 }
 
 # =============================================================================
+# Incus Network Zone Configuration
+# =============================================================================
+
+variable "enable_incus_dns_zone" {
+  description = "Enable Incus network zone for automatic container DNS registration. When enabled, containers are automatically registered as <name>.<zone>."
+  type        = bool
+  default     = false
+}
+
+variable "incus_dns_zone_name" {
+  description = "DNS zone name for Incus containers (e.g., 'iapetus.incus'). Containers will be registered as <name>.<zone>."
+  type        = string
+  default     = "iapetus.incus"
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9.-]*[a-z0-9]$", var.incus_dns_zone_name))
+    error_message = "Zone name must be a valid DNS domain (lowercase, alphanumeric with dots and hyphens)"
+  }
+}
+
+variable "incus_dns_listen_address" {
+  description = "Address for Incus DNS server to listen on. Use ':5353' to bind all interfaces, or a specific host IP. Must be an IP the host actually has (not an OVN virtual gateway)."
+  type        = string
+  default     = ":5353"
+}
+
+variable "incus_dns_reachable_address" {
+  description = "Address where CoreDNS can reach the Incus DNS server for zone transfers. For OVN environments, use the host's LAN IP (e.g., '192.168.68.84:5353'). Required when dns_listen_address binds to all interfaces."
+  type        = string
+  default     = ""
+}
+
+variable "incus_dns_transfer_peer_ip" {
+  description = "Source IP that the Incus host sees for CoreDNS zone transfer requests. For OVN, this is the production network's NAT IP (volatile.network.ipv4.address). Required for zone transfers to work."
+  type        = string
+  default     = ""
+}
+
+# =============================================================================
 # OIDC/Authorization Configuration
 # =============================================================================
 
@@ -396,6 +435,12 @@ variable "loki_lb_address" {
   default     = ""
 }
 
+variable "grafana_lb_address" {
+  description = "OVN load balancer VIP for Grafana (e.g., '192.168.68.7'). Must be in the uplink's ipv4.ovn.ranges. Enables LAN access to Grafana."
+  type        = string
+  default     = ""
+}
+
 variable "skip_ovn_config" {
   description = "Skip OVN daemon configuration (set to true if OVN is already configured via CLI)"
   type        = bool
@@ -410,5 +455,17 @@ variable "cluster01_prometheus_url" {
   description = "URL of cluster01 Prometheus for federation (e.g., 'http://192.168.68.13:9090'). Leave empty to disable federation."
   type        = string
   default     = ""
+}
+
+variable "cluster01_coredns_address" {
+  description = "IP address of cluster01 CoreDNS for cross-environment DNS resolution (e.g., cluster01.incus zone). Use the OVN LB VIP or direct container IP."
+  type        = string
+  default     = ""
+}
+
+variable "cluster01_dns_zone_name" {
+  description = "Incus DNS zone name for cluster01 (e.g., 'cluster01.incus'). Used for cross-environment forwarding."
+  type        = string
+  default     = "cluster01.incus"
 }
 

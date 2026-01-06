@@ -48,6 +48,35 @@ module "base" {
   gitops_network_nat      = var.gitops_network_nat
   gitops_network_ipv6     = var.gitops_network_ipv6
   gitops_network_ipv6_nat = var.gitops_network_ipv6_nat
+
+  # Link management network to Incus DNS zone for automatic container DNS
+  dns_zone_forward = var.enable_incus_dns_zone ? var.incus_dns_zone_name : ""
+}
+
+# =============================================================================
+# Incus Network Zone (Optional - for automatic container DNS)
+# =============================================================================
+# Creates a network zone for automatic DNS registration of containers.
+# Containers become accessible as <name>.<zone> (e.g., grafana01.incus.accuser.dev)
+
+module "network_zone" {
+  source = "../../modules/incus-network-zone"
+
+  count = var.enable_incus_dns_zone ? 1 : 0
+
+  zone_name   = var.incus_dns_zone_name
+  description = "Incus container DNS zone for Atlas infrastructure"
+
+  # DNS server configuration for zone transfers
+  configure_dns_server  = true
+  dns_listen_address    = var.incus_dns_listen_address
+  dns_reachable_address = var.incus_dns_reachable_address
+
+  # Allow CoreDNS to request zone transfers
+  # The peer IP must match the source IP the host sees (OVN NAT IP for production network)
+  transfer_peers = var.incus_dns_transfer_peer_ip != "" ? {
+    coredns = var.incus_dns_transfer_peer_ip
+  } : {}
 }
 
 # =============================================================================
@@ -370,10 +399,9 @@ module "coredns01" {
   domain = var.dns_domain
 
   # Collect DNS records from all service modules that output them
-  dns_records = concat(
-    module.grafana01.dns_records,
-    # Add other services as they implement dns_records output
-  )
+  # Note: For services with OVN LB VIPs, use additional_records instead to point
+  # to the LAN-routable VIP address rather than the internal container IP
+  dns_records = []
 
   # Additional static DNS records (hosts, cluster nodes, manually configured services)
   additional_records = var.dns_additional_records
@@ -386,6 +414,20 @@ module "coredns01" {
   # Forwarding configuration
   incus_dns_server     = split("/", var.management_network_ipv4)[0] # Management network gateway
   upstream_dns_servers = var.dns_upstream_servers
+
+  # Secondary zones - pull Incus network zone via AXFR
+  secondary_zones = var.enable_incus_dns_zone ? [
+    {
+      zone   = var.incus_dns_zone_name
+      master = module.network_zone[0].dns_reachable_address
+    }
+  ] : []
+
+  # Forward cluster01.accuser.dev queries to cluster01 CoreDNS for cross-environment DNS
+  forward_zones = var.cluster01_coredns_address != "" ? [{
+    zone    = var.cluster01_dns_zone_name
+    servers = [var.cluster01_coredns_address]
+  }] : []
 
   # External access via Incus proxy devices (bridge mode only)
   # In physical mode, containers get LAN IPs directly - no proxy needed
@@ -717,6 +759,32 @@ module "loki_lb" {
       description = "Loki HTTP API"
       protocol    = "tcp"
       listen_port = 3100
+    }
+  ]
+}
+
+module "grafana_lb" {
+  source = "../../modules/ovn-load-balancer"
+
+  count = var.network_backend == "ovn" && var.grafana_lb_address != "" ? 1 : 0
+
+  network_name   = module.base.management_network_name
+  listen_address = var.grafana_lb_address
+  description    = "OVN load balancer for Grafana (LAN access)"
+
+  backends = [
+    {
+      name           = "grafana01"
+      target_address = module.grafana01.ipv4_address
+      target_port    = 3000
+    }
+  ]
+
+  ports = [
+    {
+      description = "Grafana HTTP"
+      protocol    = "tcp"
+      listen_port = 3000
     }
   ]
 }

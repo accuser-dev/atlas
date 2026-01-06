@@ -3,6 +3,11 @@ output "instance_name" {
   value       = incus_instance.grafana.name
 }
 
+output "ipv4_address" {
+  description = "IPv4 address of the Grafana instance"
+  value       = incus_instance.grafana.ipv4_address
+}
+
 output "profile_name" {
   description = "Name of the created profile"
   value       = incus_profile.grafana.name

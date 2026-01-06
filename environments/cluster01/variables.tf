@@ -149,6 +149,57 @@ variable "dns_additional_records" {
   default = []
 }
 
+variable "iapetus_coredns_address" {
+  description = "IP address of iapetus CoreDNS for cross-environment DNS resolution (e.g., iapetus.incus zone). Use the OVN LB VIP or direct container IP."
+  type        = string
+  default     = ""
+}
+
+variable "iapetus_dns_zone_name" {
+  description = "Incus DNS zone name for iapetus (e.g., 'iapetus.incus'). Used for cross-environment forwarding."
+  type        = string
+  default     = "iapetus.incus"
+}
+
+# =============================================================================
+# Incus Network Zone Configuration
+# =============================================================================
+
+variable "enable_incus_dns_zone" {
+  description = "Enable Incus network zone for automatic container DNS registration. When enabled, containers are automatically registered as <name>.<zone>."
+  type        = bool
+  default     = false
+}
+
+variable "incus_dns_zone_name" {
+  description = "Incus DNS zone name for this cluster (e.g., 'cluster01.incus'). Containers will be registered as <name>.<zone>."
+  type        = string
+  default     = "cluster01.incus"
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9.-]*[a-z0-9]$", var.incus_dns_zone_name))
+    error_message = "Zone name must be a valid DNS domain (lowercase, alphanumeric with dots and hyphens)"
+  }
+}
+
+variable "incus_dns_listen_address" {
+  description = "Address for Incus DNS server to listen on. Use ':5353' to bind all interfaces. Must be an IP the host actually has."
+  type        = string
+  default     = ":5353"
+}
+
+variable "incus_dns_reachable_address" {
+  description = "Address where CoreDNS can reach the Incus DNS server for zone transfers. For clusters, use a node's IP with port (e.g., '192.168.71.5:5353')."
+  type        = string
+  default     = ""
+}
+
+variable "incus_dns_transfer_peer_ip" {
+  description = "Source IP that the Incus host sees for CoreDNS zone transfer requests. Required for zone transfers to work."
+  type        = string
+  default     = ""
+}
+
 # =============================================================================
 # Incus Integration
 # =============================================================================

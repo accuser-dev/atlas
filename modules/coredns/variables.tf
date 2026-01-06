@@ -188,3 +188,51 @@ variable "external_dns_port" {
   type        = string
   default     = "53"
 }
+
+# =============================================================================
+# Secondary Zone Configuration (AXFR)
+# =============================================================================
+
+variable "secondary_zones" {
+  description = "List of secondary zones to pull via AXFR zone transfer from external DNS servers (e.g., Incus DNS)"
+  type = list(object({
+    zone   = string # Zone name (e.g., "incus.accuser.dev")
+    master = string # Master DNS server address with port (e.g., "10.20.0.1:5354")
+  }))
+  default = []
+}
+
+variable "secondary_zone_cache_ttl" {
+  description = "Cache TTL for secondary zones in seconds (shorter than primary due to dynamic container IPs)"
+  type        = number
+  default     = 60
+
+  validation {
+    condition     = var.secondary_zone_cache_ttl >= 10 && var.secondary_zone_cache_ttl <= 3600
+    error_message = "Secondary zone cache TTL must be between 10 and 3600 seconds"
+  }
+}
+
+# =============================================================================
+# Forwarding Zone Configuration
+# =============================================================================
+
+variable "forward_zones" {
+  description = "List of zones to forward to specific DNS servers (e.g., for cross-environment DNS)"
+  type = list(object({
+    zone    = string       # Zone name (e.g., "incus.accuser.dev")
+    servers = list(string) # DNS servers to forward to (e.g., ["192.168.68.4"])
+  }))
+  default = []
+}
+
+variable "forward_zone_cache_ttl" {
+  description = "Cache TTL for forwarded zones in seconds"
+  type        = number
+  default     = 60
+
+  validation {
+    condition     = var.forward_zone_cache_ttl >= 10 && var.forward_zone_cache_ttl <= 3600
+    error_message = "Forward zone cache TTL must be between 10 and 3600 seconds"
+  }
+}

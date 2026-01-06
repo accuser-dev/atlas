@@ -71,7 +71,11 @@ resource "incus_network" "management" {
       "ipv6.nat"     = tostring(var.management_network_ipv6_nat)
       } : {
       "ipv6.address" = "none"
-    }
+    },
+    # Link to Incus network zone for automatic DNS registration
+    var.dns_zone_forward != "" ? {
+      "dns.zone.forward" = var.dns_zone_forward
+    } : {}
   )
 }
 
@@ -140,13 +144,19 @@ resource "incus_network" "ovn_management" {
   description = "OVN management network for internal services (monitoring, etc.)"
   type        = "ovn"
 
-  config = {
-    "network"      = var.ovn_uplink_network
-    "bridge.mtu"   = "1442"
-    "ipv4.address" = var.management_network_ipv4
-    "ipv4.nat"     = tostring(var.management_network_nat)
-    "ipv4.dhcp"    = "true"
-  }
+  config = merge(
+    {
+      "network"      = var.ovn_uplink_network
+      "bridge.mtu"   = "1442"
+      "ipv4.address" = var.management_network_ipv4
+      "ipv4.nat"     = tostring(var.management_network_nat)
+      "ipv4.dhcp"    = "true"
+    },
+    # Link to Incus network zone for automatic DNS registration
+    var.dns_zone_forward != "" ? {
+      "dns.zone.forward" = var.dns_zone_forward
+    } : {}
+  )
 }
 
 # OVN GitOps Network - overlay network for CI/CD automation

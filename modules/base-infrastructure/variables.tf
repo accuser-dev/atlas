@@ -208,3 +208,13 @@ variable "ovn_production_external" {
   type        = bool
   default     = false
 }
+
+# =============================================================================
+# DNS Zone Configuration
+# =============================================================================
+
+variable "dns_zone_forward" {
+  description = "Name of the Incus network zone for automatic container DNS registration (e.g., 'incus.accuser.dev'). When set, networks will be linked to this zone for automatic A record generation."
+  type        = string
+  default     = ""
+}

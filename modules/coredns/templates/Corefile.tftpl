@@ -25,6 +25,56 @@ ${domain}:${dns_port} {
     prometheus :9153
 }
 
+%{ for zone in secondary_zones ~}
+# =============================================================================
+# Secondary Zone: ${zone.zone} (AXFR from ${zone.master})
+# =============================================================================
+# Zone transferred from Incus DNS server for automatic container DNS
+
+${zone.zone}:${dns_port} {
+    # Pull zone via AXFR from master server
+    secondary {
+        transfer from ${zone.master}
+    }
+
+    # Log queries for debugging
+    log
+
+    # Enable error logging
+    errors
+
+    # Cache responses (shorter TTL for dynamic container IPs)
+    cache ${secondary_zone_cache_ttl}
+
+    # Prometheus metrics
+    prometheus :9153
+}
+
+%{ endfor ~}
+%{ for zone in forward_zones ~}
+# =============================================================================
+# Forwarded Zone: ${zone.zone}
+# =============================================================================
+# Forward queries to external DNS servers (e.g., cross-environment DNS)
+
+${zone.zone}:${dns_port} {
+    # Forward to specified DNS servers
+    forward . ${join(" ", zone.servers)}
+
+    # Log forwarded queries
+    log
+
+    # Enable error logging
+    errors
+
+    # Cache responses
+    cache ${forward_zone_cache_ttl}
+
+    # Prometheus metrics
+    prometheus :9153
+}
+
+%{ endfor ~}
 # =============================================================================
 # Incus Zone: .incus
 # =============================================================================

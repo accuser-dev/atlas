@@ -81,6 +81,36 @@ module "base" {
 
   # No GitOps on cluster - managed from iapetus
   enable_gitops = false
+
+  # Link management network to Incus DNS zone for automatic container DNS
+  # Note: Only works when OVN is enabled (creates ovn-management network)
+  # For bridge mode with external incusbr0, configure dns.zone.forward manually
+  dns_zone_forward = var.enable_incus_dns_zone && var.network_backend == "ovn" ? var.incus_dns_zone_name : ""
+}
+
+# =============================================================================
+# Incus Network Zone (Optional - for automatic container DNS)
+# =============================================================================
+# Creates a network zone for automatic DNS registration of containers.
+# Containers become accessible as <name>.<zone> (e.g., prometheus01.cluster01.accuser.dev)
+
+module "network_zone" {
+  source = "../../modules/incus-network-zone"
+
+  count = var.enable_incus_dns_zone ? 1 : 0
+
+  zone_name   = var.incus_dns_zone_name
+  description = "Incus container DNS zone for cluster01"
+
+  # DNS server configuration for zone transfers
+  configure_dns_server  = true
+  dns_listen_address    = var.incus_dns_listen_address
+  dns_reachable_address = var.incus_dns_reachable_address
+
+  # Allow CoreDNS to request zone transfers
+  transfer_peers = var.incus_dns_transfer_peer_ip != "" ? {
+    coredns = var.incus_dns_transfer_peer_ip
+  } : {}
 }
 
 # =============================================================================
@@ -378,6 +408,20 @@ module "coredns01" {
 
   incus_dns_server     = split("/", var.management_network_ipv4)[0]
   upstream_dns_servers = var.dns_upstream_servers
+
+  # Secondary zones - pull local Incus network zone via AXFR
+  secondary_zones = var.enable_incus_dns_zone ? [
+    {
+      zone   = var.incus_dns_zone_name
+      master = module.network_zone[0].dns_reachable_address
+    }
+  ] : []
+
+  # Forward iapetus.accuser.dev queries to iapetus CoreDNS for cross-environment DNS
+  forward_zones = var.iapetus_coredns_address != "" ? [{
+    zone    = var.iapetus_dns_zone_name
+    servers = [var.iapetus_coredns_address]
+  }] : []
 
   # External access via proxy devices (bridge mode only)
   # With OVN, we use OVN load balancers instead
