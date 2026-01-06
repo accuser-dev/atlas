@@ -3,6 +3,16 @@ output "instance_name" {
   value       = incus_instance.alloy.name
 }
 
+output "profile_name" {
+  description = "Name of the Alloy profile"
+  value       = incus_profile.alloy.name
+}
+
+output "instance_status" {
+  description = "Status of the Alloy instance"
+  value       = incus_instance.alloy.status
+}
+
 output "ipv4_address" {
   description = "IPv4 address of the Alloy instance"
   value       = incus_instance.alloy.ipv4_address

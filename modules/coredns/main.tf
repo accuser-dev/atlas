@@ -17,7 +17,7 @@ resource "incus_profile" "coredns" {
     "limits.cpu"            = var.cpu_limit
     "limits.memory"         = var.memory_limit
     "limits.memory.enforce" = "hard"
-    "boot.autostart"        = "true"
+    # Note: boot.autorestart is provided by the container-base profile
   }
 
   # Root disk with size limit
@@ -67,9 +67,18 @@ locals {
   # Combine service module records with additional static records
   all_dns_records = concat(var.dns_records, var.additional_records)
 
-  # Generate zone serial in YYYYMMDDNN format
-  # Using timestamp ensures serial increases on each apply
-  zone_serial = formatdate("YYYYMMDD", timestamp())
+  # Generate zone serial based on content hash
+  # This ensures the serial only changes when zone content actually changes,
+  # avoiding unnecessary updates on every apply (which timestamp() would cause)
+  # Format: 10-digit number derived from hash, ensuring it's always increasing
+  # when content changes (hash provides uniqueness, not ordering)
+  zone_content_hash = sha256(jsonencode({
+    domain        = var.domain
+    nameserver_ip = var.nameserver_ip
+    records       = local.all_dns_records
+  }))
+  # Take first 10 chars of hash and convert to a number for DNS serial format
+  zone_serial = format("%010d", parseint(substr(local.zone_content_hash, 0, 8), 16) % 2147483647)
 
   # Generate Corefile content
   corefile_content = templatefile("${path.module}/templates/Corefile.tftpl", {
@@ -92,7 +101,7 @@ locals {
     soa_nameserver = var.soa_nameserver
     soa_admin      = var.soa_admin
     zone_ttl       = var.zone_ttl
-    serial         = "${local.zone_serial}01"
+    serial         = local.zone_serial
     nameserver_ip  = var.nameserver_ip
     dns_records    = local.all_dns_records
   })

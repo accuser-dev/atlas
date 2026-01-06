@@ -3,6 +3,21 @@ output "instance_name" {
   value       = incus_instance.mosquitto.name
 }
 
+output "profile_name" {
+  description = "Name of the Mosquitto profile"
+  value       = incus_profile.mosquitto.name
+}
+
+output "instance_status" {
+  description = "Status of the Mosquitto instance"
+  value       = incus_instance.mosquitto.status
+}
+
+output "storage_volume_name" {
+  description = "Name of the storage volume (if data persistence is enabled)"
+  value       = var.enable_data_persistence ? incus_storage_volume.mosquitto_data[0].name : null
+}
+
 output "mqtt_endpoint" {
   description = "Internal MQTT endpoint URL"
   value       = "mqtt://${incus_instance.mosquitto.name}.incus:${var.mqtt_port}"
