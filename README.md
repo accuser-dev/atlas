@@ -7,61 +7,76 @@ A multi-environment OpenTofu infrastructure project for managing Incus container
 This project manages two Incus environments with separate Terraform state:
 
 - **`iapetus`** - Control plane / aggregation (IncusOS standalone host)
-- **`cluster`** - Production workloads (3-node IncusOS cluster)
+- **`cluster01`** - Production workloads (3-node IncusOS cluster)
 
 ### Services by Environment
 
 **iapetus (Control Plane):**
 - **Grafana** - Central dashboards and visualization
-- **Prometheus** - Federated metrics (pulls from cluster)
+- **Prometheus** - Federated metrics (pulls from cluster01)
 - **Loki** - Aggregated log storage
 - **step-ca** - Internal PKI for TLS certificates
 - **Cloudflared** - Cloudflare Tunnel for Zero Trust access
+- **CoreDNS** - Split-horizon DNS with cross-environment forwarding
+- **HAProxy** - TCP/HTTP load balancer (optional)
+- **Dex** - OIDC identity provider (optional)
+- **OpenFGA** - Fine-grained authorization (optional)
 - **Atlantis** - GitOps controller (optional)
 - **Node Exporter** - Host metrics
 
-**cluster (Production):**
+**cluster01 (Production):**
 - **Prometheus** - Local metrics scraping
-- **Promtail** - Ships logs to iapetus Loki
+- **Alloy** - Ships logs to iapetus Loki
 - **Alertmanager** - Alert routing and notifications
 - **Node Exporter × 3** - Host metrics (pinned to each cluster node)
 - **Mosquitto** - MQTT broker for IoT messaging
 - **CoreDNS** - Split-horizon DNS
 
-All services run in Incus containers with persistent storage, network isolation, and automatic configuration management.
+All services run in Incus system containers (Alpine Linux + cloud-init) with persistent storage, network isolation, and automatic configuration management.
 
 ## Project Structure
 
 ```
 atlas/
 ├── modules/                   # Shared Terraform modules (used by all environments)
-│   ├── alertmanager/
-│   ├── atlantis/
+│   ├── alertmanager/          # Alert routing and notifications
+│   ├── alloy/                 # Log collection and shipping (replaces Promtail)
+│   ├── atlantis/              # GitOps controller
 │   ├── base-infrastructure/   # Networks and base profiles
-│   ├── cloudflared/
-│   ├── coredns/
-│   ├── grafana/
-│   ├── incus-loki/            # Native Incus logging to Loki
-│   ├── incus-metrics/         # Incus container metrics
-│   ├── loki/
-│   ├── mosquitto/
-│   ├── node-exporter/
-│   ├── prometheus/
-│   ├── promtail/              # Log shipping to central Loki
-│   └── step-ca/
+│   ├── cloudflared/           # Cloudflare Tunnel client
+│   ├── coredns/               # Split-horizon DNS
+│   ├── dex/                   # OIDC identity provider
+│   ├── grafana/               # Visualization platform
+│   ├── haproxy/               # TCP/HTTP load balancer
+│   ├── incus-loki/            # Native Incus → Loki logging
+│   ├── incus-metrics/         # Incus metrics certificates
+│   ├── incus-network-zone/    # Incus DNS zone configuration
+│   ├── incus-vm/              # Virtual machine support
+│   ├── loki/                  # Log aggregation
+│   ├── mosquitto/             # MQTT broker
+│   ├── node-exporter/         # Host metrics
+│   ├── openfga/               # Fine-grained authorization
+│   ├── ovn-central/           # OVN databases
+│   ├── ovn-config/            # Incus OVN settings
+│   ├── ovn-load-balancer/     # OVN load balancers
+│   ├── prometheus/            # Metrics collection
+│   └── step-ca/               # Internal CA
 │
 ├── environments/
 │   ├── iapetus/               # Control plane environment
 │   │   ├── main.tf            # Module instantiations
 │   │   ├── variables.tf
 │   │   ├── outputs.tf
+│   │   ├── locals.tf
+│   │   ├── templates/         # Configuration templates
 │   │   ├── terraform.tfvars   # Secrets (gitignored)
 │   │   └── bootstrap/         # Remote state setup
 │   │
-│   └── cluster/               # Production cluster environment
-│       ├── main.tf            # Module instantiations
+│   └── cluster01/             # Production cluster environment
+│       ├── main.tf
 │       ├── variables.tf
 │       ├── outputs.tf
+│       ├── locals.tf
 │       └── terraform.tfvars   # Secrets (gitignored)
 │
 ├── docker/                    # Custom Docker images (Atlantis only)
@@ -76,6 +91,8 @@ atlas/
 ├── CONTRIBUTING.md            # Contribution guidelines
 ├── BACKUP.md                  # Backup and disaster recovery
 ├── GITOPS.md                  # GitOps workflow with Atlantis
+├── SECURITY.md                # Security documentation
+├── TROUBLESHOOTING.md         # Troubleshooting guide
 └── README.md                  # This file
 ```
 
@@ -155,7 +172,8 @@ atlas/
 Most services use Alpine Linux system containers with cloud-init:
 - Grafana, Prometheus, Loki, Alertmanager
 - step-ca, Cloudflared, Node Exporter
-- Mosquitto, CoreDNS, Promtail
+- Mosquitto, CoreDNS, Alloy
+- Dex, HAProxy, OpenFGA
 
 These download and configure binaries at first boot - no custom images needed.
 
@@ -207,29 +225,37 @@ ENV=cluster01 make deploy
 
 ### Network Configuration
 
-Each environment has two networks:
+Each environment supports multiple network modes:
+
+**Bridge Networks (default):**
 - **production** (10.10.0.0/24) - For external services (Mosquitto, CoreDNS)
 - **management** (10.20.0.0/24) - For internal services (monitoring stack, PKI)
 - **gitops** (10.30.0.0/24) - For GitOps automation (optional, iapetus only)
+
+**OVN Networks (optional):**
+- Provides native load balancers with LAN-routable VIPs
+- Supports external access without proxy devices
+- Configured via `network_backend = "ovn"` in terraform.tfvars
 
 Configure IP addresses in `environments/*/terraform.tfvars`.
 
 ### Cross-Environment Integration
 
-The cluster environment connects to iapetus for:
-- **Log shipping**: Promtail → iapetus Loki (`loki_push_url` variable)
-- **Prometheus federation**: iapetus pulls metrics from cluster
+The cluster01 environment connects to iapetus for:
+- **Log shipping**: Alloy → iapetus Loki (`loki_push_url` variable)
+- **Prometheus federation**: iapetus pulls metrics from cluster01
 - **TLS certificates**: step-ca on iapetus issues certs for cluster services
+- **DNS forwarding**: Cross-environment DNS resolution via CoreDNS
 
 ### Adding New Services
 
-See [CLAUDE.md](CLAUDE.md#adding-new-service-modules) for detailed instructions on adding new services.
+See [CLAUDE.md](CLAUDE.md) for detailed instructions on adding new services.
 
 ## Architecture
 
 ### Key Features
 
-- **Multi-Environment** - Separate state for iapetus (control plane) and cluster (production)
+- **Multi-Environment** - Separate state for iapetus (control plane) and cluster01 (production)
 - **Declarative Infrastructure** - Everything defined in OpenTofu
 - **Modular Design** - Shared modules across environments
 - **System Containers** - Alpine Linux with cloud-init (no custom images for most services)
@@ -237,6 +263,7 @@ See [CLAUDE.md](CLAUDE.md#adding-new-service-modules) for detailed instructions 
 - **Zero Trust Access** - Cloudflare Tunnel for external access
 - **Network Isolation** - Separate networks for different service types
 - **Native Incus Integration** - Container metrics and logging via Incus API
+- **OVN Support** - Optional software-defined networking with load balancers
 
 ### Multi-Environment Architecture
 
@@ -247,19 +274,20 @@ See [CLAUDE.md](CLAUDE.md#adding-new-service-modules) for detailed instructions 
 ├─────────────────────────────────────────────────────────────────────┤
 │  - Atlantis (GitOps) → manages iapetus + cluster via remote Incus   │
 │  - Grafana (central dashboards)                                     │
-│  - Prometheus (federated, pulls from cluster)                       │
-│  - Loki (aggregated logs via Promtail on cluster)                   │
+│  - Prometheus (federated, pulls from cluster01)                     │
+│  - Loki (aggregated logs via Alloy on cluster01)                    │
 │  - Cloudflared (tunnel ingress)                                     │
 │  - step-ca (central CA for all environments)                        │
+│  - CoreDNS, HAProxy, Dex, OpenFGA (optional)                        │
 └──────────────────────────────┬──────────────────────────────────────┘
                                │ incus remote + prometheus federation
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│       prometheus/epimetheus/menoetius (IncusOS 3-node cluster)      │
+│                    cluster01 (IncusOS 3-node cluster)               │
 │                        Production Workloads                         │
 ├─────────────────────────────────────────────────────────────────────┤
 │  - Prometheus (local scraping, federated by iapetus)                │
-│  - Promtail → ships logs to iapetus Loki                            │
+│  - Alloy → ships logs to iapetus Loki                               │
 │  - node-exporter × 3 (pinned to each cluster node)                  │
 │  - Mosquitto, CoreDNS, Alertmanager                                 │
 └─────────────────────────────────────────────────────────────────────┘
@@ -271,7 +299,7 @@ See [CLAUDE.md](CLAUDE.md#adding-new-service-modules) for detailed instructions 
 - Loki: `http://loki01.incus:3100`
 - step-ca: `https://step-ca01.incus:9000`
 
-**cluster Services** (production):
+**cluster01 Services** (production):
 - Prometheus: `http://prometheus01.incus:9090`
 - Alertmanager: `http://alertmanager01.incus:9093`
 - Mosquitto: Host ports 1883 (MQTT), 8883 (MQTTS)
@@ -285,8 +313,9 @@ See [CLAUDE.md](CLAUDE.md#adding-new-service-modules) for detailed instructions 
 - `loki01-data` (50GB) - Log storage
 - `prometheus01-data` (100GB) - Metrics storage
 - `step-ca01-data` (1GB) - CA keys and database
+- `atlantis01-data` (10GB) - GitOps state (optional)
 
-**cluster:**
+**cluster01:**
 - `prometheus01-data` (100GB) - Metrics storage
 - `alertmanager01-data` (1GB) - Silences and state
 - `mosquitto01-data` (5GB) - MQTT retained messages
@@ -358,7 +387,7 @@ make backup-list       # List all volume snapshots
 
 - **`environments/`** - Environment-specific configuration
   - `iapetus/` - Control plane
-  - `cluster/` - Production workloads
+  - `cluster01/` - Production workloads
   - Each has `main.tf`, `variables.tf`, `terraform.tfvars` (gitignored)
 
 - **`docker/`** - Custom Docker images (Atlantis only)
@@ -373,11 +402,17 @@ incus info <container-name>
 incus console <container-name>
 ```
 
+### Service status (Alpine containers)
+
+```bash
+incus exec <container-name> -- rc-service <service-name> status
+```
+
 ### OpenTofu state issues
 
 View current state:
 ```bash
-cd environments/iapetus  # or environments/cluster
+cd environments/iapetus  # or environments/cluster01
 tofu show
 ```
 
@@ -396,6 +431,8 @@ Ensure the cluster is accessible from iapetus:
 incus remote list
 incus list cluster01:
 ```
+
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for comprehensive troubleshooting guidance.
 
 ## Contributing
 
@@ -419,4 +456,6 @@ For detailed architecture, design patterns, and development guidance, see:
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines and GitHub Flow
 - [BACKUP.md](BACKUP.md) - Backup and disaster recovery procedures
 - [GITOPS.md](GITOPS.md) - GitOps workflow with Atlantis
+- [SECURITY.md](SECURITY.md) - Security architecture and controls
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and solutions
 - [modules/*/README.md](modules/) - OpenTofu module documentation
