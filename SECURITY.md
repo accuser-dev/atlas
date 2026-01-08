@@ -62,52 +62,52 @@ Atlas implements a defense-in-depth security strategy with multiple layers:
 
 ### Network Architecture
 
-Atlas uses two isolated bridge networks to segment workloads (three when GitOps is enabled):
+Atlas uses isolated networks to segment workloads. Two network backends are supported:
 
+**Bridge Networks (default):**
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         External Access                              │
 │                              │                                       │
-│                        ┌─────┴─────┐                                │
-│                        │  incusbr0 │ (external bridge)              │
-│                        └─────┬─────┘                                │
-│                              │                                       │
 │              ┌───────────────┼───────────────┐                      │
 │              │               │               │                       │
-│        ┌─────┴─────┐   ┌─────┴─────┐   ┌─────┴─────┐               │
-│        │   Caddy   │   │           │   │Caddy-GitOps│               │
-│        └───┬───┬───┘   │           │   └─────┬─────┘               │
-│            │   │       │           │         │                       │
-│     ┌──────┘   └────┐  │           │         │                       │
-│     │               │  │           │         │                       │
-│ ┌───┴───────┐  ┌────┴──┴───┐  ┌────┴─────────┴───┐                  │
-│ │Production │  │Management │  │     GitOps       │                  │
-│ │10.10.0.0  │  │10.20.0.0  │  │   10.30.0.0      │                  │
-│ └───────────┘  └───────────┘  └──────────────────┘                  │
-│      │              │                │                               │
-│  Mosquitto     Grafana           Atlantis                           │
-│              Prometheus         (optional)                          │
-│                 Loki                                                 │
-│               step-ca                                                │
-│            Alertmanager                                              │
-│            Node Exporter                                             │
+│        Cloudflared     HAProxy (opt)    Atlantis                    │
+│        (Tunnel)        (LB)             (GitOps)                    │
+│              │               │               │                       │
+│ ┌────────────┴───┐  ┌───────┴────┐  ┌───────┴────────┐             │
+│ │  Production    │  │ Management │  │    GitOps      │             │
+│ │  10.10.0.0/24  │  │ 10.20.0.0  │  │  10.30.0.0     │             │
+│ └────────────────┘  └────────────┘  └────────────────┘             │
+│        │                  │                │                         │
+│   Mosquitto          Grafana          Atlantis                      │
+│   CoreDNS           Prometheus        (optional)                    │
+│                        Loki                                          │
+│                      step-ca                                         │
+│                   Alertmanager                                       │
+│                   Node Exporter                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+**OVN Networks (optional):**
+- Provides native load balancers with LAN-routable VIPs
+- External access without proxy devices
+- Configured via `network_backend = "ovn"` in terraform.tfvars
 
 ### Network Purposes
 
 | Network | CIDR | Purpose | External Access |
 |---------|------|---------|-----------------|
-| production | 10.10.0.0/24 | Public-facing services | Via Caddy |
-| management | 10.20.0.0/24 | Internal services | Via Caddy (restricted) |
-| gitops | 10.30.0.0/24 | GitOps automation (optional) | Via Caddy-GitOps |
+| production | 10.10.0.0/24 | Public-facing services | Via Cloudflare Tunnel, HAProxy, or OVN LB |
+| management | 10.20.0.0/24 | Internal services | Via Cloudflare Tunnel (restricted) |
+| gitops | 10.30.0.0/24 | GitOps automation (optional) | GitHub webhooks via Atlantis |
 
 ### Inter-Service Communication
 
 - Services on the **same network** can communicate via `.incus` DNS (e.g., `prometheus01.incus`)
 - Services on **different networks** cannot communicate directly
-- **Caddy** has interfaces on production, management, and external networks to route traffic
-- **Caddy-GitOps** (optional) has interfaces on gitops and external networks for webhook traffic
+- **Cloudflared** provides Zero Trust external access via Cloudflare Tunnel
+- **HAProxy** (optional) provides TCP/HTTP load balancing for internal services
+- **OVN load balancers** (optional) provide LAN-routable VIPs for direct access
 
 ### Profile Composition and NIC Naming
 
@@ -136,31 +136,32 @@ This allows containers to have multiple network interfaces without naming collis
 
 | Secret | Handling | File Mode | Notes |
 |--------|----------|-----------|-------|
-| Cloudflare API token | File injection | `0400` | `/etc/caddy/cloudflare_token` |
+| Cloudflare tunnel token | Environment variable | N/A | Required by cloudflared |
 | Grafana admin password | Environment variable | N/A | Required by Grafana |
 | step-ca provisioner password | Environment variable | N/A | Generated at init |
 | Terraform state credentials | `backend.hcl` | N/A | Never committed |
-| Cloudflare tunnel token | Environment variable | N/A | Required by cloudflared |
+| GitHub OAuth credentials | Environment variable | N/A | For Dex OIDC (optional) |
+| OpenFGA preshared key | Environment variable | N/A | For OpenFGA (optional) |
 
-### Cloudflare Token Security
+### Cloudflare Tunnel Token Security
 
-The Cloudflare API token is injected as a file rather than an environment variable:
+The Cloudflare tunnel token is used by cloudflared for Zero Trust access:
 
 ```hcl
-# In terraform/modules/caddy/main.tf
-file {
-  content     = var.cloudflare_api_token
-  target_path = "/etc/caddy/cloudflare_token"
-  mode        = "0400"  # Read-only for root
-  uid         = 0
-  gid         = 0
+# In modules/cloudflared - token passed via cloud-init
+config = {
+  "cloud-init.user-data" = templatefile("...", {
+    tunnel_token = var.tunnel_token
+  })
 }
 ```
 
-This prevents the token from appearing in:
-- `incus info caddy01` output
-- Process listings (`ps aux`)
-- Container inspection tools
+The token is injected at container creation time via cloud-init configuration.
+
+**Security considerations:**
+- Token visible in Incus container config during creation
+- Use Terraform sensitive variables to prevent logging
+- Rotate via Cloudflare Zero Trust dashboard if compromised
 
 ### terraform.tfvars Security
 
@@ -581,57 +582,27 @@ All public-facing services enforce IP-based access control:
 allowed_ip_range = "192.168.68.0/22"  # Your network CIDR
 ```
 
-The Caddyfile template implements this:
-
-```
-grafana.example.com {
-    @denied not remote_ip 192.168.68.0/22
-    abort @denied
-
-    # ... rest of configuration
-}
-```
-
-**Behavior:**
-- Requests from allowed IPs proceed normally
-- Requests from other IPs receive an immediate connection abort
-- No error page or information leakage
-
-### Rate Limiting
-
-Rate limiting protects against brute force and DoS attacks:
-
-| Endpoint Type | Default Limit | Window | Purpose |
-|--------------|---------------|--------|---------|
-| General | 100 requests | 1 minute | Prevent abuse |
-| Login (`/login*`, `/api/login*`) | 10 requests | 1 minute | Prevent brute force |
-
-Configuration in Terraform:
-
-```hcl
-module "grafana01" {
-  # ...
-  enable_rate_limiting      = true
-  rate_limit_requests       = 100
-  rate_limit_window         = "1m"
-  login_rate_limit_requests = 10
-  login_rate_limit_window   = "1m"
-}
-```
+Access control is implemented via:
+- **Cloudflare Zero Trust** - Application-level access policies for tunnel-exposed services
+- **OVN Load Balancers** - Network-level access via LAN-routable VIPs (when using OVN backend)
+- **Incus Proxy Devices** - Host-port mapping with optional source filtering (bridge backend)
 
 ### Service Access Patterns
 
 | Service | Network | External Access | Authentication |
 |---------|---------|-----------------|----------------|
-| Grafana | Management | Via Caddy (IP restricted) | Username/password |
-| Prometheus | Management | None (internal only) | None |
-| Loki | Management | None (internal only) | None |
+| Grafana | Management | Cloudflare Tunnel or OVN LB | Username/password, OIDC (optional) |
+| Prometheus | Management | None (internal) or OVN LB | None |
+| Loki | Management | None (internal) or OVN LB | None |
 | step-ca | Management | None (internal only) | ACME protocol |
 | Alertmanager | Management | None (internal only) | None |
-| Mosquitto | Production | Direct (ports 1883/8883) | Password file |
-| Caddy | Multiple | Direct (ports 80/443) | N/A (proxy) |
-| Atlantis | GitOps | Via Caddy-GitOps (GitHub IPs) | Webhook secret |
-| Caddy-GitOps | GitOps | Direct (ports 80/443) | N/A (proxy) |
+| Mosquitto | Production | Proxy device or OVN LB | Password file, TLS client certs |
+| CoreDNS | Production | Proxy device or OVN LB | None (DNS) |
+| HAProxy | Production | Direct or OVN LB | N/A (load balancer) |
+| Cloudflared | Management | Cloudflare Tunnel | N/A (tunnel client) |
+| Atlantis | GitOps | GitHub webhooks | Webhook secret |
+| Dex | Management | Cloudflare Tunnel | OIDC (optional) |
+| OpenFGA | Management | None (internal only) | Preshared key (optional) |
 
 ---
 
@@ -639,7 +610,7 @@ module "grafana01" {
 
 ### Non-Root Execution
 
-All containers run as non-root users:
+All containers run as non-root users where possible:
 
 | Service | User | UID | Notes |
 |---------|------|-----|-------|
@@ -647,12 +618,16 @@ All containers run as non-root users:
 | Prometheus | nobody | 65534 | Standard unprivileged |
 | Loki | loki | 10001 | Official Loki UID |
 | Alertmanager | nobody | 65534 | Standard unprivileged |
-| Mosquitto | mosquitto | 1883 | Standard Mosquitto UID |
+| Mosquitto | mosquitto | 100 | Alpine package UID |
 | step-ca | step | 1000 | Smallstep default |
-| Caddy | root | 0 | Required for port binding |
-| Caddy-GitOps | root | 0 | Required for port binding |
+| Cloudflared | cloudflared | 65532 | Unprivileged |
+| HAProxy | haproxy | 100 | Alpine package UID |
+| CoreDNS | coredns | 100 | Unprivileged |
 | Node Exporter | N/A | N/A | Runs as container default |
 | Atlantis | atlantis | 100 | Official Atlantis UID |
+| Alloy | alloy | 65532 | Unprivileged |
+| Dex | dex | 1000 | Unprivileged |
+| OpenFGA | openfga | 1000 | Unprivileged |
 
 ### Storage Volume Permissions
 
@@ -689,17 +664,20 @@ All containers enforce hard resource limits:
 
 | Service | CPU | Memory | Memory Enforce |
 |---------|-----|--------|----------------|
-| Caddy | 2 | 1GB | hard |
-| Caddy-GitOps | 1 | 256MB | hard |
 | Grafana | 2 | 1GB | hard |
 | Prometheus | 2 | 2GB | hard |
 | Loki | 2 | 2GB | hard |
 | step-ca | 1 | 512MB | hard |
+| Cloudflared | 1 | 256MB | hard |
+| HAProxy | 1 | 256MB | hard |
+| CoreDNS | 1 | 256MB | hard |
 | Alertmanager | 1 | 256MB | hard |
 | Mosquitto | 1 | 256MB | hard |
 | Node Exporter | 1 | 128MB | hard |
-| Cloudflared | 1 | 256MB | hard |
+| Alloy | 1 | 256MB | hard |
 | Atlantis | 2 | 1GB | hard |
+| Dex | 1 | 256MB | hard |
+| OpenFGA | 1 | 256MB | hard |
 
 **Hard memory enforcement** means the container will be OOM-killed rather than using swap, preventing noisy neighbor issues.
 
@@ -733,31 +711,27 @@ device {
 
 ## Security Headers
 
-Caddy automatically adds security headers to all responses:
+Security headers are managed at multiple layers:
 
-```
-header {
-    # HSTS - force HTTPS for 1 year
-    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+### Cloudflare (Zero Trust Access)
 
-    # Prevent clickjacking
-    X-Frame-Options "SAMEORIGIN"
+When using Cloudflare Tunnel, security headers can be configured in the Cloudflare dashboard:
+- Automatic HTTPS redirection
+- HSTS headers
+- Security headers via Transform Rules
 
-    # Prevent MIME sniffing
-    X-Content-Type-Options "nosniff"
+### Grafana Security Headers
 
-    # Control referrer information
-    Referrer-Policy "strict-origin-when-cross-origin"
+Grafana natively supports security headers via configuration:
 
-    # Restrict browser features
-    Permissions-Policy "geolocation=(), microphone=(), camera=()"
-
-    # Remove server information
-    -Server
-}
+```ini
+[security]
+content_security_policy = true
+x_content_type_options = true
+x_xss_protection = true
 ```
 
-### Header Explanations
+### Recommended Headers
 
 | Header | Value | Purpose |
 |--------|-------|---------|
@@ -765,8 +739,7 @@ header {
 | X-Frame-Options | SAMEORIGIN | Prevent clickjacking |
 | X-Content-Type-Options | nosniff | Prevent MIME confusion attacks |
 | Referrer-Policy | strict-origin-when-cross-origin | Limit referrer leakage |
-| Permissions-Policy | Deny geolocation, mic, camera | Disable unnecessary features |
-| -Server | (removed) | Don't reveal server software |
+| Content-Security-Policy | Appropriate for service | Prevent XSS |
 
 ---
 
@@ -778,7 +751,7 @@ Security-relevant metrics are collected:
 
 - **Incus metrics** (via mTLS) - Container resource usage, process counts
 - **Node Exporter** - Host CPU, memory, disk, network statistics
-- **Caddy metrics** - Request counts, response codes, latencies
+- **HAProxy metrics** - Request counts, response codes, latencies (if enabled)
 - **Service metrics** - Application-specific health indicators
 
 ### Alert Rules
@@ -843,13 +816,6 @@ Events captured:
 
 6. **Limited audit logging** - No centralized audit trail
    - Mitigation: Enable host-level auditd
-
-### Caddy Root Requirement
-
-Caddy runs as root to bind to ports 80 and 443. This is mitigated by:
-- Caddy's secure defaults and Go memory safety
-- No sensitive data stored in Caddy container
-- Rate limiting and IP restrictions
 
 ---
 
