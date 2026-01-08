@@ -300,7 +300,7 @@ incus storage volume delete local grafana01-data
 incus storage volume import local ./grafana01-data.tar.gz grafana01-data
 
 # Recreate container (volume already exists, Terraform will attach it)
-cd terraform && tofu apply
+cd environments/iapetus && tofu apply
 ```
 
 ### Data Restoration
@@ -339,7 +339,7 @@ If the CA private key is compromised, you must regenerate (not restore):
 
 3. **Recreate step-ca:**
    ```bash
-   cd terraform && tofu apply
+   cd environments/iapetus && tofu apply
    ```
 
 4. **Retrieve new CA fingerprint:**
@@ -373,7 +373,7 @@ Each module supports automatic snapshot scheduling via Incus native features. Sn
 
 #### Enabling Snapshots
 
-Add snapshot configuration to module instances in `terraform/main.tf`:
+Add snapshot configuration to module instances in `environments/iapetus/main.tf` or `environments/cluster01/main.tf`:
 
 ```hcl
 module "grafana01" {
@@ -492,7 +492,7 @@ Perform quarterly DR drills:
 1. **Document current state:**
    ```bash
    incus list > pre-drill-state.txt
-   cd terraform && tofu output > pre-drill-outputs.txt
+   cd environments/iapetus && tofu output > pre-drill-outputs.txt
    ```
 
 2. **Simulate failure** (in a test environment):
