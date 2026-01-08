@@ -15,24 +15,33 @@ This guide covers common issues and their solutions when working with the Atlas 
 
 ## Certificate Issues
 
-### Let's Encrypt Rate Limits
+### step-ca ACME Certificate Issues
 
 **Symptoms:**
-- Caddy fails to obtain certificates
-- Error messages mentioning "rate limit" or "too many requests"
+- Services fail to obtain certificates from internal CA
+- "Certificate expired" or renewal failures
+- ACME client errors
 
-**Cause:** Let's Encrypt has [rate limits](https://letsencrypt.org/docs/rate-limits/) including 50 certificates per registered domain per week.
+**Cause:** The internal step-ca provides short-lived certificates (24h default) via ACME protocol.
+
+**Diagnosis:**
+```bash
+# Check step-ca health
+incus exec step-ca01 -- step ca health --ca-url https://localhost:9000 --root /home/step/certs/root_ca.crt
+
+# View step-ca logs
+incus exec step-ca01 -- tail -50 /var/log/step-ca.log
+```
 
 **Solutions:**
-1. Wait for the rate limit to reset (usually 1 week)
-2. Use Let's Encrypt staging environment for testing:
-   ```hcl
-   # In Caddyfile, add:
-   acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
-   ```
-3. Check for duplicate certificate requests in logs:
+1. Verify step-ca is running:
    ```bash
-   incus exec caddy01 -- cat /var/log/caddy/access.log | grep -i acme
+   incus exec step-ca01 -- rc-service step-ca status
+   ```
+2. Check CA fingerprint matches in service configuration
+3. Restart the service to trigger certificate renewal:
+   ```bash
+   incus restart grafana01
    ```
 
 ### Cloudflare API Token Validation
@@ -365,7 +374,7 @@ incus storage info local
 incus storage volume show local prometheus01-data | grep snapshot
 
 # Verify Terraform configuration
-cd terraform && tofu show | grep -A5 "enable_snapshots"
+cd environments/iapetus && tofu show | grep -A5 "enable_snapshots"
 ```
 
 **Solutions:**
@@ -467,20 +476,23 @@ curl http://loki01.incus:3100/metrics | grep loki_ingester
    incus exec loki01 -- df -h /loki
    ```
 
-### Caddy Routing Problems
+### HAProxy Load Balancer Issues
 
 **Symptoms:**
 - 502 Bad Gateway errors
-- "No upstreams available"
-- Wrong service responding
+- Backend connection failures
+- Uneven load distribution
 
 **Diagnosis:**
 ```bash
-# Check Caddyfile configuration
-incus exec caddy01 -- cat /etc/caddy/Caddyfile
+# Check HAProxy configuration
+incus exec haproxy01 -- cat /etc/haproxy/haproxy.cfg
+
+# Check HAProxy stats (if enabled)
+incus exec haproxy01 -- wget -qO- http://localhost:8404/stats
 
 # Test backend connectivity
-incus exec caddy01 -- wget -qO- http://grafana01.incus:3000/api/health
+incus exec haproxy01 -- wget -qO- http://grafana01.incus:3000/api/health
 ```
 
 **Solutions:**
@@ -488,13 +500,40 @@ incus exec caddy01 -- wget -qO- http://grafana01.incus:3000/api/health
    ```bash
    incus list | grep grafana
    ```
-2. Check Caddy logs:
+2. Check HAProxy service status:
    ```bash
-   incus exec caddy01 -- cat /var/log/caddy/access.log | tail -20
+   incus exec haproxy01 -- rc-service haproxy status
    ```
-3. Reload Caddy configuration:
+3. View HAProxy logs:
    ```bash
-   incus exec caddy01 -- caddy reload --config /etc/caddy/Caddyfile
+   incus exec haproxy01 -- tail -50 /var/log/haproxy.log
+   ```
+4. Reload HAProxy configuration:
+   ```bash
+   incus exec haproxy01 -- rc-service haproxy reload
+   ```
+
+### Cloudflare Tunnel Issues
+
+**Symptoms:**
+- External access to services fails
+- "Tunnel connection failed" errors
+
+**Diagnosis:**
+```bash
+# Check cloudflared status
+incus exec cloudflared01 -- rc-service cloudflared status
+
+# View cloudflared logs
+incus exec cloudflared01 -- tail -50 /var/log/cloudflared.log
+```
+
+**Solutions:**
+1. Verify tunnel token is correct in terraform.tfvars
+2. Check Cloudflare Zero Trust dashboard for tunnel status
+3. Restart cloudflared:
+   ```bash
+   incus exec cloudflared01 -- rc-service cloudflared restart
    ```
 
 ---
@@ -511,7 +550,7 @@ incus exec caddy01 -- wget -qO- http://grafana01.incus:3000/api/health
 **Diagnosis:**
 ```bash
 # Check state lock
-cd terraform && tofu force-unlock LOCK_ID
+cd environments/iapetus && tofu force-unlock LOCK_ID
 
 # List resources in state
 tofu state list
@@ -608,7 +647,7 @@ incus config show grafana01 | grep limits
 **Diagnosis:**
 ```bash
 # Check bootstrap state
-cd terraform/bootstrap && tofu state list
+cd environments/iapetus/bootstrap && tofu state list
 
 # Verify storage pool exists
 incus storage list
@@ -716,7 +755,7 @@ incus exec step-ca01 -- step ca health --ca-url https://localhost:9000 --root /h
 
 ```bash
 # Validate configuration
-cd terraform && tofu validate
+cd environments/iapetus && tofu validate
 
 # Plan changes
 tofu plan
@@ -740,11 +779,20 @@ tofu output
 # Grafana logs
 incus exec grafana01 -- tail -f /var/log/grafana/grafana.log
 
-# Prometheus logs
-incus exec prometheus01 -- cat /proc/1/fd/1  # stdout
+# Prometheus logs (Alpine uses OpenRC)
+incus exec prometheus01 -- tail -f /var/log/prometheus.log
 
-# Caddy logs
-incus exec caddy01 -- tail -f /var/log/caddy/access.log
+# Loki logs
+incus exec loki01 -- tail -f /var/log/loki.log
+
+# Cloudflared logs
+incus exec cloudflared01 -- tail -f /var/log/cloudflared.log
+
+# HAProxy logs (if enabled)
+incus exec haproxy01 -- tail -f /var/log/haproxy.log
+
+# step-ca logs
+incus exec step-ca01 -- tail -f /var/log/step-ca.log
 
 # Container system logs
 incus exec grafana01 -- dmesg | tail -20
@@ -772,7 +820,7 @@ incus exec prometheus01 -- df -h
 
 If you can't resolve an issue:
 
-1. Check the [module READMEs](terraform/modules/) for service-specific documentation
+1. Check the [module READMEs](modules/) for service-specific documentation
 2. Review [BACKUP.md](BACKUP.md) for data recovery procedures
 3. Open an issue at https://github.com/accuser-dev/atlas/issues with:
    - Description of the problem
