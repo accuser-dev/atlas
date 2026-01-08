@@ -119,7 +119,7 @@ After deployment, configure the GitHub webhook:
    ```
 
 2. **Make Changes**
-   - Edit Terraform files in `terraform/`
+   - Edit Terraform files in `environments/iapetus/` or `environments/cluster01/`
    - Commit and push
 
 3. **Open Pull Request**
@@ -155,18 +155,32 @@ Comment these on PRs to control Atlantis:
 
 ### Repository Configuration
 
-The `atlantis.yaml` file in the repository root defines:
+The `atlantis.yaml` file in the repository root defines the projects to manage:
 
 ```yaml
 version: 3
 projects:
-  - name: atlas-infrastructure
-    dir: terraform
+  - name: iapetus
+    dir: environments/iapetus
     workspace: default
     autoplan:
       when_modified:
         - "*.tf"
-        - "modules/**/*.tf"
+        - "../../modules/**/*.tf"
+        - "templates/*.tftpl"
+      enabled: true
+    apply_requirements:
+      - mergeable
+      - approved
+    workflow: atlas
+
+  - name: cluster01
+    dir: environments/cluster01
+    workspace: default
+    autoplan:
+      when_modified:
+        - "*.tf"
+        - "../../modules/**/*.tf"
       enabled: true
     apply_requirements:
       - mergeable
@@ -175,10 +189,9 @@ projects:
 ```
 
 **Autoplan Triggers:**
-- `*.tf` - Any Terraform file in terraform/
-- `*.tftpl` - Template files
-- `modules/**/*.tf` - Module files
-- `prometheus-alerts.yml` - Alert rules
+- `*.tf` - Any Terraform file in the environment directory
+- `templates/*.tftpl` - Template files
+- `../../modules/**/*.tf` - Shared module files
 
 **Apply Requirements:**
 - `mergeable` - PR must be mergeable (no conflicts)
