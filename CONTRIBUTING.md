@@ -144,13 +144,17 @@ Before submitting a PR:
 make format
 
 # Validate Terraform configuration
-cd terraform && tofu validate
+cd environments/iapetus && tofu validate
+# or for cluster01:
+cd environments/cluster01 && tofu validate
 
 # Run OpenTofu plan (requires valid terraform.tfvars)
 make plan
+# or for cluster01:
+ENV=cluster01 make plan
 
-# Build Docker images locally (optional)
-make build-all
+# Build Atlantis image locally (optional)
+make build-atlantis
 ```
 
 ### Security Considerations
