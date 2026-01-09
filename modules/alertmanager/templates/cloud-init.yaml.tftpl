@@ -5,7 +5,8 @@
 package_update: true
 
 packages:
-  - prometheus-alertmanager
+  - alertmanager
+  - alertmanager-openrc
 %{ if enable_tls ~}
   - curl
   - tar
@@ -93,6 +94,9 @@ write_files:
         # Ensure data directory exists with proper permissions
         mkdir -p /var/lib/alertmanager
         chown alertmanager:alertmanager /var/lib/alertmanager
+        # Ensure log file exists with proper permissions
+        touch /var/log/alertmanager.log
+        chown alertmanager:alertmanager /var/log/alertmanager.log
 %{ if enable_tls ~}
         # Request TLS certificate before starting
         /usr/local/bin/setup-tls.sh
