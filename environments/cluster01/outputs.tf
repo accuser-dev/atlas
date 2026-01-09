@@ -68,17 +68,6 @@ output "coredns_external_port" {
 }
 
 # =============================================================================
-# Node Exporters
-# =============================================================================
-
-output "node_exporter_endpoints" {
-  description = "Node exporter endpoints for each cluster node"
-  value = {
-    for node, exporter in module.node_exporter : node => exporter.node_exporter_endpoint
-  }
-}
-
-# =============================================================================
 # Incus Metrics
 # =============================================================================
 

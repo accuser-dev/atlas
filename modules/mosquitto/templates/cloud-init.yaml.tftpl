@@ -1,18 +1,19 @@
 #cloud-config
 # Mosquitto MQTT broker system container configuration
-# Uses Alpine Linux with OpenRC service management
+# Uses Debian Trixie with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
   - mosquitto
   - mosquitto-clients
 %{ if enable_tls ~}
-  - step-cli
+  - curl
 %{ endif ~}
 
 write_files:
-  # Main Mosquitto configuration
+  # Replace default Mosquitto configuration
   - path: /etc/mosquitto/mosquitto.conf
     permissions: '0644'
     content: |
@@ -76,7 +77,7 @@ write_files:
   - path: /usr/local/bin/mosquitto-tls-setup.sh
     permissions: '0755'
     content: |
-      #!/bin/sh
+      #!/bin/bash
       set -eu
 
       TLS_DIR="/etc/mosquitto/tls"
@@ -106,12 +107,15 @@ write_files:
       echo "TLS certificates configured successfully"
 %{ endif ~}
 
-  # OpenRC init script override for custom config location
-  - path: /etc/conf.d/mosquitto
+  # systemd override to use custom data directory
+  - path: /etc/systemd/system/mosquitto.service.d/override.conf
     permissions: '0644'
     content: |
-      # Mosquitto configuration
-      MOSQUITTO_CONF="/etc/mosquitto/mosquitto.conf"
+      [Service]
+      ReadWritePaths=/mosquitto/data
+%{ if enable_tls ~}
+      ExecStartPre=/usr/local/bin/mosquitto-tls-setup.sh
+%{ endif ~}
 
 runcmd:
   # Create data directory with correct ownership
@@ -133,10 +137,18 @@ runcmd:
 %{ endif ~}
 
 %{ if enable_tls ~}
-  # Request TLS certificates
-  - /usr/local/bin/mosquitto-tls-setup.sh
+  # Install step-cli for TLS certificate management
+  - |
+    STEP_VERSION="${step_version}"
+    cd /tmp
+    curl -sLO "https://github.com/smallstep/cli/releases/download/v$${STEP_VERSION}/step_linux_$${STEP_VERSION}_amd64.tar.gz"
+    tar -xzf "step_linux_$${STEP_VERSION}_amd64.tar.gz"
+    mv "step_$${STEP_VERSION}/bin/step" /usr/local/bin/step
+    chmod +x /usr/local/bin/step
+    rm -rf "step_linux_$${STEP_VERSION}_amd64.tar.gz" "step_$${STEP_VERSION}"
 %{ endif ~}
 
-  # Enable and start Mosquitto service
-  - rc-update add mosquitto default
-  - rc-service mosquitto start
+  # Reload systemd and start Mosquitto service
+  - systemctl daemon-reload
+  - systemctl enable mosquitto
+  - systemctl start mosquitto

@@ -1,7 +1,7 @@
 # =============================================================================
 # Mosquitto MQTT Broker Module
 # =============================================================================
-# Uses Alpine Linux system container with cloud-init for configuration
+# Uses Debian Trixie system container with systemd and cloud-init
 
 locals {
   # Cloud-init configuration
@@ -12,6 +12,7 @@ locals {
     stepca_url         = var.stepca_url
     stepca_fingerprint = var.stepca_fingerprint
     cert_duration      = var.cert_duration
+    step_version       = var.step_version
     mqtt_users         = var.mqtt_users
     mosquitto_config   = var.mosquitto_config
   })
@@ -23,11 +24,12 @@ resource "incus_storage_volume" "mosquitto_data" {
   name    = var.data_volume_name
   pool    = var.storage_pool
   project = "default"
+  target  = var.target_node
 
   config = merge(
     {
       size = var.data_volume_size
-      # Set initial ownership for mosquitto user (Alpine package uses UID 100, GID 101)
+      # Set initial ownership for mosquitto user (Debian package uses UID 100, GID 101)
       "initial.uid"  = "100"
       "initial.gid"  = "101"
       "initial.mode" = "0755"
@@ -119,6 +121,7 @@ resource "incus_instance" "mosquitto" {
   image    = var.image
   type     = "container"
   profiles = concat(var.profiles, [incus_profile.mosquitto.name])
+  target   = var.target_node
 
   config = {
     "cloud-init.user-data" = local.cloud_init_content
@@ -130,4 +133,9 @@ resource "incus_instance" "mosquitto" {
       error_message = "When enable_tls is true, both stepca_url and stepca_fingerprint must be provided."
     }
   }
+
+  depends_on = [
+    incus_profile.mosquitto,
+    incus_storage_volume.mosquitto_data
+  ]
 }

@@ -48,6 +48,12 @@ variable "storage_pool" {
   default     = "local"
 }
 
+variable "target_node" {
+  description = "Target cluster node for the instance and storage volume (required for Incus clusters)"
+  type        = string
+  default     = null
+}
+
 variable "root_disk_size" {
   description = "Size limit for the root disk (container filesystem)"
   type        = string

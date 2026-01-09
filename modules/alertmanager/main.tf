@@ -2,7 +2,7 @@
 # Alertmanager Module
 # =============================================================================
 # Deploys Prometheus Alertmanager for alert routing and notification management
-# Uses Alpine Linux system container with cloud-init for configuration
+# Uses Debian Trixie system container with systemd and cloud-init
 
 locals {
   # Default Alertmanager configuration if none provided
@@ -34,13 +34,14 @@ locals {
 
   # Cloud-init configuration
   cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    alertmanager_config = local.alertmanager_config
-    alertmanager_port   = var.alertmanager_port
-    enable_tls          = var.enable_tls
-    stepca_url          = var.stepca_url
-    stepca_fingerprint  = var.stepca_fingerprint
-    cert_duration       = var.cert_duration
-    step_version        = var.step_version
+    alertmanager_config  = local.alertmanager_config
+    alertmanager_port    = var.alertmanager_port
+    alertmanager_version = var.alertmanager_version
+    enable_tls           = var.enable_tls
+    stepca_url           = var.stepca_url
+    stepca_fingerprint   = var.stepca_fingerprint
+    cert_duration        = var.cert_duration
+    step_version         = var.step_version
   })
 }
 
@@ -50,6 +51,7 @@ resource "incus_storage_volume" "alertmanager_data" {
   name    = var.data_volume_name
   pool    = var.storage_pool
   project = "default"
+  target  = var.target_node
 
   config = merge(
     {
@@ -111,6 +113,7 @@ resource "incus_instance" "alertmanager" {
   image    = var.image
   type     = "container"
   profiles = concat(var.profiles, [incus_profile.alertmanager.name])
+  target   = var.target_node
 
   config = {
     "cloud-init.user-data" = local.cloud_init_content
@@ -122,4 +125,9 @@ resource "incus_instance" "alertmanager" {
       error_message = "When enable_tls is true, both stepca_url and stepca_fingerprint must be provided."
     }
   }
+
+  depends_on = [
+    incus_profile.alertmanager,
+    incus_storage_volume.alertmanager_data
+  ]
 }

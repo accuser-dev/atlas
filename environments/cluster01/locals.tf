@@ -16,11 +16,6 @@ locals {
       memory = "256MB"
       port   = 9093
     }
-    node_exporter = {
-      cpu    = "1"
-      memory = "128MB"
-      port   = 9100
-    }
     mosquitto = {
       cpu    = "1"
       memory = "256MB"

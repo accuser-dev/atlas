@@ -6,11 +6,13 @@
 #
 # Services deployed here:
 #   - Prometheus (local scraping, federated by iapetus)
-#   - Promtail (ships logs to iapetus Loki)
-#   - node-exporter × N (pinned to each cluster node)
+#   - Alloy (ships logs to iapetus Loki)
 #   - Alertmanager
 #   - Mosquitto (MQTT broker)
 #   - CoreDNS (local DNS)
+#
+# Note: Host metrics are scraped directly from IncusOS nodes via /1.0/metrics
+# endpoint (no separate node-exporter containers needed)
 # =============================================================================
 
 # =============================================================================
@@ -23,7 +25,8 @@ data "external" "cluster_nodes" {
   program = ["bash", "-c", <<-EOF
     # Query cluster nodes and return as JSON with both names and IPs
     # External data source requires string values
-    cluster_json=$(incus cluster list --format json 2>/dev/null)
+    # Use cluster01: remote explicitly since this script runs outside provider context
+    cluster_json=$(incus cluster list cluster01: --format json 2>/dev/null)
     nodes=$(echo "$cluster_json" | jq -c '[.[].server_name]')
     # Extract IPs from URLs (https://192.168.71.5:8443 -> 192.168.71.5)
     ips=$(echo "$cluster_json" | jq -c '[.[].url | gsub("https://"; "") | gsub(":8443"; "")]')
@@ -222,16 +225,6 @@ module "prometheus01" {
               service: 'prometheus'
               instance: 'prometheus01'
 
-      # Node exporters on each cluster node
-%{for node in local.cluster_nodes}
-      - job_name: 'node-${node}'
-        static_configs:
-          - targets: ['node-exporter-${node}.incus:9100']
-            labels:
-              service: 'node-exporter'
-              node: '${node}'
-%{endfor}
-
       # Alertmanager
       - job_name: 'alertmanager'
         static_configs:
@@ -264,15 +257,18 @@ module "prometheus01" {
               service: 'alloy'
               instance: 'alloy01'
 
-      # Incus container metrics (mTLS)
-      - job_name: 'incus'
+      # Incus metrics from each IncusOS cluster node (mTLS)
+      # Each node exposes its own metrics including node_exporter-style host metrics
+%{for i, node in local.cluster_nodes}
+      - job_name: 'incus-${node}'
         metrics_path: '/1.0/metrics'
         scheme: 'https'
         static_configs:
-          - targets: ['${var.incus_metrics_address}']
+          - targets: ['${local.cluster_ips[i]}:8443']
             labels:
               service: 'incus'
-              instance: 'incus-cluster'
+              instance: '${node}'
+              node: '${node}'
         tls_config:
           cert_file: '/etc/prometheus/tls/metrics.crt'
           key_file: '/etc/prometheus/tls/metrics.key'
@@ -281,6 +277,7 @@ module "prometheus01" {
 %{else~}
           insecure_skip_verify: true
 %{endif~}
+%{endfor}
 
     alerting:
       alertmanagers:
@@ -298,6 +295,9 @@ module "prometheus01" {
   enable_data_persistence = true
   data_volume_name        = "prometheus01-data"
   data_volume_size        = "100GB"
+
+  # Pin to specific cluster node for storage volume co-location
+  target_node = "node01"
 
   cpu_limit    = local.services.prometheus.cpu
   memory_limit = local.services.prometheus.memory
@@ -320,37 +320,11 @@ module "alertmanager01" {
   data_volume_name        = "alertmanager01-data"
   data_volume_size        = "1GB"
 
+  # Pin to specific cluster node for storage volume co-location
+  target_node = "node01"
+
   cpu_limit    = local.services.alertmanager.cpu
   memory_limit = local.services.alertmanager.memory
-}
-
-# =============================================================================
-# Node Exporters - Pinned to Each Cluster Node
-# =============================================================================
-# Node exporters stay on management network so Prometheus can reach them via
-# .incus DNS. Note: incusbr0 containers can't be resolved via .incus DNS from
-# OVN containers because each network has its own DNS zone.
-
-module "node_exporter" {
-  source = "../../modules/node-exporter"
-
-  for_each = toset(local.cluster_nodes)
-
-  instance_name = "node-exporter-${each.key}"
-  profile_name  = "node-exporter-${each.key}"
-
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
-
-  node_exporter_port = "9100"
-
-  # Pin to specific cluster node
-  target_node = each.key
-
-  cpu_limit    = local.services.node_exporter.cpu
-  memory_limit = local.services.node_exporter.memory
 }
 
 # =============================================================================
@@ -381,6 +355,9 @@ module "mosquitto01" {
   enable_data_persistence = true
   data_volume_name        = "mosquitto01-data"
   data_volume_size        = "5GB"
+
+  # Pin to specific cluster node for storage volume co-location
+  target_node = "node01"
 
   cpu_limit    = local.services.mosquitto.cpu
   memory_limit = local.services.mosquitto.memory

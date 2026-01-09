@@ -24,6 +24,7 @@ resource "incus_storage_volume" "prometheus_data" {
   name    = var.data_volume_name
   pool    = var.storage_pool
   project = "default"
+  target  = var.target_node
 
   config = merge(
     {
@@ -86,6 +87,7 @@ resource "incus_instance" "prometheus" {
   image    = var.image
   type     = "container"
   profiles = concat(var.profiles, [incus_profile.prometheus.name])
+  target   = var.target_node
 
   config = {
     "cloud-init.user-data" = local.cloud_init_content

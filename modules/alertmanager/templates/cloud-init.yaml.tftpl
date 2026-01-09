@@ -1,14 +1,13 @@
 #cloud-config
-# Alertmanager system container configuration
-# Uses Alpine Linux with OpenRC service management
+# Alertmanager system container cloud-init configuration
+# Uses Debian Trixie with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
-  - alertmanager
-  - alertmanager-openrc
-%{ if enable_tls ~}
   - curl
+%{ if enable_tls ~}
   - tar
 %{ endif ~}
 
@@ -24,7 +23,7 @@ write_files:
   - path: /usr/local/bin/setup-tls.sh
     permissions: '0755'
     content: |
-      #!/bin/sh
+      #!/bin/bash
       # TLS setup script for Alertmanager
       set -eu
 
@@ -69,41 +68,56 @@ write_files:
       echo "INFO: Certificate obtained successfully"
 %{ endif ~}
 
-  # OpenRC init script for Alertmanager
-  - path: /etc/init.d/alertmanager
-    permissions: '0755'
+  # systemd service unit for Alertmanager
+  - path: /etc/systemd/system/alertmanager.service
+    permissions: '0644'
     content: |
-      #!/sbin/openrc-run
+      [Unit]
+      Description=Prometheus Alertmanager
+      After=network-online.target
+      Wants=network-online.target
 
-      name="Alertmanager"
-      description="Prometheus Alertmanager"
-      command="/usr/bin/alertmanager"
-      command_args="--config.file=/etc/alertmanager/alertmanager.yml --storage.path=/var/lib/alertmanager --web.listen-address=:${alertmanager_port} --cluster.listen-address="
-      command_background=true
-      command_user="alertmanager"
-      pidfile="/run/$${RC_SVCNAME}.pid"
-      output_log="/var/log/alertmanager.log"
-      error_log="/var/log/alertmanager.log"
-
-      depend() {
-        need net
-        after firewall
-      }
-
-      start_pre() {
-        # Ensure data directory exists with proper permissions
-        mkdir -p /var/lib/alertmanager
-        chown alertmanager:alertmanager /var/lib/alertmanager
-        # Ensure log file exists with proper permissions
-        touch /var/log/alertmanager.log
-        chown alertmanager:alertmanager /var/log/alertmanager.log
+      [Service]
+      Type=simple
+      User=alertmanager
+      Group=alertmanager
 %{ if enable_tls ~}
-        # Request TLS certificate before starting
-        /usr/local/bin/setup-tls.sh
+      ExecStartPre=/usr/local/bin/setup-tls.sh
 %{ endif ~}
-      }
+      ExecStart=/usr/local/bin/alertmanager \
+        --config.file=/etc/alertmanager/alertmanager.yml \
+        --storage.path=/var/lib/alertmanager \
+        --web.listen-address=:${alertmanager_port} \
+        --cluster.listen-address=
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
+
+      # Security hardening
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      ReadWritePaths=/var/lib/alertmanager
+%{ if enable_tls ~}
+      ReadWritePaths=/etc/alertmanager/tls
+%{ endif ~}
+      PrivateTmp=yes
+
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
+  # Download and install Alertmanager
+  - |
+    ALERTMANAGER_VERSION="${alertmanager_version}"
+    cd /tmp
+    curl -sLO "https://github.com/prometheus/alertmanager/releases/download/v$${ALERTMANAGER_VERSION}/alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64.tar.gz"
+    tar -xzf "alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64.tar.gz"
+    mv "alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64/alertmanager" /usr/local/bin/
+    mv "alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64/amtool" /usr/local/bin/
+    chmod +x /usr/local/bin/alertmanager /usr/local/bin/amtool
+    rm -rf "alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64.tar.gz" "alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64"
 %{ if enable_tls ~}
   # Install step-cli for TLS certificate management
   - |
@@ -115,11 +129,12 @@ runcmd:
     chmod +x /usr/local/bin/step
     rm -rf "step_linux_$${STEP_VERSION}_amd64.tar.gz" "step_$${STEP_VERSION}"
 %{ endif ~}
-  # Create alertmanager user if it doesn't exist
-  - adduser -D -H -s /sbin/nologin alertmanager 2>/dev/null || true
-  # Create data directory
-  - mkdir -p /var/lib/alertmanager
-  - chown alertmanager:alertmanager /var/lib/alertmanager
+  # Create alertmanager user and directories
+  - groupadd --system alertmanager 2>/dev/null || true
+  - useradd --system --gid alertmanager --no-create-home --shell /usr/sbin/nologin alertmanager 2>/dev/null || true
+  - mkdir -p /var/lib/alertmanager /etc/alertmanager
+  - chown -R alertmanager:alertmanager /var/lib/alertmanager /etc/alertmanager
   # Enable and start alertmanager service
-  - rc-update add alertmanager default
-  - rc-service alertmanager start
+  - systemctl daemon-reload
+  - systemctl enable alertmanager
+  - systemctl start alertmanager

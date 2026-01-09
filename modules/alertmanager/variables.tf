@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use (system container with cloud-init)"
   type        = string
-  default     = "images:alpine/3.21/cloud"
+  default     = "images:debian/trixie/cloud"
 }
 
 variable "cpu_limit" {
@@ -40,6 +40,12 @@ variable "storage_pool" {
   description = "Storage pool for the data volume"
   type        = string
   default     = "local"
+}
+
+variable "target_node" {
+  description = "Target cluster node for the instance and storage volume (required for Incus clusters)"
+  type        = string
+  default     = null
 }
 
 variable "root_disk_size" {
@@ -106,6 +112,12 @@ variable "alertmanager_config" {
   description = "Alertmanager configuration file content (alertmanager.yml)"
   type        = string
   default     = ""
+}
+
+variable "alertmanager_version" {
+  description = "Version of Alertmanager to install"
+  type        = string
+  default     = "0.27.0"
 }
 
 # TLS Configuration
