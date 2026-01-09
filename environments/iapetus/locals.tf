@@ -36,11 +36,6 @@ locals {
       memory = "512MB"
       port   = 9000
     }
-    node_exporter = {
-      cpu    = "1"
-      memory = "128MB"
-      port   = 9100
-    }
     cloudflared = {
       cpu    = "1"
       memory = "256MB"

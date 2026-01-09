@@ -71,15 +71,8 @@ scrape_configs:
           instance: 'openfga01'
 %{~ endif }
 
-  # Node Exporter for host metrics
-  - job_name: 'node'
-    static_configs:
-      - targets: ['node-exporter01.incus:9100']
-        labels:
-          service: 'node-exporter'
-          instance: 'node-exporter01'
-
-  # Incus container metrics (mTLS authentication required)
+  # Incus metrics endpoint (includes node_exporter metrics from IncusOS host)
+  # No separate node-exporter container needed - IncusOS provides host metrics natively
   - job_name: 'incus'
     metrics_path: '/1.0/metrics'
     scheme: 'https'

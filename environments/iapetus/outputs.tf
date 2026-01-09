@@ -41,11 +41,6 @@ output "step_ca_fingerprint_command" {
   value       = module.step_ca01.fingerprint_command
 }
 
-output "node_exporter_endpoint" {
-  description = "Node Exporter metrics endpoint URL for host monitoring"
-  value       = module.node_exporter01.node_exporter_endpoint
-}
-
 # =============================================================================
 # DNS Configuration
 # =============================================================================

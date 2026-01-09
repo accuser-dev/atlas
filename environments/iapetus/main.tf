@@ -229,29 +229,6 @@ module "step_ca01" {
   memory_limit = local.services.step_ca.memory
 }
 
-module "node_exporter01" {
-  source = "../../modules/node-exporter"
-
-  instance_name = "node-exporter01"
-  profile_name  = "node-exporter"
-
-  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  # Node-exporter stays on management network so Prometheus can reach it via .incus DNS.
-  # Note: incusbr0 containers can't be resolved via .incus DNS from OVN containers
-  # because each network has its own DNS zone.
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
-
-  # Node Exporter configuration
-  node_exporter_port = "9100"
-
-  # Resource limits (from centralized service config)
-  cpu_limit    = local.services.node_exporter.cpu
-  memory_limit = local.services.node_exporter.memory
-}
-
 module "coredns01" {
   source = "../../modules/coredns"
 

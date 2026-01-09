@@ -81,7 +81,7 @@ runcmd:
   # Apply static IP configuration
   - systemctl restart networking
 %{ endif ~}
-  # Download and install CoreDNS
+  # Download and install CoreDNS (before disabling systemd-resolved, as we need DNS)
   - |
     COREDNS_VERSION="${coredns_version}"
     cd /tmp
@@ -95,6 +95,11 @@ runcmd:
   - useradd --system --gid coredns --no-create-home --shell /usr/sbin/nologin coredns 2>/dev/null || true
   - mkdir -p /etc/coredns/zones
   - chown -R coredns:coredns /etc/coredns
+  # Disable systemd-resolved (conflicts with CoreDNS on port 53)
+  - systemctl stop systemd-resolved
+  - systemctl disable systemd-resolved
+  # Set up static DNS resolver (systemd-resolved is now disabled)
+  - echo "nameserver 1.1.1.1" > /etc/resolv.conf
   # Enable and start CoreDNS service
   - systemctl daemon-reload
   - systemctl enable coredns
