@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use (system container with cloud-init)"
   type        = string
-  default     = "images:ubuntu/24.04/cloud"
+  default     = "images:debian/trixie/cloud"
 }
 
 variable "step_version" {

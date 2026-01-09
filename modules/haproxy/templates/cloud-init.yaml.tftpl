@@ -1,7 +1,9 @@
 #cloud-config
 # HAProxy load balancer cloud-init configuration
+# Uses Debian Trixie with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
   - haproxy
@@ -13,6 +15,7 @@ write_files:
       ${indent(6, haproxy_config)}
 
 runcmd:
-  # Enable and start HAProxy service
-  - rc-update add haproxy default
-  - rc-service haproxy start
+  # Enable and start HAProxy service (uses package-provided systemd unit)
+  - systemctl daemon-reload
+  - systemctl enable haproxy
+  - systemctl start haproxy

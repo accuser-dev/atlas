@@ -2,7 +2,7 @@
 # Node Exporter Module
 # =============================================================================
 # Deploys Prometheus Node Exporter for host-level metrics collection
-# Uses Alpine Linux system container with cloud-init for configuration
+# Uses Debian Trixie system container with cloud-init and systemd for configuration
 
 locals {
   # Cloud-init configuration

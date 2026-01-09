@@ -1,12 +1,12 @@
 #cloud-config
 # Prometheus system container configuration
-# Uses Alpine Linux with OpenRC service management
+# Uses Debian Trixie with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
   - curl
-  - tar
 
 write_files:
   # Prometheus configuration file
@@ -26,7 +26,7 @@ write_files:
 %{ if incus_metrics_certificate != "" ~}
   # Incus metrics certificate for mTLS
   - path: /etc/prometheus/tls/metrics.crt
-    permissions: '0644'
+    permissions: '0600'
     content: |
       ${indent(6, incus_metrics_certificate)}
 %{ endif ~}
@@ -34,44 +34,47 @@ write_files:
 %{ if incus_metrics_private_key != "" ~}
   # Incus metrics private key
   - path: /etc/prometheus/tls/metrics.key
-    permissions: '0644'
+    permissions: '0600'
     content: |
       ${indent(6, incus_metrics_private_key)}
 %{ endif ~}
 
-  # OpenRC init script for Prometheus
-  - path: /etc/init.d/prometheus
-    permissions: '0755'
+  # systemd service unit for Prometheus
+  - path: /etc/systemd/system/prometheus.service
+    permissions: '0644'
     content: |
-      #!/sbin/openrc-run
+      [Unit]
+      Description=Prometheus monitoring system
+      After=network-online.target
+      Wants=network-online.target
 
-      name="prometheus"
-      description="Prometheus monitoring system"
-      command="/usr/local/bin/prometheus"
-      command_args="--config.file=/etc/prometheus/prometheus.yml \
+      [Service]
+      Type=simple
+      User=prometheus
+      Group=prometheus
+      ExecStart=/usr/local/bin/prometheus \
+        --config.file=/etc/prometheus/prometheus.yml \
         --storage.tsdb.path=/prometheus \
         --storage.tsdb.retention.time=${retention_time} \
 %{ if retention_size != "" ~}
         --storage.tsdb.retention.size=${retention_size} \
 %{ endif ~}
         --web.listen-address=:${prometheus_port} \
-        --web.enable-lifecycle"
-      command_background=true
-      command_user="prometheus"
-      pidfile="/run/$${RC_SVCNAME}.pid"
-      output_log="/var/log/prometheus.log"
-      error_log="/var/log/prometheus.log"
+        --web.enable-lifecycle
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
 
-      depend() {
-        need net
-        after firewall
-      }
+      # Security hardening
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      ReadWritePaths=/prometheus
+      PrivateTmp=yes
 
-      start_pre() {
-        # Ensure prometheus user owns the data directory
-        chown -R prometheus:prometheus /prometheus 2>/dev/null || true
-        chown -R prometheus:prometheus /etc/prometheus 2>/dev/null || true
-      }
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
   # Download and install Prometheus
@@ -85,12 +88,10 @@ runcmd:
     chmod +x /usr/local/bin/prometheus /usr/local/bin/promtool
     rm -rf "prometheus-$${PROMETHEUS_VERSION}.linux-amd64.tar.gz" "prometheus-$${PROMETHEUS_VERSION}.linux-amd64"
   # Create prometheus user and directories
-  - adduser -D -H -s /sbin/nologin prometheus 2>/dev/null || true
+  - useradd --system --no-create-home --shell /usr/sbin/nologin prometheus 2>/dev/null || true
   - mkdir -p /prometheus /etc/prometheus/tls /etc/prometheus/alerts
   - chown -R prometheus:prometheus /prometheus /etc/prometheus
-  # Create log file with proper permissions
-  - touch /var/log/prometheus.log
-  - chown prometheus:prometheus /var/log/prometheus.log
   # Enable and start prometheus service
-  - rc-update add prometheus default
-  - rc-service prometheus start
+  - systemctl daemon-reload
+  - systemctl enable prometheus
+  - systemctl start prometheus

@@ -2,7 +2,7 @@
 # OpenFGA Authorization Module
 # =============================================================================
 # Deploys OpenFGA as a fine-grained authorization server.
-# Uses Alpine Linux system container with cloud-init for configuration.
+# Uses Debian Trixie system container with cloud-init and systemd for configuration.
 #
 # OpenFGA implements Google Zanzibar-style authorization, allowing fine-grained
 # access control. Incus uses OpenFGA to restrict user access when OIDC

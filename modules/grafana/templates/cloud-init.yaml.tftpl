@@ -1,12 +1,12 @@
 #cloud-config
 # Grafana system container configuration
-# Uses Alpine Linux with OpenRC service management
+# Uses Debian Trixie with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
   - curl
-  - tar
 
 write_files:
   # Grafana configuration file
@@ -86,33 +86,34 @@ write_files:
 %{ endfor ~}
 %{ endif ~}
 
-  # OpenRC init script for Grafana
-  - path: /etc/init.d/grafana
-    permissions: '0755'
+  # systemd service unit for Grafana
+  - path: /etc/systemd/system/grafana.service
+    permissions: '0644'
     content: |
-      #!/sbin/openrc-run
+      [Unit]
+      Description=Grafana visualization platform
+      After=network-online.target
+      Wants=network-online.target
 
-      name="grafana"
-      description="Grafana visualization platform"
-      command="/usr/share/grafana/bin/grafana"
-      command_args="server --config=/etc/grafana/grafana.ini --homepath=/usr/share/grafana"
-      command_background=true
-      command_user="grafana"
-      pidfile="/run/$${RC_SVCNAME}.pid"
-      output_log="/var/log/grafana/grafana.log"
-      error_log="/var/log/grafana/grafana.log"
+      [Service]
+      Type=simple
+      User=grafana
+      Group=grafana
+      ExecStart=/usr/share/grafana/bin/grafana server --config=/etc/grafana/grafana.ini --homepath=/usr/share/grafana
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
 
-      depend() {
-        need net
-        after firewall
-      }
+      # Security hardening
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      ReadWritePaths=/var/lib/grafana /var/log/grafana /etc/grafana
+      PrivateTmp=yes
 
-      start_pre() {
-        # Ensure grafana user owns directories
-        chown -R grafana:grafana /var/lib/grafana 2>/dev/null || true
-        chown -R grafana:grafana /var/log/grafana 2>/dev/null || true
-        chown -R grafana:grafana /etc/grafana 2>/dev/null || true
-      }
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
   # Download and install Grafana
@@ -125,10 +126,11 @@ runcmd:
     mv grafana-v$${GRAFANA_VERSION}/* /usr/share/grafana/
     rm -rf "grafana-$${GRAFANA_VERSION}.linux-amd64.tar.gz" "grafana-v$${GRAFANA_VERSION}"
   # Create grafana user and directories
-  - addgroup -g 472 grafana 2>/dev/null || true
-  - adduser -D -u 472 -G grafana -H -s /sbin/nologin grafana 2>/dev/null || true
+  - groupadd --system --gid 472 grafana 2>/dev/null || true
+  - useradd --system --uid 472 --gid grafana --no-create-home --shell /usr/sbin/nologin grafana 2>/dev/null || true
   - mkdir -p /var/lib/grafana/plugins /var/log/grafana /etc/grafana/provisioning/datasources
   - chown -R grafana:grafana /var/lib/grafana /var/log/grafana /etc/grafana /usr/share/grafana
   # Enable and start grafana service
-  - rc-update add grafana default
-  - rc-service grafana start
+  - systemctl daemon-reload
+  - systemctl enable grafana
+  - systemctl start grafana

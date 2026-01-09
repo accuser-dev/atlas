@@ -2,7 +2,7 @@
 # Cloudflared Module
 # =============================================================================
 # Deploys Cloudflare Tunnel client for secure remote access via Zero Trust
-# Uses Alpine Linux system container with cloud-init for configuration
+# Uses Debian Trixie system container with cloud-init and systemd for configuration
 
 locals {
   # Cloud-init configuration

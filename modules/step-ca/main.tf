@@ -2,7 +2,7 @@
 # step-ca Module
 # =============================================================================
 # Internal ACME Certificate Authority for automated TLS certificate management
-# Uses Ubuntu system container with cloud-init and systemd for configuration
+# Uses Debian Trixie system container with cloud-init and systemd for configuration
 
 locals {
   # Build DNS names list - always include instance name and localhost

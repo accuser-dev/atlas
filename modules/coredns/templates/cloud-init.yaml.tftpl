@@ -1,25 +1,22 @@
 #cloud-config
 # CoreDNS system container cloud-init configuration
+# Uses Debian Trixie with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
-  - coredns
-  - wget
+  - curl
 
 write_files:
 %{ if ipv4_address != "" ~}
-  # Static IP configuration for Alpine Linux
-  - path: /etc/network/interfaces
+  # Static IP configuration for Debian
+  - path: /etc/network/interfaces.d/eth0
     permissions: '0644'
     content: |
-      auto lo
-      iface lo inet loopback
-
       auto eth0
       iface eth0 inet static
-        address ${ipv4_address}
-        netmask 255.255.255.0
+        address ${ipv4_address}/24
 %{ if ipv4_gateway != "" ~}
         gateway ${ipv4_gateway}
 %{ endif ~}
@@ -48,31 +45,57 @@ write_files:
     content: |
       ${indent(6, zone_file_content)}
 
-  # OpenRC init script for CoreDNS
-  - path: /etc/init.d/coredns
-    permissions: '0755'
+  # systemd service unit for CoreDNS
+  - path: /etc/systemd/system/coredns.service
+    permissions: '0644'
     content: |
-      #!/sbin/openrc-run
+      [Unit]
+      Description=CoreDNS DNS server
+      After=network-online.target
+      Wants=network-online.target
 
-      name="CoreDNS"
-      description="CoreDNS DNS server"
-      command="/usr/bin/coredns"
-      command_args="-conf /etc/coredns/Corefile"
-      command_background=true
-      pidfile="/run/$${RC_SVCNAME}.pid"
-      output_log="/var/log/coredns.log"
-      error_log="/var/log/coredns.log"
+      [Service]
+      Type=simple
+      User=coredns
+      Group=coredns
+      ExecStart=/usr/local/bin/coredns -conf /etc/coredns/Corefile
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
 
-      depend() {
-        need net
-        after firewall
-      }
+      # Security hardening
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      ReadOnlyPaths=/etc/coredns
+      PrivateTmp=yes
+      # Allow binding to privileged port 53
+      AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
 %{ if ipv4_address != "" ~}
   # Apply static IP configuration
-  - rc-service networking restart
+  - systemctl restart networking
 %{ endif ~}
+  # Download and install CoreDNS
+  - |
+    COREDNS_VERSION="${coredns_version}"
+    cd /tmp
+    curl -sLO "https://github.com/coredns/coredns/releases/download/v$${COREDNS_VERSION}/coredns_$${COREDNS_VERSION}_linux_amd64.tgz"
+    tar -xzf "coredns_$${COREDNS_VERSION}_linux_amd64.tgz"
+    mv coredns /usr/local/bin/coredns
+    chmod +x /usr/local/bin/coredns
+    rm -f "coredns_$${COREDNS_VERSION}_linux_amd64.tgz"
+  # Create coredns user and directories
+  - groupadd --system coredns 2>/dev/null || true
+  - useradd --system --gid coredns --no-create-home --shell /usr/sbin/nologin coredns 2>/dev/null || true
+  - mkdir -p /etc/coredns/zones
+  - chown -R coredns:coredns /etc/coredns
   # Enable and start CoreDNS service
-  - rc-update add coredns default
-  - rc-service coredns start
+  - systemctl daemon-reload
+  - systemctl enable coredns
+  - systemctl start coredns

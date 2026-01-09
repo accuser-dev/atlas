@@ -15,7 +15,13 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use for CoreDNS (system container with cloud-init)"
   type        = string
-  default     = "images:alpine/3.21/cloud"
+  default     = "images:debian/trixie/cloud"
+}
+
+variable "coredns_version" {
+  description = "Version of CoreDNS to install"
+  type        = string
+  default     = "1.12.0"
 }
 
 variable "cpu_limit" {

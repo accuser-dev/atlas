@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use"
   type        = string
-  default     = "images:alpine/3.21/cloud"
+  default     = "images:debian/trixie/cloud"
 }
 
 variable "cpu_limit" {

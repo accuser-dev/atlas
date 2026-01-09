@@ -1,23 +1,28 @@
 #cloud-config
 # OpenFGA Authorization Server system container configuration
-# Uses Alpine Linux with OpenRC service management
+# Uses Debian Trixie with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
   - curl
 
 write_files:
-  # OpenRC init script for OpenFGA
-  - path: /etc/init.d/openfga
-    permissions: '0755'
+  # systemd service unit for OpenFGA
+  - path: /etc/systemd/system/openfga.service
+    permissions: '0644'
     content: |
-      #!/sbin/openrc-run
+      [Unit]
+      Description=OpenFGA Fine-Grained Authorization Server
+      After=network-online.target
+      Wants=network-online.target
 
-      name="OpenFGA"
-      description="OpenFGA Fine-Grained Authorization Server"
-      command="/usr/local/bin/openfga"
-      command_args="run \
+      [Service]
+      Type=simple
+      User=openfga
+      Group=openfga
+      ExecStart=/usr/local/bin/openfga run \
         --datastore-engine sqlite \
         --datastore-uri 'file:/var/lib/openfga/openfga.db' \
         --http-addr 0.0.0.0:${http_port} \
@@ -31,27 +36,26 @@ write_files:
         --profiler-enabled \
         --profiler-addr 0.0.0.0:${metrics_port} \
         --authn-method preshared \
-        --authn-preshared-keys '${join(",", preshared_keys)}'"
-      command_background=true
-      command_user="openfga"
-      pidfile="/run/$${RC_SVCNAME}.pid"
-      output_log="/var/log/openfga.log"
-      error_log="/var/log/openfga.log"
+        --authn-preshared-keys '${join(",", preshared_keys)}'
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
 
-      depend() {
-        need net
-        after firewall
-      }
+      # Security hardening
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      ReadWritePaths=/var/lib/openfga
+      PrivateTmp=yes
 
-      start_pre() {
-        # Ensure data directory exists with correct permissions
-        checkpath --directory --owner openfga:openfga --mode 0755 /var/lib/openfga
-      }
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
   # Create openfga user and group
-  - addgroup -S openfga 2>/dev/null || true
-  - adduser -S -G openfga -h /var/lib/openfga -s /sbin/nologin openfga 2>/dev/null || true
+  - groupadd --system openfga 2>/dev/null || true
+  - useradd --system --gid openfga --home-dir /var/lib/openfga --shell /usr/sbin/nologin openfga 2>/dev/null || true
 
   # Create necessary directories
   - mkdir -p /var/lib/openfga
@@ -74,10 +78,7 @@ runcmd:
       --datastore-uri 'file:/var/lib/openfga/openfga.db'
     chown openfga:openfga /var/lib/openfga/openfga.db 2>/dev/null || true
 
-  # Create log file with proper permissions
-  - touch /var/log/openfga.log
-  - chown openfga:openfga /var/log/openfga.log
-
   # Enable and start OpenFGA service
-  - rc-update add openfga default
-  - rc-service openfga start
+  - systemctl daemon-reload
+  - systemctl enable openfga
+  - systemctl start openfga

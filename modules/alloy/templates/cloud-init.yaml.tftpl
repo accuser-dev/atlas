@@ -1,12 +1,13 @@
 #cloud-config
 # Grafana Alloy system container configuration
-# Uses Alpine Linux with OpenRC service management
+# Uses Debian Trixie with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
   - curl
-  - gcompat
+  - unzip
 
 write_files:
   # Alloy configuration file (River syntax)
@@ -32,7 +33,7 @@ write_files:
       local.file_match "system_logs" {
         path_targets = [
           {"__path__" = "/var/log/*.log"},
-          {"__path__" = "/var/log/messages"},
+          {"__path__" = "/var/log/syslog"},
         ]
       }
 
@@ -106,34 +107,36 @@ write_files:
         }
       }
 
-  # OpenRC init script for Alloy
-  - path: /etc/init.d/alloy
-    permissions: '0755'
+  # systemd service unit for Alloy
+  - path: /etc/systemd/system/alloy.service
+    permissions: '0644'
     content: |
-      #!/sbin/openrc-run
+      [Unit]
+      Description=Grafana Alloy - OpenTelemetry Collector
+      After=network-online.target
+      Wants=network-online.target
 
-      name="alloy"
-      description="Grafana Alloy - OpenTelemetry Collector"
-      command="/usr/local/bin/alloy"
-      command_args="run --storage.path=/var/lib/alloy --server.http.listen-addr=0.0.0.0:${http_port} /etc/alloy/config.alloy"
-      command_background=true
-      command_user="alloy"
-      pidfile="/run/$${RC_SVCNAME}.pid"
-      output_log="/var/log/alloy.log"
-      error_log="/var/log/alloy.log"
-      directory="/var/lib/alloy"
+      [Service]
+      Type=simple
+      User=alloy
+      Group=alloy
+      WorkingDirectory=/var/lib/alloy
+      ExecStart=/usr/local/bin/alloy run --storage.path=/var/lib/alloy --server.http.listen-addr=0.0.0.0:${http_port} /etc/alloy/config.alloy
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
 
-      depend() {
-        need net
-        after firewall
-      }
+      # Security hardening
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      ReadWritePaths=/var/lib/alloy
+      ReadOnlyPaths=/var/log
+      PrivateTmp=yes
 
-      start_pre() {
-        # Ensure alloy user owns required directories
-        mkdir -p /var/lib/alloy
-        chown -R alloy:alloy /etc/alloy 2>/dev/null || true
-        chown -R alloy:alloy /var/lib/alloy 2>/dev/null || true
-      }
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
   # Download and install Alloy
@@ -146,16 +149,14 @@ runcmd:
     chmod +x /usr/local/bin/alloy
     rm -f "alloy-linux-amd64.zip"
   # Create alloy user and directories
-  - addgroup -g 10001 alloy 2>/dev/null || true
-  - adduser -D -u 10001 -G alloy -H -s /sbin/nologin alloy 2>/dev/null || true
+  - groupadd --system --gid 10001 alloy 2>/dev/null || true
+  - useradd --system --uid 10001 --gid alloy --no-create-home --shell /usr/sbin/nologin alloy 2>/dev/null || true
   - mkdir -p /var/lib/alloy /etc/alloy
   - chown -R alloy:alloy /var/lib/alloy /etc/alloy
-  # Create log file with proper permissions
-  - touch /var/log/alloy.log
-  - chown alloy:alloy /var/log/alloy.log
   # Allow alloy to read system logs
   - chmod 644 /var/log/*.log 2>/dev/null || true
-  - chmod 644 /var/log/messages 2>/dev/null || true
+  - chmod 644 /var/log/syslog 2>/dev/null || true
   # Enable and start alloy service
-  - rc-update add alloy default
-  - rc-service alloy start
+  - systemctl daemon-reload
+  - systemctl enable alloy
+  - systemctl start alloy

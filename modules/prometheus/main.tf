@@ -2,7 +2,7 @@
 # Prometheus Module
 # =============================================================================
 # Metrics collection and time-series database
-# Uses Alpine Linux system container with cloud-init for configuration
+# Uses Debian Trixie system container with cloud-init and systemd for configuration
 
 locals {
   # Cloud-init configuration

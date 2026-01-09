@@ -1,8 +1,9 @@
 #cloud-config
 # Loki system container configuration
-# Uses Alpine Linux with OpenRC service management
+# Uses Debian Trixie with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
   - curl
@@ -10,7 +11,7 @@ packages:
 
 write_files:
   # Loki configuration file
-  - path: /etc/loki/loki-config.yaml
+  - path: /etc/loki/config.yaml
     permissions: '0644'
     content: |
       # Loki configuration
@@ -72,32 +73,34 @@ write_files:
       analytics:
         reporting_enabled: false
 
-  # OpenRC init script for Loki
-  - path: /etc/init.d/loki
-    permissions: '0755'
+  # systemd service unit for Loki
+  - path: /etc/systemd/system/loki.service
+    permissions: '0644'
     content: |
-      #!/sbin/openrc-run
+      [Unit]
+      Description=Loki log aggregation system
+      After=network-online.target
+      Wants=network-online.target
 
-      name="loki"
-      description="Loki log aggregation system"
-      command="/usr/local/bin/loki"
-      command_args="-config.file=/etc/loki/loki-config.yaml"
-      command_background=true
-      command_user="loki"
-      pidfile="/run/$${RC_SVCNAME}.pid"
-      output_log="/var/log/loki.log"
-      error_log="/var/log/loki.log"
+      [Service]
+      Type=simple
+      User=loki
+      Group=loki
+      ExecStart=/usr/local/bin/loki -config.file=/etc/loki/config.yaml
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
 
-      depend() {
-        need net
-        after firewall
-      }
+      # Security hardening
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      ReadWritePaths=/loki
+      PrivateTmp=yes
 
-      start_pre() {
-        # Ensure loki user owns the data directory
-        chown -R loki:loki /loki 2>/dev/null || true
-        chown -R loki:loki /etc/loki 2>/dev/null || true
-      }
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
   # Download and install Loki
@@ -110,13 +113,11 @@ runcmd:
     chmod +x /usr/local/bin/loki
     rm -f "loki-linux-amd64.zip"
   # Create loki user and directories
-  - addgroup -g 10001 loki 2>/dev/null || true
-  - adduser -D -u 10001 -G loki -H -s /sbin/nologin loki 2>/dev/null || true
+  - groupadd --system --gid 10001 loki 2>/dev/null || true
+  - useradd --system --uid 10001 --gid loki --no-create-home --shell /usr/sbin/nologin loki 2>/dev/null || true
   - mkdir -p /loki/chunks /loki/rules /loki/compactor /etc/loki
   - chown -R loki:loki /loki /etc/loki
-  # Create log file with proper permissions
-  - touch /var/log/loki.log
-  - chown loki:loki /var/log/loki.log
   # Enable and start loki service
-  - rc-update add loki default
-  - rc-service loki start
+  - systemctl daemon-reload
+  - systemctl enable loki
+  - systemctl start loki

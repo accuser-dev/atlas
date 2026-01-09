@@ -4,8 +4,7 @@
 # Provides split-horizon DNS for internal service resolution.
 # Zone file is generated from dns_records collected from service modules.
 #
-# Uses a system container (images:alpine) instead of OCI application container
-# because LXC requires a proper filesystem structure that OCI containers lack.
+# Uses Debian Trixie system container with cloud-init and systemd for configuration.
 
 # Service-specific profile
 # Contains resource limits, root disk with size limit, and service-specific devices (proxy devices for DNS)
@@ -114,6 +113,7 @@ locals {
     ipv4_address      = var.ipv4_address
     ipv4_gateway      = var.ipv4_gateway
     dns_servers       = var.static_ip_dns_servers
+    coredns_version   = var.coredns_version
   })
 }
 

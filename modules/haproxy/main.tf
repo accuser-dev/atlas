@@ -2,7 +2,7 @@
 # HAProxy Module
 # =============================================================================
 # Deploys HAProxy load balancer for distributing traffic to backend servers
-# Uses Alpine Linux system container with cloud-init for configuration
+# Uses Debian Trixie system container with cloud-init and systemd for configuration
 
 locals {
   # Cloud-init configuration

@@ -1,45 +1,49 @@
 #cloud-config
 # Cloudflared system container configuration
-# Uses Alpine Linux with OpenRC service management
+# Uses Debian Trixie with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
   - curl
 
 write_files:
-  # OpenRC init script for cloudflared
-  - path: /etc/init.d/cloudflared
-    permissions: '0755'
-    content: |
-      #!/sbin/openrc-run
-
-      name="Cloudflared"
-      description="Cloudflare Tunnel client"
-      command="/usr/local/bin/cloudflared"
-      command_args="tunnel --metrics 0.0.0.0:${metrics_port} run"
-      command_background=true
-      command_user="cloudflared"
-      pidfile="/run/$${RC_SVCNAME}.pid"
-      output_log="/var/log/cloudflared.log"
-      error_log="/var/log/cloudflared.log"
-
-      depend() {
-        need net
-        after firewall
-      }
-
-      start_pre() {
-        # Export tunnel token for cloudflared
-        export TUNNEL_TOKEN="${tunnel_token}"
-      }
-
   # Environment file for cloudflared
-  - path: /etc/conf.d/cloudflared
+  - path: /etc/default/cloudflared
     permissions: '0600'
     content: |
       # Cloudflare Tunnel token
       TUNNEL_TOKEN="${tunnel_token}"
+
+  # systemd service unit for cloudflared
+  - path: /etc/systemd/system/cloudflared.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Cloudflare Tunnel client
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      User=cloudflared
+      Group=cloudflared
+      EnvironmentFile=/etc/default/cloudflared
+      ExecStart=/usr/local/bin/cloudflared tunnel --metrics 0.0.0.0:${metrics_port} run
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
+
+      # Security hardening
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      PrivateTmp=yes
+
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
   # Download and install cloudflared binary
@@ -50,10 +54,8 @@ runcmd:
     mv cloudflared-linux-amd64 /usr/local/bin/cloudflared
     chmod +x /usr/local/bin/cloudflared
   # Create cloudflared user
-  - adduser -D -H -s /sbin/nologin cloudflared 2>/dev/null || true
-  # Create log file with proper permissions
-  - touch /var/log/cloudflared.log
-  - chown cloudflared:cloudflared /var/log/cloudflared.log
+  - useradd --system --no-create-home --shell /usr/sbin/nologin cloudflared 2>/dev/null || true
   # Enable and start cloudflared service
-  - rc-update add cloudflared default
-  - rc-service cloudflared start
+  - systemctl daemon-reload
+  - systemctl enable cloudflared
+  - systemctl start cloudflared
