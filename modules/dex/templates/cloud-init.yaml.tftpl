@@ -1,65 +1,67 @@
 #cloud-config
-# Dex OIDC Provider system container configuration
-# Uses Alpine Linux with OpenRC service management
-
-package_update: true
-
-packages:
-  - curl
+# Dex OIDC Provider system container cloud-init configuration
+# Uses Debian Trixie with systemd service management
 
 write_files:
   # Dex configuration file
   - path: /etc/dex/config.yaml
-    permissions: '0600'
+    permissions: '0640'
     content: |
       ${indent(6, dex_config)}
 
-  # OpenRC init script for Dex
-  - path: /etc/init.d/dex
-    permissions: '0755'
+  # systemd service unit for Dex
+  - path: /etc/systemd/system/dex.service
+    permissions: '0644'
     content: |
-      #!/sbin/openrc-run
+      [Unit]
+      Description=Dex OIDC Identity Provider
+      After=network-online.target
+      Wants=network-online.target
 
-      name="Dex"
-      description="Dex OIDC Identity Provider"
-      command="/usr/local/bin/dex"
-      command_args="serve /etc/dex/config.yaml"
-      command_background=true
-      command_user="dex"
-      pidfile="/run/$${RC_SVCNAME}.pid"
-      output_log="/var/log/dex.log"
-      error_log="/var/log/dex.log"
+      [Service]
+      Type=simple
+      User=dex
+      Group=dex
+      ExecStart=/usr/local/bin/dex serve /etc/dex/config.yaml
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
 
-      depend() {
-        need net
-        after firewall
-      }
+      # Security hardening
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      ReadWritePaths=/var/dex
+      PrivateTmp=yes
 
-      start_pre() {
-        # Ensure data directory exists with correct permissions
-        checkpath --directory --owner dex:dex --mode 0755 /var/lib/dex
-      }
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
-  # Create dex user and group
-  - addgroup -S dex 2>/dev/null || true
-  - adduser -S -G dex -h /var/lib/dex -s /sbin/nologin dex 2>/dev/null || true
-
-  # Create necessary directories
-  - mkdir -p /var/lib/dex /etc/dex
-  - chown -R dex:dex /var/lib/dex
-  - chown -R dex:dex /etc/dex
-
-  # Download and install Dex binary
+  # Install required packages (curl is needed for downloading)
+  - apt-get update -qq
+  - apt-get install -y -qq curl ca-certificates
+  # Extract Dex binary from Docker image using crane
+  # (Dex no longer publishes standalone binaries, only Docker images)
   - |
     DEX_VERSION="${dex_version}"
-    curl -sL "https://github.com/dexidp/dex/releases/download/v$${DEX_VERSION}/dex_linux_amd64" -o /usr/local/bin/dex
+    cd /tmp
+    # Install crane to extract binary from OCI image
+    curl -sL "https://github.com/google/go-containerregistry/releases/download/v0.20.2/go-containerregistry_Linux_x86_64.tar.gz" | tar -xzf - crane
+    # Extract dex binary from the official Docker image
+    ./crane export "ghcr.io/dexidp/dex:v$${DEX_VERSION}" - | tar -xf - usr/local/bin/dex
+    mv usr/local/bin/dex /usr/local/bin/dex
     chmod +x /usr/local/bin/dex
-
-  # Create log file with proper permissions
-  - touch /var/log/dex.log
-  - chown dex:dex /var/log/dex.log
-
+    # Cleanup
+    rm -rf crane usr
+  # Create dex user and directories
+  - groupadd --system dex 2>/dev/null || true
+  - useradd --system --gid dex --no-create-home --shell /usr/sbin/nologin dex 2>/dev/null || true
+  - mkdir -p /var/dex /etc/dex
+  - chown -R dex:dex /var/dex
+  - chown -R dex:dex /etc/dex
   # Enable and start Dex service
-  - rc-update add dex default
-  - rc-service dex start
+  - systemctl daemon-reload
+  - systemctl enable dex
+  - systemctl start dex

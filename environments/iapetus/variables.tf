@@ -457,6 +457,12 @@ variable "cluster01_prometheus_url" {
   default     = ""
 }
 
+variable "cluster01_alertmanager_url" {
+  description = "URL of cluster01 Alertmanager (e.g., 'http://192.168.68.18:9093'). Leave empty to disable alerting."
+  type        = string
+  default     = ""
+}
+
 variable "cluster01_coredns_address" {
   description = "IP address of cluster01 CoreDNS for cross-environment DNS resolution (e.g., cluster01.incus zone). Use the OVN LB VIP or direct container IP."
   type        = string

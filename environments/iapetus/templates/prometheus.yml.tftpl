@@ -33,25 +33,13 @@ scrape_configs:
           service: 'loki'
           instance: 'loki01'
 
-  # Caddy metrics (if metrics are enabled)
-  - job_name: 'caddy'
-    static_configs:
-      - targets: ['caddy01.incus:2019']
-        labels:
-          service: 'caddy'
-          instance: 'caddy01'
-
   # NOTE: step-ca does not expose Prometheus metrics.
   # The /health endpoint returns JSON, not Prometheus format.
   # Health monitoring for step-ca should use blackbox exporter or external probes.
 
-  # CoreDNS metrics
-  - job_name: 'coredns'
-    static_configs:
-      - targets: ['coredns01.incus:9153']
-        labels:
-          service: 'coredns'
-          instance: 'coredns01'
+  # NOTE: CoreDNS on iapetus is on the production network (10.10.0.0/24)
+  # which is isolated from the management network where Prometheus runs.
+  # CoreDNS metrics would require an OVN load balancer to be accessible.
 
 %{~ if enable_oidc }
   # Dex OIDC metrics
@@ -62,13 +50,8 @@ scrape_configs:
           service: 'dex'
           instance: 'dex01'
 
-  # OpenFGA metrics
-  - job_name: 'openfga'
-    static_configs:
-      - targets: ['openfga01.incus:3002']
-        labels:
-          service: 'openfga'
-          instance: 'openfga01'
+  # NOTE: OpenFGA does not expose Prometheus metrics.
+  # Port 3002 is pprof profiler, not metrics.
 %{~ endif }
 
   # Incus metrics endpoint (includes node_exporter metrics from IncusOS host)
@@ -117,8 +100,10 @@ scrape_configs:
 # Alerting rules for infrastructure monitoring
 rule_files:
   - '/etc/prometheus/alerts/*.yml'
+%{~ if cluster01_alertmanager_url != "" }
 
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ['alertmanager01.incus:9093']
+        - targets: ['${replace(cluster01_alertmanager_url, "http://", "")}']
+%{~ endif }

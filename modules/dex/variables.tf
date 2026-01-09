@@ -13,9 +13,15 @@ variable "profile_name" {
 }
 
 variable "image" {
-  description = "Container image to use (OCI Dex image)"
+  description = "Container image to use"
   type        = string
-  default     = "ghcr:dexidp/dex:v2.41.1"
+  default     = "images:debian/trixie/cloud"
+}
+
+variable "dex_version" {
+  description = "Version of Dex to install"
+  type        = string
+  default     = "2.41.1"
 }
 
 variable "cpu_limit" {

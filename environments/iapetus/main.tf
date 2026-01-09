@@ -174,10 +174,11 @@ module "prometheus01" {
 
   # Prometheus configuration loaded from template file for better maintainability
   prometheus_config = templatefile("${path.module}/templates/prometheus.yml.tftpl", {
-    enable_oidc               = var.enable_oidc
-    incus_metrics_address     = var.incus_metrics_address
-    incus_metrics_server_name = var.incus_metrics_server_name
-    cluster01_prometheus_url  = var.cluster01_prometheus_url
+    enable_oidc                = var.enable_oidc
+    incus_metrics_address      = var.incus_metrics_address
+    incus_metrics_server_name  = var.incus_metrics_server_name
+    cluster01_prometheus_url   = var.cluster01_prometheus_url
+    cluster01_alertmanager_url = var.cluster01_alertmanager_url
   })
 
   # Alert rules for OOM and container restart detection (optional)
