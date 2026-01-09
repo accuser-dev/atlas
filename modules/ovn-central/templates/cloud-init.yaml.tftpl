@@ -54,11 +54,13 @@ write_files:
       }
 
       start_pre() {
+        # Create runtime directories (tmpfs cleared on reboot)
+        mkdir -p /var/run/ovn
+        mkdir -p /var/run/openvswitch
         # Initialize database if it doesn't exist
         if [ ! -f /var/lib/ovn/ovnnb_db.db ]; then
           /usr/bin/ovsdb-tool create /var/lib/ovn/ovnnb_db.db /usr/share/ovn/ovn-nb.ovsschema
         fi
-        mkdir -p /var/run/ovn
       }
 
   # Custom OVN southbound database service
@@ -85,11 +87,13 @@ write_files:
       }
 
       start_pre() {
+        # Create runtime directories (tmpfs cleared on reboot)
+        mkdir -p /var/run/ovn
+        mkdir -p /var/run/openvswitch
         # Initialize database if it doesn't exist
         if [ ! -f /var/lib/ovn/ovnsb_db.db ]; then
           /usr/bin/ovsdb-tool create /var/lib/ovn/ovnsb_db.db /usr/share/ovn/ovn-sb.ovsschema
         fi
-        mkdir -p /var/run/ovn
       }
 
   # OVN northd daemon service (connects NB and SB databases)
