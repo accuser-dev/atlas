@@ -1,12 +1,12 @@
 #cloud-config
 # step-ca system container configuration
-# Uses Alpine Linux with OpenRC service management
+# Uses Ubuntu with systemd service management
 
 package_update: true
+package_upgrade: false
 
 packages:
   - curl
-  - tar
   - jq
 
 write_files:
@@ -14,7 +14,7 @@ write_files:
   - path: /usr/local/bin/step-ca-init.sh
     permissions: '0755'
     content: |
-      #!/bin/sh
+      #!/bin/bash
       # Initialize and start step-ca Certificate Authority
       set -eu
 
@@ -39,7 +39,7 @@ write_files:
         echo "$${PASSWORD}" > "$${PASSWORD_FILE}"
         chmod 600 "$${PASSWORD_FILE}"
 
-        step ca init \
+        /usr/local/bin/step ca init \
           --name="${ca_name}" \
           --dns="${ca_dns_names}" \
           --address=":${acme_port}" \
@@ -63,7 +63,7 @@ write_files:
 
       # Export fingerprint for easy access
       if [ -f "$${STEPPATH}/.step/certs/root_ca.crt" ]; then
-        FINGERPRINT=$(step certificate fingerprint "$${STEPPATH}/.step/certs/root_ca.crt")
+        FINGERPRINT=$(/usr/local/bin/step certificate fingerprint "$${STEPPATH}/.step/certs/root_ca.crt")
         echo "$${FINGERPRINT}" > "$${STEPPATH}/fingerprint"
         chmod 644 "$${STEPPATH}/fingerprint"
         log_info "CA FINGERPRINT: $${FINGERPRINT}"
@@ -71,32 +71,37 @@ write_files:
 
       # Start step-ca
       log_info "Starting Step CA server..."
-      exec step-ca "$${CONFIG_FILE}" --password-file="$${PASSWORD_FILE}"
+      exec /usr/local/bin/step-ca "$${CONFIG_FILE}" --password-file="$${PASSWORD_FILE}"
 
-  # OpenRC init script for step-ca
-  - path: /etc/init.d/step-ca
-    permissions: '0755'
+  # systemd service unit for step-ca
+  - path: /etc/systemd/system/step-ca.service
+    permissions: '0644'
     content: |
-      #!/sbin/openrc-run
+      [Unit]
+      Description=Smallstep Certificate Authority
+      After=network-online.target
+      Wants=network-online.target
 
-      name="step-ca"
-      description="Smallstep Certificate Authority"
-      command="/usr/local/bin/step-ca-init.sh"
-      command_background=true
-      command_user="step"
-      pidfile="/run/$${RC_SVCNAME}.pid"
-      output_log="/var/log/step-ca.log"
-      error_log="/var/log/step-ca.log"
+      [Service]
+      Type=simple
+      User=step
+      Group=step
+      Environment=STEPPATH=/home/step
+      ExecStart=/usr/local/bin/step-ca-init.sh
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
 
-      depend() {
-        need net
-        after firewall
-      }
+      # Security hardening
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=read-only
+      ReadWritePaths=/home/step
+      PrivateTmp=yes
 
-      start_pre() {
-        # Ensure step user owns the data directory
-        chown -R step:step /home/step 2>/dev/null || true
-      }
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
   # Download and install step-ca and step-cli
@@ -116,12 +121,10 @@ runcmd:
     chmod +x /usr/local/bin/step-ca
     rm -rf "step-ca_linux_$${STEP_VERSION}_amd64.tar.gz" LICENSE README.md
   # Create step user and home directory
-  - adduser -D -h /home/step -s /sbin/nologin step 2>/dev/null || true
+  - useradd --system --home-dir /home/step --shell /usr/sbin/nologin step 2>/dev/null || true
   - mkdir -p /home/step
   - chown -R step:step /home/step
-  # Create log file
-  - touch /var/log/step-ca.log
-  - chown step:step /var/log/step-ca.log
   # Enable and start step-ca service
-  - rc-update add step-ca default
-  - rc-service step-ca start
+  - systemctl daemon-reload
+  - systemctl enable step-ca
+  - systemctl start step-ca

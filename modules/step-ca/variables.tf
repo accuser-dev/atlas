@@ -11,7 +11,7 @@ variable "profile_name" {
 variable "image" {
   description = "Container image to use (system container with cloud-init)"
   type        = string
-  default     = "images:alpine/3.21/cloud"
+  default     = "images:ubuntu/24.04/cloud"
 }
 
 variable "step_version" {
