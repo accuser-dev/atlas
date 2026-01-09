@@ -4,12 +4,14 @@ This module deploys Prometheus Alertmanager on Incus for alert routing, grouping
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **Alert Routing**: Configurable routes for different alert types
 - **Notification Channels**: Support for Slack, email, webhook, and more
 - **Silencing**: Persistent storage for silence rules
 - **Inhibition Rules**: Suppress alerts based on other active alerts
 - **Optional TLS**: Certificate management via step-ca
 - **Profile Composition**: Works with base-infrastructure module profiles
+- **Systemd Integration**: Proper service management with security hardening
 
 ## Usage
 
@@ -112,7 +114,8 @@ alerting:
 | `instance_name` | Name of the Alertmanager instance | `string` | n/a | yes |
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/alertmanager:latest"` | no |
+| `image` | Container image to use | `string` | `"images:debian/trixie/cloud"` | no |
+| `alertmanager_version` | Alertmanager version to install | `string` | `"0.27.0"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit (e.g., "256MB") | `string` | `"256MB"` | no |
 | `storage_pool` | Storage pool for the data volume | `string` | `"local"` | no |
@@ -143,13 +146,19 @@ alerting:
 ### Check Alertmanager status
 
 ```bash
-incus exec alertmanager01 -- wget -qO- http://localhost:9093/-/healthy
+incus exec alertmanager01 -- curl -s http://localhost:9093/-/healthy
+```
+
+### Check systemd service status
+
+```bash
+incus exec alertmanager01 -- systemctl status alertmanager
 ```
 
 ### View active alerts
 
 ```bash
-incus exec alertmanager01 -- wget -qO- http://localhost:9093/api/v2/alerts | jq
+incus exec alertmanager01 -- curl -s http://localhost:9093/api/v2/alerts | jq
 ```
 
 ### Check configuration
@@ -161,7 +170,7 @@ incus exec alertmanager01 -- cat /etc/alertmanager/alertmanager.yml
 ### View logs
 
 ```bash
-incus exec alertmanager01 -- cat /var/log/alertmanager.log
+incus exec alertmanager01 -- journalctl -u alertmanager --no-pager -n 50
 ```
 
 ## Related Modules

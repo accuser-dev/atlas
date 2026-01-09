@@ -4,12 +4,14 @@ This module deploys Grafana Loki on Incus for log aggregation and querying.
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **Log Aggregation**: Collects and indexes logs from all services
 - **LogQL**: Powerful query language for log exploration
 - **Retention Management**: Configurable log retention policies
 - **Persistent Storage**: Optional persistent volume for log data
 - **Optional TLS**: Certificate management via step-ca
 - **Profile Composition**: Works with base-infrastructure module profiles
+- **Systemd Integration**: Proper service management
 
 ## Usage
 
@@ -98,7 +100,7 @@ This enables:
 | `instance_name` | Name of the Loki instance | `string` | n/a | yes |
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/loki:latest"` | no |
+| `image` | Container image to use | `string` | `"images:debian/trixie/cloud"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"2"` | no |
 | `memory_limit` | Memory limit (e.g., "2GB") | `string` | `"2GB"` | no |
 | `storage_pool` | Storage pool for the data volume | `string` | `"local"` | no |
@@ -129,23 +131,35 @@ This enables:
 
 ## Troubleshooting
 
+### Check Loki service status
+
+```bash
+incus exec loki01 -- systemctl status loki
+```
+
 ### Check Loki status
 
 ```bash
-incus exec loki01 -- wget -qO- http://localhost:3100/ready
+incus exec loki01 -- curl -s http://localhost:3100/ready
+```
+
+### View logs
+
+```bash
+incus exec loki01 -- journalctl -u loki --no-pager -n 50
 ```
 
 ### View Loki metrics
 
 ```bash
-incus exec loki01 -- wget -qO- http://localhost:3100/metrics | head -50
+incus exec loki01 -- curl -s http://localhost:3100/metrics | head -50
 ```
 
 ### Query logs via API
 
 ```bash
 # Query last 10 log entries
-incus exec loki01 -- wget -qO- 'http://localhost:3100/loki/api/v1/query_range?query={job="varlogs"}&limit=10'
+incus exec loki01 -- curl -s 'http://localhost:3100/loki/api/v1/query_range?query={job="varlogs"}&limit=10'
 ```
 
 ### Check storage usage

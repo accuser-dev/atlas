@@ -4,11 +4,13 @@ This module deploys OpenFGA for fine-grained authorization (FGA) using relations
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **Relationship-Based Access**: Define authorization using relationship tuples
 - **HTTP/gRPC APIs**: Both REST and gRPC interfaces
 - **SQLite Storage**: Persistent storage for authorization data
 - **Preshared Key Auth**: Secure API authentication
 - **Prometheus Metrics**: Built-in observability
+- **Systemd Integration**: Proper service management
 
 ## Usage
 
@@ -140,7 +142,7 @@ curl -X POST http://openfga01.incus:8080/stores/$STORE_ID/check \
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `preshared_keys` | API authentication keys | `list(string)` | n/a | yes |
 | `profiles` | List of Incus profiles | `list(string)` | `[]` | no |
-| `image` | Container image | `string` | `"images:alpine/3.21/cloud"` | no |
+| `image` | Container image | `string` | `"images:debian/trixie/cloud"` | no |
 | `openfga_version` | OpenFGA version | `string` | `"1.8.2"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit | `string` | `"256MB"` | no |
@@ -168,13 +170,13 @@ curl -X POST http://openfga01.incus:8080/stores/$STORE_ID/check \
 ### Check OpenFGA status
 
 ```bash
-incus exec openfga01 -- rc-service openfga status
+incus exec openfga01 -- systemctl status openfga
 ```
 
 ### View logs
 
 ```bash
-incus exec openfga01 -- cat /var/log/openfga/openfga.log
+incus exec openfga01 -- journalctl -u openfga --no-pager -n 50
 ```
 
 ### Test API health

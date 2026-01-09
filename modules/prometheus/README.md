@@ -4,6 +4,7 @@ This module deploys Prometheus metrics collection and time-series database on In
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **Time-Series Database**: Efficient storage for metrics data
 - **Flexible Scraping**: Configurable scrape targets via prometheus.yml
 - **Alert Rules**: Support for custom alerting rules
@@ -11,6 +12,7 @@ This module deploys Prometheus metrics collection and time-series database on In
 - **Retention Policies**: Time-based and size-based retention
 - **Optional TLS**: Certificate management via step-ca
 - **Profile Composition**: Works with base-infrastructure module profiles
+- **Systemd Integration**: Proper service management
 
 ## Usage
 
@@ -197,7 +199,7 @@ module "prometheus01" {
 | `instance_name` | Name of the Prometheus instance | `string` | n/a | yes |
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/prometheus:latest"` | no |
+| `image` | Container image to use | `string` | `"images:debian/trixie/cloud"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"2"` | no |
 | `memory_limit` | Memory limit (e.g., "2GB") | `string` | `"2GB"` | no |
 | `storage_pool` | Storage pool for the data volume | `string` | `"local"` | no |
@@ -230,10 +232,22 @@ module "prometheus01" {
 
 ## Troubleshooting
 
+### Check Prometheus service status
+
+```bash
+incus exec prometheus01 -- systemctl status prometheus
+```
+
 ### Check Prometheus status
 
 ```bash
-incus exec prometheus01 -- wget -qO- http://localhost:9090/-/ready
+incus exec prometheus01 -- curl -s http://localhost:9090/-/ready
+```
+
+### View logs
+
+```bash
+incus exec prometheus01 -- journalctl -u prometheus --no-pager -n 50
 ```
 
 ### View scrape targets

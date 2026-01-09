@@ -31,7 +31,7 @@ Multi-environment Terraform infrastructure project managing Incus containers acr
 ├─────────────────────────────────────────────────────────────────────┤
 │  - Prometheus (local scraping, federated by iapetus)                │
 │  - Alloy → ships logs to iapetus Loki                               │
-│  - node-exporter × 3 (pinned to each cluster node)                  │
+│  - Host metrics scraped from IncusOS nodes (no node-exporter)       │
 │  - Mosquitto, CoreDNS, Alertmanager                                 │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -115,7 +115,7 @@ tofu output
 
 ### Container Types
 
-- **System containers** (most services): Alpine Linux + cloud-init (`images:alpine/3.21/cloud`)
+- **System containers** (most services): Debian Trixie + cloud-init + systemd (`images:debian/trixie/cloud`)
 - **OCI containers** (Atlantis only): Docker images from `ghcr.io`
 
 ### Network Architecture
@@ -207,11 +207,12 @@ cd environments/iapetus && tofu output
 
 **iapetus**: `loki_endpoint`, `prometheus_endpoint`, `step_ca_acme_endpoint`, `cloudflared_metrics_endpoint`
 
-**cluster01**: `prometheus_endpoint`, `alertmanager_endpoint`, `mosquitto_mqtt_endpoint`, `coredns_dns_endpoint`, `node_exporter_endpoints`
+**cluster01**: `prometheus_endpoint`, `alertmanager_endpoint`, `mosquitto_mqtt_endpoint`, `coredns_dns_endpoint`
 
 ## Important Notes
 
 - `terraform.tfvars` files are gitignored - create manually with secrets
-- Most services use Alpine system containers, only Atlantis uses OCI
+- Most services use Debian Trixie system containers with systemd, only Atlantis uses OCI
 - OCI images auto-built by GitHub Actions on push to main
-- Use `incus exec <container> -- rc-service <service> status` for service checks
+- Use `incus exec <container> -- systemctl status <service>` for service checks
+- Use `incus exec <container> -- journalctl -u <service>` for logs

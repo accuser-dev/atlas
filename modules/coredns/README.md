@@ -4,11 +4,13 @@ This module deploys CoreDNS as a split-horizon DNS server for internal service r
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **Authoritative Zone**: Serves DNS records for internal domain
 - **Incus DNS Forwarding**: Resolves `.incus` queries via Incus DNS
 - **Upstream Forwarding**: External queries forwarded to Cloudflare/Google DNS
 - **Terraform Integration**: Zone records generated from service module outputs
 - **External Access**: Proxy devices or OVN load balancer support
+- **Systemd Integration**: Proper service management
 
 ## Usage
 
@@ -125,7 +127,7 @@ module "coredns_lb" {
 | `domain` | Primary zone domain | `string` | n/a | yes |
 | `nameserver_ip` | IP for NS record | `string` | n/a | yes |
 | `profiles` | List of Incus profiles | `list(string)` | `[]` | no |
-| `image` | Container image | `string` | `"images:alpine/3.21/cloud"` | no |
+| `image` | Container image | `string` | `"images:debian/trixie/cloud"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit | `string` | `"128MB"` | no |
 | `storage_pool` | Storage pool | `string` | `"local"` | no |
@@ -156,7 +158,13 @@ module "coredns_lb" {
 ### Check CoreDNS status
 
 ```bash
-incus exec coredns01 -- rc-service coredns status
+incus exec coredns01 -- systemctl status coredns
+```
+
+### View logs
+
+```bash
+incus exec coredns01 -- journalctl -u coredns --no-pager -n 50
 ```
 
 ### Test DNS resolution

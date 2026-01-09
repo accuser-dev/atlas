@@ -4,11 +4,13 @@ This module deploys Grafana Alloy for log collection and shipping to a central L
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **Log Collection**: Scrapes system logs and journals
 - **Loki Integration**: Ships logs to central Loki via HTTP
 - **Syslog Receiver**: Optional syslog input for remote hosts (e.g., IncusOS)
 - **Cluster Support**: Pin to specific cluster nodes via `target_node`
 - **Custom Labels**: Add extra labels to all log entries
+- **Systemd Integration**: Proper service management with journald support
 
 ## Usage
 
@@ -72,7 +74,7 @@ module "alloy01" {
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `loki_push_url` | Loki push API URL | `string` | n/a | yes |
 | `profiles` | List of Incus profiles to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image | `string` | `"images:alpine/3.21/cloud"` | no |
+| `image` | Container image | `string` | `"images:debian/trixie/cloud"` | no |
 | `alloy_version` | Grafana Alloy version | `string` | `"1.5.1"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit | `string` | `"256MB"` | no |
@@ -97,13 +99,13 @@ module "alloy01" {
 ### Check Alloy status
 
 ```bash
-incus exec alloy01 -- rc-service alloy status
+incus exec alloy01 -- systemctl status alloy
 ```
 
 ### View logs
 
 ```bash
-incus exec alloy01 -- cat /var/log/alloy/alloy.log
+incus exec alloy01 -- journalctl -u alloy --no-pager -n 50
 ```
 
 ### Check configuration
@@ -115,7 +117,7 @@ incus exec alloy01 -- cat /etc/alloy/config.alloy
 ### Test Loki connectivity
 
 ```bash
-incus exec alloy01 -- wget -qO- http://loki01.incus:3100/ready
+incus exec alloy01 -- curl -s http://loki01.incus:3100/ready
 ```
 
 ## Related Modules

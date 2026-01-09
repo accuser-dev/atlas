@@ -4,11 +4,13 @@ This module deploys the Cloudflare Tunnel client (cloudflared) on Incus for secu
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **Zero Trust Access**: Secure remote access without exposing ports
 - **Token-Based Auth**: Managed via Cloudflare dashboard
 - **Metrics Endpoint**: Prometheus-compatible metrics for monitoring
 - **Lightweight**: Minimal resource requirements
 - **Profile Composition**: Works with base-infrastructure module profiles
+- **Systemd Integration**: Proper service management
 
 ## Usage
 
@@ -94,7 +96,7 @@ In the Cloudflare dashboard, configure routes for your services:
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `tunnel_token` | Cloudflare Tunnel token (sensitive) | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/cloudflared:latest"` | no |
+| `image` | Container image to use | `string` | `"images:debian/trixie/cloud"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit (e.g., "256MB") | `string` | `"256MB"` | no |
 | `metrics_port` | Port for metrics endpoint | `string` | `"2000"` | no |
@@ -133,10 +135,16 @@ module "cloudflared01" {
 incus exec cloudflared01 -- cloudflared tunnel info
 ```
 
+### Check systemd service status
+
+```bash
+incus exec cloudflared01 -- systemctl status cloudflared
+```
+
 ### View connection logs
 
 ```bash
-incus exec cloudflared01 -- cat /var/log/cloudflared.log
+incus exec cloudflared01 -- journalctl -u cloudflared --no-pager -n 50
 ```
 
 ### Test metrics endpoint

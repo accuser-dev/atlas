@@ -4,12 +4,14 @@ This module deploys Eclipse Mosquitto MQTT broker on Incus for IoT messaging and
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **MQTT Protocol**: Lightweight publish/subscribe messaging
-- **External Access**: Host port forwarding via Incus proxy devices
+- **External Access**: Host port forwarding via Incus proxy devices or OVN load balancers
 - **Authentication**: Password-based user authentication
 - **Persistent Storage**: Optional persistent volume for retained messages
 - **Optional TLS**: Certificate management via step-ca
 - **Profile Composition**: Works with base-infrastructure module profiles
+- **Systemd Integration**: Uses Debian's mosquitto package with systemd service management
 
 ## Usage
 
@@ -113,7 +115,7 @@ module "mosquitto01" {
 | `instance_name` | Name of the Mosquitto instance | `string` | n/a | yes |
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/mosquitto:latest"` | no |
+| `image` | Container image to use | `string` | `"images:debian/trixie/cloud"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit (e.g., "256MB") | `string` | `"256MB"` | no |
 | `storage_pool` | Storage pool for the data volume | `string` | `"local"` | no |
@@ -158,22 +160,22 @@ mosquitto_sub -h localhost -p 1883 -t "test/topic"
 mosquitto_pub -h localhost -p 1883 -u "device1" -P "password" -t "test/topic" -m "Hello"
 ```
 
-### Check Mosquitto status
+### Check systemd service status
 
 ```bash
-incus exec mosquitto01 -- cat /mosquitto/log/mosquitto.log
+incus exec mosquitto01 -- systemctl status mosquitto
 ```
 
-### View active connections
+### View logs
 
 ```bash
-incus exec mosquitto01 -- mosquitto_ctrl -h localhost -u admin list clients
+incus exec mosquitto01 -- journalctl -u mosquitto --no-pager -n 50
 ```
 
 ### Verify configuration
 
 ```bash
-incus exec mosquitto01 -- cat /mosquitto/config/mosquitto.conf
+incus exec mosquitto01 -- cat /etc/mosquitto/mosquitto.conf
 ```
 
 ### Test from within container

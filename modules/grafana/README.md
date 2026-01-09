@@ -4,11 +4,13 @@ This module deploys a Grafana instance on Incus with automatic reverse proxy con
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **Persistent Storage**: Optional data volume for dashboards and configuration
 - **Network Isolation**: Connects to management network for internal services
 - **Reverse Proxy**: Automatic Caddy configuration with HTTPS
 - **Security Headers**: Industry-standard HTTP security headers
 - **IP Restrictions**: Access control via IP allowlists
+- **Systemd Integration**: Proper service management
 
 ## Usage
 
@@ -131,7 +133,7 @@ environment_variables = {
 | `network_name` | Incus network to connect to | `string` | n/a | yes |
 | `domain` | Domain name for Caddy reverse proxy | `string` | n/a | yes |
 | `allowed_ip_range` | CIDR range for IP allowlist | `string` | n/a | yes |
-| `image` | Docker image to use | `string` | `"ghcr:accuser-dev/atlas/grafana:latest"` | no |
+| `image` | Container image to use | `string` | `"images:debian/trixie/cloud"` | no |
 | `cpu_limit` | CPU limit | `number` | `2` | no |
 | `memory_limit` | Memory limit | `string` | `"1GB"` | no |
 | `port` | Internal HTTP port | `number` | `3000` | no |

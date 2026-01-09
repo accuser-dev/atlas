@@ -4,11 +4,13 @@ This module deploys Dex as an OpenID Connect (OIDC) identity provider with GitHu
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **OIDC Provider**: Standards-compliant identity provider
 - **GitHub Connector**: Authenticate users via GitHub OAuth
 - **Static Clients**: Configure OAuth2 clients for services
 - **SQLite Storage**: Persistent storage for tokens and sessions
 - **Prometheus Metrics**: Built-in metrics endpoint
+- **Systemd Integration**: Proper service management
 
 ## Usage
 
@@ -146,7 +148,7 @@ module "grafana01" {
 | `github_client_id` | GitHub OAuth client ID | `string` | n/a | yes |
 | `github_client_secret` | GitHub OAuth client secret | `string` | n/a | yes |
 | `profiles` | List of Incus profiles | `list(string)` | `[]` | no |
-| `image` | Container image | `string` | `"ghcr:dexidp/dex:v2.41.1"` | no |
+| `image` | Container image | `string` | `"images:debian/trixie/cloud"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit | `string` | `"128MB"` | no |
 | `storage_pool` | Storage pool | `string` | `"local"` | no |
@@ -171,10 +173,16 @@ module "grafana01" {
 
 ## Troubleshooting
 
+### Check Dex service status
+
+```bash
+incus exec dex01 -- systemctl status dex
+```
+
 ### Check Dex logs
 
 ```bash
-incus exec dex01 -- cat /var/log/dex.log
+incus exec dex01 -- journalctl -u dex --no-pager -n 50
 ```
 
 ### Verify OIDC discovery

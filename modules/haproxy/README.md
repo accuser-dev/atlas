@@ -4,11 +4,13 @@ This module deploys HAProxy as a TCP/HTTP load balancer for Incus clusters.
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **TCP/HTTP Load Balancing**: Round-robin, least connections, etc.
 - **Health Checks**: Automatic backend health monitoring
 - **Stats Interface**: Web-based statistics dashboard
 - **Static IP Support**: Predictable addressing for cluster VIPs
 - **Flexible Configuration**: Declarative frontend/backend definitions
+- **Systemd Integration**: Proper service management
 
 ## Usage
 
@@ -142,7 +144,7 @@ backends = [
 | `instance_name` | Name of the HAProxy instance | `string` | `"haproxy01"` | no |
 | `profile_name` | Name of the Incus profile | `string` | `"haproxy"` | no |
 | `profiles` | List of Incus profiles | `list(string)` | `[]` | no |
-| `image` | Container image | `string` | `"images:alpine/3.21/cloud"` | no |
+| `image` | Container image | `string` | `"images:debian/trixie/cloud"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit | `string` | `"256MB"` | no |
 | `storage_pool` | Storage pool | `string` | `"local"` | no |
@@ -168,7 +170,13 @@ backends = [
 ### Check HAProxy status
 
 ```bash
-incus exec haproxy01 -- rc-service haproxy status
+incus exec haproxy01 -- systemctl status haproxy
+```
+
+### View logs
+
+```bash
+incus exec haproxy01 -- journalctl -u haproxy --no-pager -n 50
 ```
 
 ### View configuration

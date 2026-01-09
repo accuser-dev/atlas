@@ -4,11 +4,13 @@ This module deploys OVN Central (northbound and southbound databases) as a conta
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **OVN Databases**: Northbound and southbound OVSDB servers
-- **Container-Based**: Runs on non-OVN network (incusbr0)
+- **Container-Based**: Runs on non-OVN network (incusbr0 or OVN management network)
 - **Proxy Devices**: Exposes ports on physical network for chassis connections
 - **Persistent Storage**: Database state survives restarts
 - **Cluster Support**: Pin to specific node in clusters
+- **Systemd Integration**: Proper service management with automatic stale lock cleanup
 
 ## Usage
 
@@ -119,7 +121,7 @@ For HA, deploy multiple OVN Central containers and configure clustering:
 | `host_address` | Physical network IP for proxy devices | `string` | n/a | yes |
 | `profiles` | List of Incus profiles | `list(string)` | `[]` | no |
 | `network_name` | Non-OVN network name | `string` | `"incusbr0"` | no |
-| `image` | Container image | `string` | `"images:alpine/3.21/cloud"` | no |
+| `image` | Container image | `string` | `"images:debian/trixie/cloud"` | no |
 | `target_node` | Target cluster node | `string` | `""` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit | `string` | `"512MB"` | no |
@@ -141,12 +143,10 @@ For HA, deploy multiple OVN Central containers and configure clustering:
 
 ## Troubleshooting
 
-### Check OVN services
+### Check systemd service status
 
 ```bash
-incus exec ovn-central01 -- rc-service ovn-northd status
-incus exec ovn-central01 -- rc-service ovn-sb-ovsdb status
-incus exec ovn-central01 -- rc-service ovn-nb-ovsdb status
+incus exec ovn-central01 -- systemctl status ovn-northd ovn-northd-db ovn-southd-db
 ```
 
 ### Verify databases
@@ -170,7 +170,15 @@ ovn-sbctl --db=tcp:192.168.71.5:6642 show
 ### View logs
 
 ```bash
-incus exec ovn-central01 -- cat /var/log/ovn/ovn-northd.log
+incus exec ovn-central01 -- journalctl -u ovn-northd --no-pager -n 50
+incus exec ovn-central01 -- journalctl -u ovn-northd-db --no-pager -n 50
+incus exec ovn-central01 -- journalctl -u ovn-southd-db --no-pager -n 50
+```
+
+### Restart services
+
+```bash
+incus exec ovn-central01 -- systemctl restart ovn-northd-db ovn-southd-db ovn-northd
 ```
 
 ## Related Modules

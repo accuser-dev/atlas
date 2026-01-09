@@ -4,11 +4,13 @@ This module deploys Prometheus Node Exporter on Incus for host-level metrics col
 
 ## Features
 
+- **Debian Trixie**: Uses Debian Trixie system container with systemd
 - **Host Metrics**: CPU, memory, disk, network, and filesystem metrics
 - **Read-Only Mounts**: Secure access to host filesystem via read-only mounts
 - **Lightweight**: Minimal resource footprint
 - **Prometheus Compatible**: Standard `/metrics` endpoint
 - **Profile Composition**: Works with base-infrastructure module profiles
+- **Systemd Integration**: Proper service management
 
 ## Usage
 
@@ -84,7 +86,7 @@ scrape_configs:
 | `instance_name` | Name of the Node Exporter instance | `string` | n/a | yes |
 | `profile_name` | Name of the Incus profile | `string` | n/a | yes |
 | `profiles` | List of Incus profile names to apply | `list(string)` | `["default"]` | no |
-| `image` | Container image to use | `string` | `"ghcr:accuser-dev/atlas/node-exporter:latest"` | no |
+| `image` | Container image to use | `string` | `"images:debian/trixie/cloud"` | no |
 | `cpu_limit` | CPU limit (1-64) | `string` | `"1"` | no |
 | `memory_limit` | Memory limit (e.g., "256MB") | `string` | `"256MB"` | no |
 | `node_exporter_port` | Port Node Exporter listens on | `string` | `"9100"` | no |
@@ -153,7 +155,13 @@ incus exec node-exporter01 -- cat /host/proc/meminfo | head -10
 ### Check container status
 
 ```bash
-incus exec node-exporter01 -- wget -qO- http://localhost:9100/metrics | wc -l
+incus exec node-exporter01 -- systemctl status node_exporter
+```
+
+### View logs
+
+```bash
+incus exec node-exporter01 -- journalctl -u node_exporter --no-pager -n 50
 ```
 
 ## Grafana Dashboards
