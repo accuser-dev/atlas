@@ -1,6 +1,6 @@
 # Custom Atlantis with OpenTofu for GitOps workflow
 # Pinned to v0.35.0 for reproducibility and security
-FROM ghcr.io/runatlantis/atlantis:v0.35.0 AS base
+FROM ghcr.io/runatlantis/atlantis:v0.39.0 AS base
 
 # Final stage
 FROM base
