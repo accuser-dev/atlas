@@ -66,11 +66,13 @@ resource "incus_profile" "ovn_central" {
 
   # Proxy devices to expose OVN ports on the host's physical network
   # This allows IncusOS chassis on other nodes to connect to the central databases
+  # Using bind=host makes the proxy listen on the HOST's network namespace
   device {
     name = "ovn-nb-proxy"
     type = "proxy"
     properties = {
-      listen  = "tcp:0.0.0.0:${var.northbound_port}"
+      bind    = "host"
+      listen  = "tcp:${var.host_address}:${var.northbound_port}"
       connect = "tcp:127.0.0.1:${var.northbound_port}"
     }
   }
@@ -79,7 +81,8 @@ resource "incus_profile" "ovn_central" {
     name = "ovn-sb-proxy"
     type = "proxy"
     properties = {
-      listen  = "tcp:0.0.0.0:${var.southbound_port}"
+      bind    = "host"
+      listen  = "tcp:${var.host_address}:${var.southbound_port}"
       connect = "tcp:127.0.0.1:${var.southbound_port}"
     }
   }
