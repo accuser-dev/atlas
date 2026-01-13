@@ -1,0 +1,247 @@
+#cloud-config
+# Ceph MON container configuration
+# Uses Debian Trixie with systemd service management
+
+# Configure eth1 (management network) for internet access before package installation
+# eth0 is the storage network (no internet), eth1 has NAT to internet
+bootcmd:
+  - |
+    # Wait for eth1 to appear (management network from profile)
+    for i in $(seq 1 30); do
+      if ip link show eth1 > /dev/null 2>&1; then
+        dhclient -v eth1 || true
+        break
+      fi
+      sleep 1
+    done
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - ceph-mon
+  - ceph-common
+  - ceph-base
+
+write_files:
+  # Ceph configuration file
+  # For bootstrap MON: only include itself initially (single node can form quorum)
+  # For joining MONs: include all known MONs
+  - path: /etc/ceph/${cluster_name}.conf
+    permissions: '0644'
+    content: |
+      [global]
+      fsid = ${cluster_fsid}
+%{ if is_bootstrap ~}
+      # Bootstrap: start as single MON quorum, others join later
+      mon_initial_members = ${mon_id}
+%{ if mon_host != "" ~}
+      mon_host = v1:${mon_host}:6789
+%{ else ~}
+      # mon_host will be set during bootstrap based on container IP
+%{ endif ~}
+%{ else ~}
+      mon_initial_members = ${mon_initial_members}
+      mon_host = ${mon_host}
+%{ endif ~}
+
+      public_network = ${public_network}
+      cluster_network = ${cluster_network}
+
+      auth_cluster_required = cephx
+      auth_service_required = cephx
+      auth_client_required = cephx
+
+      # MON settings
+      mon_allow_pool_delete = true
+      mon_warn_on_insecure_global_id_reclaim_allowed = false
+
+%{ if is_bootstrap ~}
+  # Bootstrap script - creates the initial cluster
+  - path: /usr/local/bin/ceph-mon-bootstrap.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -eu
+
+      CLUSTER="${cluster_name}"
+      MON_ID="${mon_id}"
+      MON_DATA="/var/lib/ceph/mon/$${CLUSTER}-$${MON_ID}"
+      BOOTSTRAP_MARKER="/var/lib/ceph/.mon_bootstrap_complete"
+
+      if [ -f "$BOOTSTRAP_MARKER" ]; then
+        echo "MON already bootstrapped, starting service..."
+        systemctl enable "ceph-mon@$${MON_ID}"
+        systemctl start "ceph-mon@$${MON_ID}"
+        exit 0
+      fi
+
+      echo "Bootstrapping Ceph MON..."
+
+      # Create required directories
+      mkdir -p /var/lib/ceph/mon
+      mkdir -p /var/lib/ceph/bootstrap-osd
+      mkdir -p /var/lib/ceph/bootstrap-rgw
+      mkdir -p /etc/ceph
+
+      # Determine MON IP address (use storage network interface)
+      MON_IP=$(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+      echo "MON IP: $MON_IP"
+
+      # Update ceph.conf with the actual MON IP if not already set
+      if grep -q "^      # mon_host will be set" /etc/ceph/$${CLUSTER}.conf 2>/dev/null || \
+         ! grep -q "^      mon_host" /etc/ceph/$${CLUSTER}.conf 2>/dev/null; then
+        sed -i "s|.*# mon_host will be set.*|      mon_host = v1:$${MON_IP}:6789|" /etc/ceph/$${CLUSTER}.conf
+        # If no placeholder, add mon_host after mon_initial_members
+        if ! grep -q "mon_host" /etc/ceph/$${CLUSTER}.conf; then
+          sed -i "/mon_initial_members/a\\      mon_host = v1:$${MON_IP}:6789" /etc/ceph/$${CLUSTER}.conf
+        fi
+      fi
+
+      # Generate MON keyring
+      ceph-authtool --create-keyring /tmp/$${CLUSTER}.mon.keyring \
+        --gen-key -n mon. --cap mon 'allow *'
+
+      # Generate admin keyring
+      ceph-authtool --create-keyring /etc/ceph/$${CLUSTER}.client.admin.keyring \
+        --gen-key -n client.admin \
+        --cap mon 'allow *' \
+        --cap osd 'allow *' \
+        --cap mds 'allow *' \
+        --cap mgr 'allow *'
+
+      # Generate bootstrap-osd keyring
+      ceph-authtool --create-keyring /var/lib/ceph/bootstrap-osd/$${CLUSTER}.keyring \
+        --gen-key -n client.bootstrap-osd \
+        --cap mon 'profile bootstrap-osd' \
+        --cap mgr 'allow r'
+
+      # Generate bootstrap-rgw keyring
+      ceph-authtool --create-keyring /var/lib/ceph/bootstrap-rgw/$${CLUSTER}.keyring \
+        --gen-key -n client.bootstrap-rgw \
+        --cap mon 'profile bootstrap-rgw'
+
+      # Import keys into MON keyring
+      ceph-authtool /tmp/$${CLUSTER}.mon.keyring \
+        --import-keyring /etc/ceph/$${CLUSTER}.client.admin.keyring
+      ceph-authtool /tmp/$${CLUSTER}.mon.keyring \
+        --import-keyring /var/lib/ceph/bootstrap-osd/$${CLUSTER}.keyring
+      ceph-authtool /tmp/$${CLUSTER}.mon.keyring \
+        --import-keyring /var/lib/ceph/bootstrap-rgw/$${CLUSTER}.keyring
+
+      # Create monmap
+      monmaptool --create --add $${MON_ID} $${MON_IP}:${mon_port} \
+        --fsid ${cluster_fsid} /tmp/monmap
+
+      # Create MON data directory and initialize
+      mkdir -p "$MON_DATA"
+      ceph-mon --mkfs -i $${MON_ID} --monmap /tmp/monmap --keyring /tmp/$${CLUSTER}.mon.keyring
+
+      # Set ownership
+      chown -R ceph:ceph /var/lib/ceph
+      chown -R ceph:ceph /etc/ceph
+
+      # Cleanup temp files
+      rm -f /tmp/$${CLUSTER}.mon.keyring /tmp/monmap
+
+      # Enable and start MON
+      systemctl enable "ceph-mon@$${MON_ID}"
+      systemctl start "ceph-mon@$${MON_ID}"
+
+      # Wait for MON to be ready
+      sleep 5
+
+      # Enable msgr2 protocol
+      ceph mon enable-msgr2 || true
+
+      # Mark bootstrap complete
+      touch "$BOOTSTRAP_MARKER"
+      echo "MON bootstrap complete!"
+      ceph -s
+%{ else ~}
+  # Join script - joins existing cluster
+  - path: /usr/local/bin/ceph-mon-join.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -eu
+
+      CLUSTER="${cluster_name}"
+      MON_ID="${mon_id}"
+      MON_DATA="/var/lib/ceph/mon/$${CLUSTER}-$${MON_ID}"
+      JOIN_MARKER="/var/lib/ceph/.mon_join_complete"
+
+      if [ -f "$JOIN_MARKER" ]; then
+        echo "MON already joined, starting service..."
+        systemctl enable "ceph-mon@$${MON_ID}"
+        systemctl start "ceph-mon@$${MON_ID}"
+        exit 0
+      fi
+
+      echo "Waiting for admin keyring from bootstrap MON..."
+
+      # Wait for keyrings to be available (must be copied from bootstrap)
+      MAX_WAIT=600
+      WAITED=0
+      while [ ! -f /etc/ceph/$${CLUSTER}.client.admin.keyring ]; do
+        if [ $WAITED -ge $MAX_WAIT ]; then
+          echo "ERROR: Timeout waiting for admin keyring"
+          echo "Copy /etc/ceph/$${CLUSTER}.client.admin.keyring from bootstrap MON"
+          exit 1
+        fi
+        echo "Waiting for /etc/ceph/$${CLUSTER}.client.admin.keyring... ($WAITED/$MAX_WAIT)"
+        sleep 10
+        WAITED=$((WAITED + 10))
+      done
+
+      echo "Joining Ceph cluster as MON..."
+
+      # Create required directories
+      mkdir -p /var/lib/ceph/mon
+      mkdir -p /var/lib/ceph/bootstrap-osd
+      mkdir -p /var/lib/ceph/bootstrap-rgw
+
+      # Get monmap from existing cluster
+      ceph mon getmap -o /tmp/monmap
+
+      # Get MON keyring
+      ceph auth get mon. -o /tmp/$${CLUSTER}.mon.keyring
+
+      # Create MON data directory and initialize
+      mkdir -p "$MON_DATA"
+      ceph-mon -i $${MON_ID} --mkfs --monmap /tmp/monmap --keyring /tmp/$${CLUSTER}.mon.keyring
+
+      # Set ownership
+      chown -R ceph:ceph /var/lib/ceph
+      chown -R ceph:ceph /etc/ceph
+
+      # Cleanup temp files
+      rm -f /tmp/$${CLUSTER}.mon.keyring /tmp/monmap
+
+      # Enable and start MON
+      systemctl enable "ceph-mon@$${MON_ID}"
+      systemctl start "ceph-mon@$${MON_ID}"
+
+      # Mark join complete
+      touch "$JOIN_MARKER"
+      echo "MON join complete!"
+      ceph -s
+%{ endif ~}
+
+runcmd:
+  # Ensure eth1 (management network) has DHCP - bootcmd may have failed if dhclient wasn't installed
+  - |
+    if ip link show eth1 > /dev/null 2>&1; then
+      if ! ip -4 addr show eth1 | grep -q "inet "; then
+        dhclient -v eth1 || true
+      fi
+    fi
+  # Ensure ceph user exists with correct permissions
+  - id ceph || useradd --system --no-create-home --shell /usr/sbin/nologin ceph
+  - mkdir -p /var/lib/ceph /etc/ceph
+  - chown -R ceph:ceph /var/lib/ceph /etc/ceph
+%{ if is_bootstrap ~}
+  - /usr/local/bin/ceph-mon-bootstrap.sh
+%{ else ~}
+  - /usr/local/bin/ceph-mon-join.sh
+%{ endif ~}

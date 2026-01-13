@@ -281,3 +281,78 @@ variable "skip_ovn_config" {
   type        = bool
   default     = false
 }
+
+# =============================================================================
+# Ceph Storage Configuration
+# =============================================================================
+
+variable "enable_ceph" {
+  description = "Enable Ceph distributed storage cluster"
+  type        = bool
+  default     = false
+}
+
+variable "ceph_storage_network_name" {
+  description = "Name of the storage network for Ceph (must be pre-configured on IncusOS)"
+  type        = string
+  default     = "storage"
+}
+
+variable "ceph_public_network" {
+  description = "Public network CIDR for Ceph client traffic"
+  type        = string
+  default     = "10.40.0.0/24"
+}
+
+variable "ceph_cluster_network" {
+  description = "Cluster network CIDR for OSD replication (defaults to public network)"
+  type        = string
+  default     = ""
+}
+
+variable "ceph_osd_devices" {
+  description = "Map of cluster node names to their OSD block device paths"
+  type        = map(string)
+  default     = {}
+  # Example: { "node01" = "/dev/disk/by-id/wwn-...", "node02" = "/dev/disk/by-id/wwn-...", "node03" = "/dev/disk/by-id/wwn-..." }
+}
+
+variable "ceph_mon_ips" {
+  description = "Map of cluster node names to MON static IPs on the storage network"
+  type        = map(string)
+  default     = {}
+  # Example: { "node01" = "10.40.0.11", "node02" = "10.40.0.12", "node03" = "10.40.0.13" }
+}
+
+variable "ceph_mgr_ips" {
+  description = "Map of cluster node names to MGR static IPs on the storage network"
+  type        = map(string)
+  default     = {}
+  # Example: { "node01" = "10.40.0.21" }
+}
+
+variable "ceph_osd_ips" {
+  description = "Map of cluster node names to OSD static IPs on the storage network"
+  type        = map(string)
+  default     = {}
+  # Example: { "node01" = "10.40.0.31", "node02" = "10.40.0.32", "node03" = "10.40.0.33" }
+}
+
+variable "ceph_rgw_ips" {
+  description = "Map of cluster node names to RGW static IPs on the storage network"
+  type        = map(string)
+  default     = {}
+  # Example: { "node01" = "10.40.0.41" }
+}
+
+variable "ceph_cluster_fsid" {
+  description = "Ceph cluster FSID (leave empty to auto-generate)"
+  type        = string
+  default     = ""
+}
+
+variable "ceph_rgw_lb_address" {
+  description = "OVN load balancer VIP for Ceph RGW S3 API (e.g., '192.168.68.18'). Must be in the uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}

@@ -152,3 +152,37 @@ output "prometheus_lb_address" {
   description = "OVN load balancer VIP for Prometheus (LAN-routable, for federation from iapetus)"
   value       = var.network_backend == "ovn" && var.prometheus_lb_address != "" ? var.prometheus_lb_address : null
 }
+
+output "ceph_rgw_lb_address" {
+  description = "OVN load balancer VIP for Ceph RGW S3 API (LAN-routable)"
+  value       = var.network_backend == "ovn" && var.enable_ceph && var.ceph_rgw_lb_address != "" ? var.ceph_rgw_lb_address : null
+}
+
+output "ceph_rgw_lb_endpoint" {
+  description = "Ceph RGW S3 API endpoint via OVN load balancer (LAN-routable)"
+  value       = var.network_backend == "ovn" && var.enable_ceph && var.ceph_rgw_lb_address != "" ? "http://${var.ceph_rgw_lb_address}:7480" : null
+}
+
+# =============================================================================
+# Ceph Storage
+# =============================================================================
+
+output "ceph_cluster_fsid" {
+  description = "Ceph cluster FSID"
+  value       = var.enable_ceph ? module.ceph[0].cluster_fsid : null
+}
+
+output "ceph_mon_endpoints" {
+  description = "List of Ceph MON endpoints"
+  value       = var.enable_ceph ? module.ceph[0].mon_endpoints : null
+}
+
+output "ceph_s3_endpoint" {
+  description = "Ceph S3 API endpoint (RGW)"
+  value       = var.enable_ceph ? module.ceph[0].primary_s3_endpoint : null
+}
+
+output "ceph_mgr_prometheus_endpoints" {
+  description = "Ceph MGR Prometheus metrics endpoints"
+  value       = var.enable_ceph ? module.ceph[0].mgr_prometheus_endpoints : null
+}

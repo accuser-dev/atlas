@@ -31,5 +31,21 @@ locals {
       memory = "256MB"
       port   = 12345
     }
+    ceph_mon = {
+      cpu    = "2"
+      memory = "2GB"
+    }
+    ceph_mgr = {
+      cpu    = "2"
+      memory = "1GB"
+    }
+    ceph_osd = {
+      cpu    = "4"
+      memory = "4GB"
+    }
+    ceph_rgw = {
+      cpu    = "2"
+      memory = "2GB"
+    }
   }
 }

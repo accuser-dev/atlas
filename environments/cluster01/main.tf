@@ -573,3 +573,113 @@ module "prometheus_lb" {
     }
   ]
 }
+
+# =============================================================================
+# Ceph Distributed Storage
+# =============================================================================
+# Provides distributed block storage and S3-compatible object storage.
+# Requires a storage network configured on IncusOS hosts.
+#
+# Deployment order: MON (bootstrap) → MON (join) → MGR → OSD → RGW
+# Post-deployment: Copy keys from bootstrap MON to other containers
+
+module "ceph" {
+  source = "../../modules/ceph"
+
+  count = var.enable_ceph ? 1 : 0
+
+  cluster_name = "ceph"
+  cluster_fsid = var.ceph_cluster_fsid
+
+  # Include management network profile for internet access during package installation
+  profiles     = [module.base.container_base_profile.name, module.base.management_network_profile.name]
+  storage_pool = "local"
+
+  # Network configuration
+  storage_network_name = var.ceph_storage_network_name
+  public_network       = var.ceph_public_network
+  cluster_network      = var.ceph_cluster_network
+
+  # MON configuration (3 monitors for quorum)
+  # First node in the cluster is the bootstrap node
+  mons = {
+    for i, node in local.cluster_nodes : node => {
+      target_node  = node
+      static_ip    = lookup(var.ceph_mon_ips, node, null)
+      is_bootstrap = i == 0
+    }
+  }
+
+  mon_cpu_limit    = local.services.ceph_mon.cpu
+  mon_memory_limit = local.services.ceph_mon.memory
+
+  # MGR configuration (runs on first node)
+  mgrs = {
+    (local.cluster_nodes[0]) = {
+      target_node = local.cluster_nodes[0]
+      static_ip   = lookup(var.ceph_mgr_ips, local.cluster_nodes[0], null)
+    }
+  }
+
+  mgr_cpu_limit         = local.services.ceph_mgr.cpu
+  mgr_memory_limit      = local.services.ceph_mgr.memory
+  enable_mgr_prometheus = true
+
+  # OSD configuration (one per node, using the discovered HDD)
+  osds = {
+    for node in local.cluster_nodes : node => {
+      target_node      = node
+      osd_block_device = var.ceph_osd_devices[node]
+      static_ip        = lookup(var.ceph_osd_ips, node, null)
+    } if contains(keys(var.ceph_osd_devices), node)
+  }
+
+  osd_cpu_limit    = local.services.ceph_osd.cpu
+  osd_memory_limit = local.services.ceph_osd.memory
+
+  # RGW configuration (S3 API, runs on first node)
+  rgws = {
+    (local.cluster_nodes[0]) = {
+      target_node = local.cluster_nodes[0]
+      static_ip   = lookup(var.ceph_rgw_ips, local.cluster_nodes[0], null)
+    }
+  }
+
+  rgw_cpu_limit    = local.services.ceph_rgw.cpu
+  rgw_memory_limit = local.services.ceph_rgw.memory
+}
+
+# =============================================================================
+# Ceph RGW Load Balancer (OVN)
+# =============================================================================
+# Provides LAN-routable VIP for S3 API access from external hosts (e.g., iapetus)
+
+module "ceph_rgw_lb" {
+  source = "../../modules/ovn-load-balancer"
+
+  count = var.network_backend == "ovn" && var.enable_ceph && var.ceph_rgw_lb_address != "" ? 1 : 0
+
+  # Use the Ceph storage network since RGW is on that network
+  network_name   = var.ceph_storage_network_name
+  listen_address = var.ceph_rgw_lb_address
+  description    = "OVN load balancer for Ceph RGW S3 API"
+
+  backends = [
+    for k, v in module.ceph[0].rgw_instances : {
+      name           = k
+      description    = "Ceph RGW on ${k}"
+      target_address = v.ipv4_address
+      target_port    = 7480
+    }
+  ]
+
+  ports = [
+    {
+      description = "S3 API HTTP"
+      protocol    = "tcp"
+      listen_port = 7480
+    }
+  ]
+
+  depends_on = [module.ceph]
+}
