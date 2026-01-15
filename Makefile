@@ -5,12 +5,15 @@
 ENV ?= iapetus
 ENV_DIR := environments/$(ENV)
 
+# Incus remote for cluster environments (empty for local)
+INCUS_REMOTE := $(if $(filter cluster01,$(ENV)),cluster01:,)
+
 .PHONY: help build-all build-atlantis \
         list-images \
         bootstrap bootstrap-init bootstrap-plan bootstrap-apply \
-        init plan apply destroy import clean-incus clean-images \
+        init plan apply destroy import import-dynamic clean-incus clean-images \
         deploy validate clean clean-docker clean-tofu clean-bootstrap format \
-        backup-snapshot backup-export backup-list \
+        backup-snapshot backup-export backup-list backup-dynamic \
         test test-health test-connectivity test-storage test-network
 
 # Default target
@@ -41,7 +44,8 @@ help:
 	@echo "  make plan              - Plan OpenTofu changes"
 	@echo "  make apply             - Apply OpenTofu changes"
 	@echo "  make destroy           - Destroy infrastructure and remove cached images"
-	@echo "  make import            - Import existing Incus resources into state"
+	@echo "  make import            - Import existing Incus resources into state (legacy)"
+	@echo "  make import-dynamic    - Import using dynamic discovery from tofu output"
 	@echo "  make clean-incus       - Remove orphaned Incus resources not in state"
 	@echo "  make clean-images      - Remove Atlas images from Incus cache"
 	@echo ""
@@ -53,6 +57,7 @@ help:
 	@echo "  make backup-snapshot   - Create snapshots of all storage volumes"
 	@echo "  make backup-export     - Export all volumes to tarballs (stops services)"
 	@echo "  make backup-list       - List all volume snapshots"
+	@echo "  make backup-dynamic    - Backup using dynamic discovery from tofu output"
 	@echo ""
 	@echo "Test Commands:"
 	@echo "  make test              - Run all integration tests"
@@ -81,20 +86,18 @@ STEP_VERSION := $(shell cat .step-version 2>/dev/null || echo "0.28.6")
 # =============================================================================
 # Service Configuration
 # =============================================================================
-# NOTE: When adding new services, update these lists:
-#   - ATLAS_SERVICES: All container instance names
-#   - ATLAS_VOLUMES: All storage volume names
-#   - ATLAS_PROFILES: All profile names (generic, not instance-specific)
-#   - ATLAS_NETWORKS: All network names
+# Resource mappings are now dynamically generated via 'tofu output managed_resources'
+# Use 'make import-dynamic' and 'make clean-incus-dynamic' for automatic discovery.
 #
-# The import and clean-incus targets use module name mappings defined inline
-# due to Terraform naming conventions (e.g., step-ca -> step_ca01).
+# Legacy hardcoded lists are kept as fallback for environments without state.
+# See outputs.tf managed_resources for authoritative mappings.
 # =============================================================================
 
+# Legacy hardcoded lists (fallback for initial bootstrap)
 ATLAS_NETWORKS := development testing staging production management gitops
-ATLAS_PROFILES := grafana loki prometheus step-ca node-exporter alertmanager mosquitto cloudflared atlantis coredns
-ATLAS_SERVICES := grafana01 loki01 prometheus01 step-ca01 node-exporter01 alertmanager01 mosquitto01 cloudflared01 atlantis01 coredns01
-ATLAS_VOLUMES := grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data atlantis01-data
+ATLAS_PROFILES := grafana loki prometheus step-ca node-exporter alertmanager mosquitto cloudflared atlantis coredns dex openfga haproxy alloy ovn-central
+ATLAS_SERVICES := grafana01 loki01 prometheus01 step-ca01 node-exporter01 alertmanager01 mosquitto01 cloudflared01 atlantis01 coredns01 dex01 openfga01 haproxy01 alloy01 ovn-central01
+ATLAS_VOLUMES := grafana01-data prometheus01-data loki01-data step-ca01-data alertmanager01-data mosquitto01-data atlantis01-data dex01-data openfga01-data ovn-central01-data
 
 # Docker image names (local builds for testing)
 ATLANTIS_IMAGE := atlas/atlantis:$(IMAGE_TAG)
@@ -261,6 +264,50 @@ import:
 	@echo ""
 	@echo "Import complete. Run 'make plan ENV=$(ENV)' to see any remaining drift."
 
+# Dynamic import using tofu output (recommended when state exists)
+import-dynamic:
+	@echo "Importing Incus resources using dynamic discovery for $(ENV)..."
+	@echo "This uses 'tofu output managed_resources' for accurate mappings."
+	@echo ""
+	@if ! cd $(ENV_DIR) && tofu output managed_resources >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read managed_resources output."; \
+		echo "Ensure 'tofu apply' has been run at least once."; \
+		echo "For initial import, use 'make import' instead."; \
+		exit 1; \
+	fi
+	@cd $(ENV_DIR) && \
+	echo "Importing profiles..." && \
+	for mapping in $$(tofu output -json managed_resources | jq -r '.profiles | to_entries[] | "\(.key):\(.value)"'); do \
+		name=$${mapping%%:*}; \
+		tf_path=$${mapping#*:}; \
+		if incus profile show $(INCUS_REMOTE)$$name >/dev/null 2>&1; then \
+			echo "  Importing profile: $$name -> $$tf_path"; \
+			tofu import "$$tf_path" "$(INCUS_REMOTE)$$name" 2>/dev/null || true; \
+		fi; \
+	done
+	@cd $(ENV_DIR) && \
+	echo "Importing instances..." && \
+	for mapping in $$(tofu output -json managed_resources | jq -r '.instances | to_entries[] | "\(.key):\(.value)"'); do \
+		name=$${mapping%%:*}; \
+		tf_path=$${mapping#*:}; \
+		if incus info $(INCUS_REMOTE)$$name >/dev/null 2>&1; then \
+			echo "  Importing instance: $$name -> $$tf_path"; \
+			tofu import "$$tf_path" "$(INCUS_REMOTE)$$name" 2>/dev/null || true; \
+		fi; \
+	done
+	@cd $(ENV_DIR) && \
+	echo "Importing volumes..." && \
+	for mapping in $$(tofu output -json managed_resources | jq -r '.volumes | to_entries[] | "\(.key):\(.value)"'); do \
+		name=$${mapping%%:*}; \
+		tf_path=$${mapping#*:}; \
+		if incus storage volume show $(INCUS_REMOTE)local $$name >/dev/null 2>&1; then \
+			echo "  Importing volume: $$name -> $$tf_path"; \
+			tofu import "$$tf_path" "$(INCUS_REMOTE)local/$$name" 2>/dev/null || true; \
+		fi; \
+	done
+	@echo ""
+	@echo "Dynamic import complete. Run 'make plan ENV=$(ENV)' to verify."
+
 # Clean orphaned Incus resources (not managed by Terraform)
 clean-incus:
 	@echo "Removing orphaned Incus resources..."
@@ -392,6 +439,27 @@ backup-list:
 			incus storage volume info local $$vol 2>/dev/null | grep -A 100 "Snapshots:" | grep -E "^\s+-\s+|^\s+name:" | head -20 || echo "  (no snapshots)"; \
 		fi; \
 	done
+
+# Dynamic backup using tofu output (recommended when state exists)
+backup-dynamic:
+	@echo "Creating snapshots using dynamic discovery for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output managed_resources >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read managed_resources output."; \
+		echo "Ensure 'tofu apply' has been run. Use 'make backup-snapshot' as fallback."; \
+		exit 1; \
+	fi
+	@TIMESTAMP=$$(date +%Y%m%d-%H%M%S); \
+	cd $(ENV_DIR) && \
+	for vol in $$(tofu output -json managed_resources | jq -r '.volumes | keys[]'); do \
+		if incus storage volume show $(INCUS_REMOTE)local $$vol >/dev/null 2>&1; then \
+			echo "  Snapshotting: $$vol -> backup-$$TIMESTAMP"; \
+			incus storage volume snapshot $(INCUS_REMOTE)local $$vol "backup-$$TIMESTAMP"; \
+		else \
+			echo "  Skipping (not found): $$vol"; \
+		fi; \
+	done
+	@echo ""
+	@echo "Dynamic backup complete."
 
 # Integration test targets
 test:

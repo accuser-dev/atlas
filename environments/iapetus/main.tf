@@ -90,11 +90,7 @@ module "grafana01" {
   profile_name  = "grafana"
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  # Network profile provides NIC
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   # Domain configuration
   domain       = "grafana.accuser.dev"
@@ -139,10 +135,7 @@ module "loki01" {
   profile_name  = "loki"
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   # Loki configuration
   loki_port = "3100"
@@ -164,10 +157,7 @@ module "prometheus01" {
   profile_name  = "prometheus"
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   # Prometheus configuration
   prometheus_port = "9090"
@@ -205,10 +195,7 @@ module "step_ca01" {
   profile_name  = "step-ca"
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   # CA configuration
   ca_name      = "Atlas Internal CA"
@@ -238,10 +225,7 @@ module "coredns01" {
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
   # Note: coredns uses production network for LAN client access
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.production_network_profile.name,
-  ]
+  profiles = local.production_profiles
 
   # Static IP configuration for DNS server (required for clients to find it)
   # In physical/bridge mode: dns_nameserver_ip and gateway must be set in tfvars
@@ -286,8 +270,8 @@ module "coredns01" {
   # External access via Incus proxy devices (bridge mode only)
   # In physical mode, containers get LAN IPs directly - no proxy needed
   # With OVN, we use OVN load balancers instead
-  enable_external_access = var.network_backend == "bridge" && !module.base.production_network_is_physical
-  use_ovn_lb             = var.network_backend == "ovn"
+  enable_external_access = local.bridge_external_access
+  use_ovn_lb             = local.use_ovn_lb
   external_dns_port      = "53"
 
   # Resource limits (from centralized service config)
@@ -304,10 +288,7 @@ module "cloudflared01" {
   profile_name  = "cloudflared"
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   # Tunnel token from Cloudflare Zero Trust dashboard
   tunnel_token = var.cloudflared_tunnel_token
@@ -355,10 +336,7 @@ module "atlantis01" {
   profile_name  = "atlantis"
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.gitops_network_profile.name,
-  ]
+  profiles = local.gitops_profiles
 
   # Domain configuration
   domain        = var.atlantis_domain
@@ -396,10 +374,7 @@ module "dex01" {
   profile_name  = "dex"
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   # Dex OIDC configuration
   issuer_url = var.dex_issuer_url
@@ -446,10 +421,7 @@ module "openfga01" {
   profile_name  = "openfga"
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   # OpenFGA authentication - Incus uses this key to communicate with OpenFGA
   preshared_keys = [var.openfga_preshared_key]
@@ -481,10 +453,7 @@ module "haproxy01" {
   profile_name  = "haproxy"
 
   # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.production_network_profile.name,
-  ]
+  profiles = local.production_profiles
 
   # Stats interface configuration
   stats_port     = 8404
@@ -533,112 +502,19 @@ module "haproxy01" {
 # =============================================================================
 # OVN load balancers replace proxy devices for external service access
 # VIPs must be within the uplink network's ipv4.ovn.ranges
+#
+# Configuration is centralized in locals.tf (local.ovn_load_balancers)
 
-module "coredns_lb" {
+module "ovn_lb" {
   source = "../../modules/ovn-load-balancer"
 
-  count = var.network_backend == "ovn" && var.coredns_lb_address != "" ? 1 : 0
+  for_each = local.use_ovn_lb ? {
+    for k, v in local.ovn_load_balancers : k => v if v.enabled
+  } : {}
 
-  network_name   = module.base.production_network_name
-  listen_address = var.coredns_lb_address
-  description    = "OVN load balancer for CoreDNS"
-
-  backends = [
-    {
-      name           = "coredns01"
-      target_address = module.coredns01.ipv4_address
-      target_port    = 53
-    }
-  ]
-
-  ports = [
-    {
-      description = "DNS over UDP"
-      protocol    = "udp"
-      listen_port = 53
-    },
-    {
-      description = "DNS over TCP"
-      protocol    = "tcp"
-      listen_port = 53
-    }
-  ]
-}
-
-module "haproxy_lb" {
-  source = "../../modules/ovn-load-balancer"
-
-  count = var.network_backend == "ovn" && var.haproxy_lb_address != "" && var.enable_haproxy ? 1 : 0
-
-  network_name   = module.base.production_network_name
-  listen_address = var.haproxy_lb_address
-  description    = "OVN load balancer for HAProxy (Incus cluster access)"
-
-  backends = [
-    {
-      name           = "haproxy01"
-      target_address = module.haproxy01[0].ipv4_address
-      target_port    = 8443
-    }
-  ]
-
-  ports = [
-    {
-      description = "Incus API (HTTPS)"
-      protocol    = "tcp"
-      listen_port = 8443
-    }
-  ]
-}
-
-module "loki_lb" {
-  source = "../../modules/ovn-load-balancer"
-
-  count = var.network_backend == "ovn" && var.loki_lb_address != "" ? 1 : 0
-
-  network_name   = module.base.management_network_name
-  listen_address = var.loki_lb_address
-  description    = "OVN load balancer for Loki (cross-environment log shipping)"
-
-  backends = [
-    {
-      name           = "loki01"
-      target_address = module.loki01.ipv4_address
-      target_port    = 3100
-    }
-  ]
-
-  ports = [
-    {
-      description = "Loki HTTP API"
-      protocol    = "tcp"
-      listen_port = 3100
-    }
-  ]
-}
-
-module "grafana_lb" {
-  source = "../../modules/ovn-load-balancer"
-
-  count = var.network_backend == "ovn" && var.grafana_lb_address != "" ? 1 : 0
-
-  network_name   = module.base.management_network_name
-  listen_address = var.grafana_lb_address
-  description    = "OVN load balancer for Grafana (LAN access)"
-
-  backends = [
-    {
-      name           = "grafana01"
-      target_address = module.grafana01.ipv4_address
-      target_port    = 3000
-    }
-  ]
-
-  ports = [
-    {
-      description = "Grafana HTTP"
-      protocol    = "tcp"
-      listen_port = 3000
-    }
-  ]
+  network_name   = each.value.network == "production" ? module.base.production_network_name : module.base.management_network_name
+  listen_address = each.value.listen_address
+  description    = each.value.description
+  backends       = each.value.backends
+  ports          = each.value.ports
 }

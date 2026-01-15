@@ -186,3 +186,59 @@ output "haproxy_stats_endpoint" {
   value       = var.enable_haproxy ? module.haproxy01[0].stats_endpoint : null
 }
 
+# =============================================================================
+# Managed Resources (for Makefile dynamic discovery)
+# =============================================================================
+# Maps Incus resource names to their Terraform state paths
+# Used by import/clean-incus targets to avoid hardcoded resource lists
+
+output "managed_resources" {
+  description = "Resource mappings for Makefile discovery (Incus name -> Terraform path)"
+  value = {
+    # Profiles: Map Incus profile name -> Terraform import path
+    profiles = merge(
+      { "grafana" = "module.grafana01.incus_profile.grafana" },
+      { "loki" = "module.loki01.incus_profile.loki" },
+      { "prometheus" = "module.prometheus01.incus_profile.prometheus" },
+      { "step-ca" = "module.step_ca01.incus_profile.step_ca" },
+      { "coredns" = "module.coredns01.incus_profile.coredns" },
+      var.cloudflared_tunnel_token != "" ? { "cloudflared" = "module.cloudflared01[0].incus_profile.cloudflared" } : {},
+      var.enable_gitops ? { "atlantis" = "module.atlantis01[0].incus_profile.atlantis" } : {},
+      var.enable_oidc ? { "dex" = "module.dex01[0].incus_profile.dex" } : {},
+      var.enable_oidc ? { "openfga" = "module.openfga01[0].incus_profile.openfga" } : {},
+      var.enable_haproxy ? { "haproxy" = "module.haproxy01[0].incus_profile.haproxy" } : {},
+    )
+
+    # Instances: Map Incus instance name -> Terraform import path
+    instances = merge(
+      { "grafana01" = "module.grafana01.incus_instance.grafana" },
+      { "loki01" = "module.loki01.incus_instance.loki" },
+      { "prometheus01" = "module.prometheus01.incus_instance.prometheus" },
+      { "step-ca01" = "module.step_ca01.incus_instance.step_ca" },
+      { "coredns01" = "module.coredns01.incus_instance.coredns" },
+      var.cloudflared_tunnel_token != "" ? { "cloudflared01" = "module.cloudflared01[0].incus_instance.cloudflared" } : {},
+      var.enable_gitops ? { "atlantis01" = "module.atlantis01[0].incus_instance.atlantis" } : {},
+      var.enable_oidc ? { "dex01" = "module.dex01[0].incus_instance.dex" } : {},
+      var.enable_oidc ? { "openfga01" = "module.openfga01[0].incus_instance.openfga" } : {},
+      var.enable_haproxy ? { "haproxy01" = "module.haproxy01[0].incus_instance.haproxy" } : {},
+    )
+
+    # Volumes: Map Incus volume name -> Terraform import path
+    volumes = merge(
+      { "grafana01-data" = "module.grafana01.incus_storage_volume.grafana_data[0]" },
+      { "loki01-data" = "module.loki01.incus_storage_volume.loki_data[0]" },
+      { "prometheus01-data" = "module.prometheus01.incus_storage_volume.prometheus_data[0]" },
+      { "step-ca01-data" = "module.step_ca01.incus_storage_volume.step_ca_data[0]" },
+      var.enable_gitops ? { "atlantis01-data" = "module.atlantis01[0].incus_storage_volume.atlantis_data[0]" } : {},
+      var.enable_oidc ? { "dex01-data" = "module.dex01[0].incus_storage_volume.dex_data[0]" } : {},
+      var.enable_oidc ? { "openfga01-data" = "module.openfga01[0].incus_storage_volume.openfga_data[0]" } : {},
+    )
+
+    # Networks: Map network name -> Terraform import path
+    networks = {
+      "production" = "module.base.incus_network.production[0]"
+      "management" = "module.base.incus_network.management[0]"
+    }
+  }
+}
+

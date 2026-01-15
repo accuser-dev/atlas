@@ -186,3 +186,48 @@ output "ceph_mgr_prometheus_endpoints" {
   description = "Ceph MGR Prometheus metrics endpoints"
   value       = var.enable_ceph ? module.ceph[0].mgr_prometheus_endpoints : null
 }
+
+# =============================================================================
+# Managed Resources (for Makefile dynamic discovery)
+# =============================================================================
+# Maps Incus resource names to their Terraform state paths
+# Used by import/clean-incus targets to avoid hardcoded resource lists
+
+output "managed_resources" {
+  description = "Resource mappings for Makefile discovery (Incus name -> Terraform path)"
+  value = {
+    # Profiles: Map Incus profile name -> Terraform import path
+    profiles = merge(
+      { "prometheus" = "module.prometheus01.incus_profile.prometheus" },
+      { "alertmanager" = "module.alertmanager01.incus_profile.alertmanager" },
+      { "mosquitto" = "module.mosquitto01.incus_profile.mosquitto" },
+      { "coredns" = "module.coredns01.incus_profile.coredns" },
+      { "alloy" = "module.alloy01.incus_profile.alloy" },
+      var.network_backend == "ovn" ? { "ovn-central" = "module.ovn_central[0].incus_profile.ovn_central" } : {},
+    )
+
+    # Instances: Map Incus instance name -> Terraform import path
+    instances = merge(
+      { "prometheus01" = "module.prometheus01.incus_instance.prometheus" },
+      { "alertmanager01" = "module.alertmanager01.incus_instance.alertmanager" },
+      { "mosquitto01" = "module.mosquitto01.incus_instance.mosquitto" },
+      { "coredns01" = "module.coredns01.incus_instance.coredns" },
+      { "alloy01" = "module.alloy01.incus_instance.alloy" },
+      var.network_backend == "ovn" ? { "ovn-central01" = "module.ovn_central[0].incus_instance.ovn_central" } : {},
+    )
+
+    # Volumes: Map Incus volume name -> Terraform import path
+    volumes = merge(
+      { "prometheus01-data" = "module.prometheus01.incus_storage_volume.prometheus_data[0]" },
+      { "alertmanager01-data" = "module.alertmanager01.incus_storage_volume.alertmanager_data[0]" },
+      { "mosquitto01-data" = "module.mosquitto01.incus_storage_volume.mosquitto_data[0]" },
+      var.network_backend == "ovn" ? { "ovn-central01-data" = "module.ovn_central[0].incus_storage_volume.ovn_central_data[0]" } : {},
+    )
+
+    # Networks: Map network name -> Terraform import path
+    networks = {
+      "production" = "module.base.incus_network.production[0]"
+      "management" = "module.base.incus_network.management[0]"
+    }
+  }
+}

@@ -200,10 +200,7 @@ module "prometheus01" {
   instance_name = "prometheus01"
   profile_name  = "prometheus"
 
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   prometheus_port = "9090"
 
@@ -309,10 +306,7 @@ module "alertmanager01" {
   instance_name = "alertmanager01"
   profile_name  = "alertmanager"
 
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   alertmanager_port = "9093"
 
@@ -337,18 +331,15 @@ module "mosquitto01" {
   instance_name = "mosquitto01"
   profile_name  = "mosquitto"
 
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.production_network_profile.name,
-  ]
+  profiles = local.production_profiles
 
   mqtt_port  = "1883"
   mqtts_port = "8883"
 
   # External access via proxy devices (bridge mode only)
   # With OVN, we use OVN load balancers instead
-  enable_external_access = var.network_backend == "bridge" && !module.base.production_network_is_physical
-  use_ovn_lb             = var.network_backend == "ovn"
+  enable_external_access = local.bridge_external_access
+  use_ovn_lb             = local.use_ovn_lb
   external_mqtt_port     = "1883"
   external_mqtts_port    = "8883"
 
@@ -369,10 +360,7 @@ module "coredns01" {
   instance_name = "coredns01"
   profile_name  = "coredns"
 
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.production_network_profile.name,
-  ]
+  profiles = local.production_profiles
 
   domain = var.dns_domain
 
@@ -402,8 +390,8 @@ module "coredns01" {
 
   # External access via proxy devices (bridge mode only)
   # With OVN, we use OVN load balancers instead
-  enable_external_access = var.network_backend == "bridge" && !module.base.production_network_is_physical
-  use_ovn_lb             = var.network_backend == "ovn"
+  enable_external_access = local.bridge_external_access
+  use_ovn_lb             = local.use_ovn_lb
   external_dns_port      = "53"
 
   cpu_limit    = local.services.coredns.cpu
@@ -435,10 +423,7 @@ module "alloy01" {
   instance_name = "alloy01"
   profile_name  = "alloy"
 
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   loki_push_url = var.loki_push_url
 
@@ -459,119 +444,21 @@ module "alloy01" {
 # =============================================================================
 # OVN load balancers replace proxy devices for external service access
 # VIPs must be within the uplink network's ipv4.ovn.ranges
+#
+# Configuration is centralized in locals.tf (local.ovn_load_balancers)
 
-module "mosquitto_lb" {
+module "ovn_lb" {
   source = "../../modules/ovn-load-balancer"
 
-  count = var.network_backend == "ovn" && var.mosquitto_lb_address != "" ? 1 : 0
+  for_each = local.use_ovn_lb ? {
+    for k, v in local.ovn_load_balancers : k => v if v.enabled
+  } : {}
 
-  network_name   = module.base.production_network_name
-  listen_address = var.mosquitto_lb_address
-  description    = "OVN load balancer for Mosquitto MQTT broker"
-
-  backends = [
-    {
-      name           = "mosquitto01"
-      target_address = module.mosquitto01.ipv4_address
-      target_port    = 1883
-    }
-  ]
-
-  ports = [
-    {
-      description = "MQTT"
-      protocol    = "tcp"
-      listen_port = 1883
-    },
-    {
-      description = "MQTTS"
-      protocol    = "tcp"
-      listen_port = 8883
-    }
-  ]
-}
-
-module "coredns_lb" {
-  source = "../../modules/ovn-load-balancer"
-
-  count = var.network_backend == "ovn" && var.coredns_lb_address != "" ? 1 : 0
-
-  network_name   = module.base.production_network_name
-  listen_address = var.coredns_lb_address
-  description    = "OVN load balancer for CoreDNS"
-
-  backends = [
-    {
-      name           = "coredns01"
-      target_address = module.coredns01.ipv4_address
-      target_port    = 53
-    }
-  ]
-
-  ports = [
-    {
-      description = "DNS over UDP"
-      protocol    = "udp"
-      listen_port = 53
-    },
-    {
-      description = "DNS over TCP"
-      protocol    = "tcp"
-      listen_port = 53
-    }
-  ]
-}
-
-module "alloy_syslog_lb" {
-  source = "../../modules/ovn-load-balancer"
-
-  count = var.network_backend == "ovn" && var.alloy_syslog_lb_address != "" ? 1 : 0
-
-  network_name   = module.base.management_network_name
-  listen_address = var.alloy_syslog_lb_address
-  description    = "OVN load balancer for Alloy syslog receiver (IncusOS host logs)"
-
-  backends = [
-    {
-      name           = "alloy01"
-      target_address = module.alloy01.ipv4_address
-      target_port    = 1514
-    }
-  ]
-
-  ports = [
-    {
-      description = "Syslog over UDP"
-      protocol    = "udp"
-      listen_port = 1514
-    }
-  ]
-}
-
-module "prometheus_lb" {
-  source = "../../modules/ovn-load-balancer"
-
-  count = var.network_backend == "ovn" && var.prometheus_lb_address != "" ? 1 : 0
-
-  network_name   = module.base.management_network_name
-  listen_address = var.prometheus_lb_address
-  description    = "OVN load balancer for Prometheus (enables federation from iapetus)"
-
-  backends = [
-    {
-      name           = "prometheus01"
-      target_address = module.prometheus01.ipv4_address
-      target_port    = 9090
-    }
-  ]
-
-  ports = [
-    {
-      description = "Prometheus HTTP"
-      protocol    = "tcp"
-      listen_port = 9090
-    }
-  ]
+  network_name   = each.value.network == "production" ? module.base.production_network_name : module.base.management_network_name
+  listen_address = each.value.listen_address
+  description    = each.value.description
+  backends       = each.value.backends
+  ports          = each.value.ports
 }
 
 # =============================================================================
