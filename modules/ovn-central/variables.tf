@@ -178,3 +178,24 @@ variable "ssl_key" {
     error_message = "ssl_key must be a valid PEM-encoded private key"
   }
 }
+
+# -----------------------------------------------------------------------------
+# Metrics Configuration
+# -----------------------------------------------------------------------------
+
+variable "enable_metrics" {
+  description = "Enable Prometheus metrics endpoint for OVN monitoring"
+  type        = bool
+  default     = false
+}
+
+variable "metrics_port" {
+  description = "Port for Prometheus metrics endpoint"
+  type        = number
+  default     = 9476
+
+  validation {
+    condition     = var.metrics_port >= 1 && var.metrics_port <= 65535
+    error_message = "Metrics port must be between 1 and 65535"
+  }
+}

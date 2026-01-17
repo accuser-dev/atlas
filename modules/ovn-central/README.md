@@ -12,6 +12,7 @@ This module deploys OVN Central (northbound and southbound databases) as a conta
 - **Cluster Support**: Pin to specific node in clusters
 - **Systemd Integration**: Proper service management with automatic stale lock cleanup
 - **SSL/TLS Support**: Optional encrypted connections for OVN databases
+- **Prometheus Metrics**: Built-in metrics exporter for OVN monitoring
 
 ## Usage
 
@@ -189,6 +190,63 @@ module "ovn_config" {
 }
 ```
 
+### Prometheus Metrics
+
+Enable the built-in metrics exporter for OVN monitoring:
+
+```hcl
+module "ovn_central" {
+  source = "../../modules/ovn-central"
+
+  # ... other configuration ...
+
+  enable_metrics = true
+  metrics_port   = 9476  # default
+}
+```
+
+**Available Metrics:**
+
+| Metric | Description |
+|--------|-------------|
+| `ovn_up` | OVN services running (1=up, 0=down) |
+| `ovn_nb_logical_switch_total` | Number of logical switches |
+| `ovn_nb_logical_router_total` | Number of logical routers |
+| `ovn_nb_logical_switch_port_total` | Number of switch ports |
+| `ovn_nb_acl_total` | Number of ACL rules |
+| `ovn_nb_load_balancer_total` | Number of load balancers |
+| `ovn_sb_chassis_total` | Number of registered chassis |
+| `ovn_sb_port_binding_total` | Number of port bindings |
+| `ovn_db_size_bytes{database="..."}` | Database file sizes |
+
+**Add to Prometheus:**
+
+```yaml
+scrape_configs:
+  - job_name: 'ovn-central'
+    static_configs:
+      - targets: ['ovn-central01.incus:9476']
+```
+
+**Example Alert Rules:**
+
+```yaml
+groups:
+  - name: ovn
+    rules:
+      - alert: OVNCentralDown
+        expr: up{job="ovn-central"} == 0
+        for: 1m
+        labels:
+          severity: critical
+
+      - alert: OVNNoChassisRegistered
+        expr: ovn_sb_chassis_total == 0
+        for: 5m
+        labels:
+          severity: warning
+```
+
 ## Variables
 
 | Name | Description | Type | Default | Required |
@@ -213,6 +271,8 @@ module "ovn_config" {
 | `ssl_ca_cert` | CA certificate (PEM format) | `string` | `""` | no |
 | `ssl_cert` | Server certificate (PEM format) | `string` | `""` | no |
 | `ssl_key` | Server private key (PEM format) | `string` | `""` | no |
+| `enable_metrics` | Enable Prometheus metrics endpoint | `bool` | `false` | no |
+| `metrics_port` | Port for metrics endpoint | `number` | `9476` | no |
 
 ## Outputs
 
@@ -223,6 +283,9 @@ module "ovn_config" {
 | `southbound_connection` | Southbound connection string (`tcp:` or `ssl:` based on config) |
 | `ssl_enabled` | Whether SSL is enabled |
 | `ssl_ca_cert` | CA certificate for client configuration (sensitive) |
+| `metrics_enabled` | Whether metrics are enabled |
+| `metrics_endpoint` | Full URL for Prometheus scraping |
+| `metrics_port` | Port number for metrics |
 
 ## Troubleshooting
 

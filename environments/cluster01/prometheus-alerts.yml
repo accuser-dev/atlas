@@ -1,0 +1,61 @@
+# =============================================================================
+# Prometheus Alert Rules for cluster01
+# =============================================================================
+
+groups:
+  # OVN Central Alerts
+  - name: ovn
+    rules:
+      - alert: OVNCentralDown
+        expr: up{job="ovn-central"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OVN Central is down"
+          description: "OVN Central container {{ $labels.instance }} is not responding to metrics scrapes."
+
+      - alert: OVNServicesDown
+        expr: ovn_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OVN services are not running"
+          description: "One or more OVN services (northd-db, southd-db, northd) are not running on {{ $labels.instance }}."
+
+      - alert: OVNNoChassisRegistered
+        expr: ovn_sb_chassis_total == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No OVN chassis registered"
+          description: "No chassis are registered with OVN Central. Check that IncusOS nodes have OVN configured."
+
+      - alert: OVNChassisCountChanged
+        expr: changes(ovn_sb_chassis_total[10m]) > 0
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: "OVN chassis count changed"
+          description: "The number of registered OVN chassis changed from {{ $value }} in the last 10 minutes."
+
+      - alert: OVNDatabaseGrowthHigh
+        expr: rate(ovn_db_size_bytes[1h]) > 1048576
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "OVN database growing rapidly"
+          description: "OVN {{ $labels.database }} database is growing at more than 1MB/hour. Current size: {{ $value | humanize }}B/hour."
+
+      - alert: OVNDatabaseLarge
+        expr: ovn_db_size_bytes > 104857600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "OVN database is large"
+          description: "OVN {{ $labels.database }} database is larger than 100MB ({{ $value | humanize }}B). Consider compaction."

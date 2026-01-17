@@ -126,6 +126,159 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+%{ if enable_metrics ~}
+  # OVN metrics collection script
+  - path: /usr/local/bin/ovn-metrics
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      # OVN Prometheus metrics exporter
+      # Collects metrics from OVN northbound and southbound databases
+
+      set -euo pipefail
+
+      # Collect metrics
+      collect_metrics() {
+        echo "# HELP ovn_up OVN Central is up and running"
+        echo "# TYPE ovn_up gauge"
+
+        # Check if OVN services are running
+        if systemctl is-active --quiet ovn-northd-db && \
+           systemctl is-active --quiet ovn-southd-db && \
+           systemctl is-active --quiet ovn-northd; then
+          echo "ovn_up 1"
+        else
+          echo "ovn_up 0"
+        fi
+
+        # Northbound database metrics
+        echo ""
+        echo "# HELP ovn_nb_logical_switch_total Number of logical switches"
+        echo "# TYPE ovn_nb_logical_switch_total gauge"
+        local switches=$(ovn-nbctl --no-leader-only list Logical_Switch 2>/dev/null | grep -c "^_uuid" || echo "0")
+        echo "ovn_nb_logical_switch_total $switches"
+
+        echo ""
+        echo "# HELP ovn_nb_logical_router_total Number of logical routers"
+        echo "# TYPE ovn_nb_logical_router_total gauge"
+        local routers=$(ovn-nbctl --no-leader-only list Logical_Router 2>/dev/null | grep -c "^_uuid" || echo "0")
+        echo "ovn_nb_logical_router_total $routers"
+
+        echo ""
+        echo "# HELP ovn_nb_logical_switch_port_total Number of logical switch ports"
+        echo "# TYPE ovn_nb_logical_switch_port_total gauge"
+        local ports=$(ovn-nbctl --no-leader-only list Logical_Switch_Port 2>/dev/null | grep -c "^_uuid" || echo "0")
+        echo "ovn_nb_logical_switch_port_total $ports"
+
+        echo ""
+        echo "# HELP ovn_nb_acl_total Number of ACL rules"
+        echo "# TYPE ovn_nb_acl_total gauge"
+        local acls=$(ovn-nbctl --no-leader-only list ACL 2>/dev/null | grep -c "^_uuid" || echo "0")
+        echo "ovn_nb_acl_total $acls"
+
+        echo ""
+        echo "# HELP ovn_nb_load_balancer_total Number of load balancers"
+        echo "# TYPE ovn_nb_load_balancer_total gauge"
+        local lbs=$(ovn-nbctl --no-leader-only list Load_Balancer 2>/dev/null | grep -c "^_uuid" || echo "0")
+        echo "ovn_nb_load_balancer_total $lbs"
+
+        # Southbound database metrics
+        echo ""
+        echo "# HELP ovn_sb_chassis_total Number of registered chassis"
+        echo "# TYPE ovn_sb_chassis_total gauge"
+        local chassis=$(ovn-sbctl --no-leader-only list Chassis 2>/dev/null | grep -c "^_uuid" || echo "0")
+        echo "ovn_sb_chassis_total $chassis"
+
+        echo ""
+        echo "# HELP ovn_sb_port_binding_total Number of port bindings"
+        echo "# TYPE ovn_sb_port_binding_total gauge"
+        local bindings=$(ovn-sbctl --no-leader-only list Port_Binding 2>/dev/null | grep -c "^_uuid" || echo "0")
+        echo "ovn_sb_port_binding_total $bindings"
+
+        # Database file sizes
+        echo ""
+        echo "# HELP ovn_db_size_bytes Size of OVN database files in bytes"
+        echo "# TYPE ovn_db_size_bytes gauge"
+        if [ -f /var/lib/ovn/ovnnb_db.db ]; then
+          local nb_size=$(stat -c%s /var/lib/ovn/ovnnb_db.db 2>/dev/null || echo "0")
+          echo "ovn_db_size_bytes{database=\"northbound\"} $nb_size"
+        fi
+        if [ -f /var/lib/ovn/ovnsb_db.db ]; then
+          local sb_size=$(stat -c%s /var/lib/ovn/ovnsb_db.db 2>/dev/null || echo "0")
+          echo "ovn_db_size_bytes{database=\"southbound\"} $sb_size"
+        fi
+      }
+
+      collect_metrics
+
+  # OVN metrics HTTP server using Python
+  - path: /usr/local/bin/ovn-metrics-server
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env python3
+      """Simple HTTP server for OVN Prometheus metrics."""
+
+      import http.server
+      import subprocess
+      import sys
+
+      PORT = ${metrics_port}
+
+      class MetricsHandler(http.server.BaseHTTPRequestHandler):
+          def do_GET(self):
+              if self.path == '/metrics':
+                  try:
+                      result = subprocess.run(
+                          ['/usr/local/bin/ovn-metrics'],
+                          capture_output=True,
+                          text=True,
+                          timeout=30
+                      )
+                      self.send_response(200)
+                      self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                      self.end_headers()
+                      self.wfile.write(result.stdout.encode())
+                  except Exception as e:
+                      self.send_response(500)
+                      self.send_header('Content-Type', 'text/plain')
+                      self.end_headers()
+                      self.wfile.write(f"Error: {e}\n".encode())
+              elif self.path == '/':
+                  self.send_response(200)
+                  self.send_header('Content-Type', 'text/html')
+                  self.end_headers()
+                  self.wfile.write(b'<html><body><a href="/metrics">Metrics</a></body></html>')
+              else:
+                  self.send_response(404)
+                  self.end_headers()
+
+          def log_message(self, format, *args):
+              pass  # Suppress access logs
+
+      if __name__ == '__main__':
+          with http.server.HTTPServer(('', PORT), MetricsHandler) as httpd:
+              print(f"OVN metrics server running on port {PORT}")
+              httpd.serve_forever()
+
+  # OVN metrics exporter systemd service
+  - path: /etc/systemd/system/ovn-metrics.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=OVN Prometheus Metrics Exporter
+      After=ovn-northd.service
+      Wants=ovn-northd.service
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/local/bin/ovn-metrics-server
+      Restart=always
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+%{ endif ~}
+
 runcmd:
   # Create OVN directories
   - mkdir -p /var/lib/ovn /run/ovn /run/openvswitch /var/log/ovn
@@ -152,4 +305,11 @@ runcmd:
 %{ else ~}
   - "echo 'Northbound: tcp:0.0.0.0:${northbound_port}'"
   - "echo 'Southbound: tcp:0.0.0.0:${southbound_port}'"
+%{ endif ~}
+
+%{ if enable_metrics ~}
+  # Start metrics exporter
+  - systemctl enable ovn-metrics
+  - systemctl start ovn-metrics
+  - "echo 'Metrics: http://0.0.0.0:${metrics_port}/metrics'"
 %{ endif ~}

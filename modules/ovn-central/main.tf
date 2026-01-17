@@ -18,6 +18,8 @@ locals {
     ssl_ca_cert     = var.ssl_ca_cert
     ssl_cert        = var.ssl_cert
     ssl_key         = var.ssl_key
+    enable_metrics  = var.enable_metrics
+    metrics_port    = var.metrics_port
   })
 }
 

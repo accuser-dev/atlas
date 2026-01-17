@@ -159,6 +159,9 @@ module "ovn_central" {
 
   cpu_limit    = "1"
   memory_limit = "512MB"
+
+  # Enable Prometheus metrics
+  enable_metrics = true
 }
 
 # =============================================================================
@@ -253,6 +256,16 @@ module "prometheus01" {
             labels:
               service: 'alloy'
               instance: 'alloy01'
+
+%{if var.network_backend == "ovn"~}
+      # OVN Central metrics
+      - job_name: 'ovn-central'
+        static_configs:
+          - targets: ['ovn-central01.incus:9476']
+            labels:
+              service: 'ovn-central'
+              instance: 'ovn-central01'
+%{endif~}
 
       # Incus metrics from each IncusOS cluster node (mTLS)
       # Each node exposes its own metrics including node_exporter-style host metrics

@@ -38,6 +38,21 @@ output "ssl_ca_cert" {
   sensitive   = true
 }
 
+output "metrics_enabled" {
+  description = "Whether Prometheus metrics are enabled"
+  value       = var.enable_metrics
+}
+
+output "metrics_endpoint" {
+  description = "Prometheus metrics endpoint URL"
+  value       = var.enable_metrics ? "http://${incus_instance.ovn_central.ipv4_address}:${var.metrics_port}/metrics" : null
+}
+
+output "metrics_port" {
+  description = "Port for Prometheus metrics"
+  value       = var.enable_metrics ? var.metrics_port : null
+}
+
 output "northbound_port" {
   description = "OVN northbound database port"
   value       = var.northbound_port
