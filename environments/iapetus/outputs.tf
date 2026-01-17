@@ -21,6 +21,11 @@ output "loki_endpoint" {
   value       = module.loki01.loki_endpoint
 }
 
+output "loki_external_port" {
+  description = "External port for Loki access via proxy device (use http://<host-ip>:3100 for cross-environment log shipping)"
+  value       = module.loki01.external_port
+}
+
 output "prometheus_endpoint" {
   description = "Prometheus endpoint URL for internal use (configure as Grafana data source)"
   value       = module.prometheus01.prometheus_endpoint
