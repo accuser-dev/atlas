@@ -14,6 +14,24 @@ packages:
   - openvswitch-common
 
 write_files:
+%{ if enable_ssl ~}
+  # SSL certificates for OVN database connections
+  - path: /etc/ovn/ca.pem
+    permissions: "0644"
+    content: |
+      ${indent(6, ssl_ca_cert)}
+
+  - path: /etc/ovn/cert.pem
+    permissions: "0644"
+    content: |
+      ${indent(6, ssl_cert)}
+
+  - path: /etc/ovn/key.pem
+    permissions: "0600"
+    content: |
+      ${indent(6, ssl_key)}
+%{ endif ~}
+
   # OVN northbound database systemd service
   - path: /etc/systemd/system/ovn-northd-db.service
     permissions: "0644"
@@ -30,7 +48,14 @@ write_files:
       ExecStartPre=/bin/bash -c 'test -f /var/lib/ovn/ovnnb_db.db || /usr/bin/ovsdb-tool create /var/lib/ovn/ovnnb_db.db /usr/share/ovn/ovn-nb.ovsschema'
       ExecStart=/usr/sbin/ovsdb-server \
         --remote=punix:/run/ovn/ovnnb_db.sock \
+%{ if enable_ssl ~}
+        --remote=pssl:${northbound_port}:0.0.0.0 \
+        --certificate=/etc/ovn/cert.pem \
+        --private-key=/etc/ovn/key.pem \
+        --ca-cert=/etc/ovn/ca.pem \
+%{ else ~}
         --remote=ptcp:${northbound_port}:0.0.0.0 \
+%{ endif ~}
         --pidfile=/run/ovn/ovnnb_db.pid \
         --log-file=/var/log/ovn/ovnnb_db.log \
         --detach \
@@ -58,7 +83,14 @@ write_files:
       ExecStartPre=/bin/bash -c 'test -f /var/lib/ovn/ovnsb_db.db || /usr/bin/ovsdb-tool create /var/lib/ovn/ovnsb_db.db /usr/share/ovn/ovn-sb.ovsschema'
       ExecStart=/usr/sbin/ovsdb-server \
         --remote=punix:/run/ovn/ovnsb_db.sock \
+%{ if enable_ssl ~}
+        --remote=pssl:${southbound_port}:0.0.0.0 \
+        --certificate=/etc/ovn/cert.pem \
+        --private-key=/etc/ovn/key.pem \
+        --ca-cert=/etc/ovn/ca.pem \
+%{ else ~}
         --remote=ptcp:${southbound_port}:0.0.0.0 \
+%{ endif ~}
         --pidfile=/run/ovn/ovnsb_db.pid \
         --log-file=/var/log/ovn/ovnsb_db.log \
         --detach \
@@ -97,6 +129,10 @@ write_files:
 runcmd:
   # Create OVN directories
   - mkdir -p /var/lib/ovn /run/ovn /run/openvswitch /var/log/ovn
+%{ if enable_ssl ~}
+  - mkdir -p /etc/ovn
+  - chmod 700 /etc/ovn
+%{ endif ~}
 
   # Reload systemd and enable services
   - systemctl daemon-reload
@@ -110,5 +146,10 @@ runcmd:
 
   # Verify services are running
   - "echo 'OVN Central services started'"
+%{ if enable_ssl ~}
+  - "echo 'Northbound: ssl:0.0.0.0:${northbound_port}'"
+  - "echo 'Southbound: ssl:0.0.0.0:${southbound_port}'"
+%{ else ~}
   - "echo 'Northbound: tcp:0.0.0.0:${northbound_port}'"
   - "echo 'Southbound: tcp:0.0.0.0:${southbound_port}'"
+%{ endif ~}

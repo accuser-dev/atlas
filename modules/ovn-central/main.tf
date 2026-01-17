@@ -14,6 +14,10 @@ locals {
   cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
     northbound_port = var.northbound_port
     southbound_port = var.southbound_port
+    enable_ssl      = var.enable_ssl
+    ssl_ca_cert     = var.ssl_ca_cert
+    ssl_cert        = var.ssl_cert
+    ssl_key         = var.ssl_key
   })
 }
 

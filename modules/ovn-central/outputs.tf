@@ -19,12 +19,23 @@ output "ipv6_address" {
 
 output "northbound_connection" {
   description = "OVN northbound connection string for Incus configuration (uses host address for cluster-wide access)"
-  value       = "tcp:${var.host_address}:${var.northbound_port}"
+  value       = "${var.enable_ssl ? "ssl" : "tcp"}:${var.host_address}:${var.northbound_port}"
 }
 
 output "southbound_connection" {
   description = "OVN southbound connection string for chassis nodes (uses host address for cluster-wide access)"
-  value       = "tcp:${var.host_address}:${var.southbound_port}"
+  value       = "${var.enable_ssl ? "ssl" : "tcp"}:${var.host_address}:${var.southbound_port}"
+}
+
+output "ssl_enabled" {
+  description = "Whether SSL is enabled for OVN database connections"
+  value       = var.enable_ssl
+}
+
+output "ssl_ca_cert" {
+  description = "CA certificate used for SSL connections (for client configuration)"
+  value       = var.enable_ssl ? var.ssl_ca_cert : null
+  sensitive   = true
 }
 
 output "northbound_port" {

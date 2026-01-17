@@ -11,6 +11,7 @@ This module deploys OVN Central (northbound and southbound databases) as a conta
 - **Persistent Storage**: Database state survives restarts
 - **Cluster Support**: Pin to specific node in clusters
 - **Systemd Integration**: Proper service management with automatic stale lock cleanup
+- **SSL/TLS Support**: Optional encrypted connections for OVN databases
 
 ## Usage
 
@@ -129,6 +130,65 @@ For HA, deploy multiple OVN Central containers and configure clustering:
 # northbound_connection = "tcp:192.168.71.5:6641,tcp:192.168.71.2:6641,tcp:192.168.71.8:6641"
 ```
 
+### SSL/TLS Configuration
+
+Enable encrypted connections for OVN databases:
+
+```hcl
+module "ovn_central" {
+  source = "../../modules/ovn-central"
+
+  # ... other configuration ...
+
+  # Enable SSL
+  enable_ssl  = true
+  ssl_ca_cert = file("${path.module}/certs/ca.pem")
+  ssl_cert    = file("${path.module}/certs/ovn-central.pem")
+  ssl_key     = file("${path.module}/certs/ovn-central-key.pem")
+}
+```
+
+When SSL is enabled:
+- OVN databases listen on `pssl:` instead of `ptcp:`
+- Connection strings use `ssl:` protocol (e.g., `ssl:192.168.71.5:6641`)
+- Certificates are written to `/etc/ovn/` in the container
+- Clients must present valid certificates to connect
+
+**Certificate Requirements:**
+- CA certificate (`ssl_ca_cert`): Used to verify client certificates
+- Server certificate (`ssl_cert`): Must have the host address as SAN
+- Server key (`ssl_key`): Private key for the server certificate
+
+**Integration with step-ca:**
+
+Generate certificates using your internal CA:
+
+```bash
+# Generate OVN central certificate
+step ca certificate ovn-central.local \
+  ovn-central.pem ovn-central-key.pem \
+  --san 192.168.71.5 \
+  --not-after 8760h
+
+# Get CA certificate
+step ca root ca.pem
+```
+
+**Configuring Incus for SSL:**
+
+When using the `ovn-config` module with SSL:
+
+```hcl
+module "ovn_config" {
+  source = "../../modules/ovn-config"
+
+  northbound_connection = module.ovn_central[0].northbound_connection
+  ca_cert               = module.ovn_central[0].ssl_ca_cert
+  client_cert           = file("${path.module}/certs/incus-client.pem")
+  client_key            = file("${path.module}/certs/incus-client-key.pem")
+}
+```
+
 ## Variables
 
 | Name | Description | Type | Default | Required |
@@ -149,14 +209,20 @@ For HA, deploy multiple OVN Central containers and configure clustering:
 | `data_volume_size` | Data volume size | `string` | `"1GB"` | no |
 | `northbound_port` | Northbound DB port | `number` | `6641` | no |
 | `southbound_port` | Southbound DB port | `number` | `6642` | no |
+| `enable_ssl` | Enable SSL/TLS for database connections | `bool` | `false` | no |
+| `ssl_ca_cert` | CA certificate (PEM format) | `string` | `""` | no |
+| `ssl_cert` | Server certificate (PEM format) | `string` | `""` | no |
+| `ssl_key` | Server private key (PEM format) | `string` | `""` | no |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
 | `instance_name` | Name of the created instance |
-| `northbound_connection` | Northbound connection string |
-| `southbound_connection` | Southbound connection string |
+| `northbound_connection` | Northbound connection string (`tcp:` or `ssl:` based on config) |
+| `southbound_connection` | Southbound connection string (`tcp:` or `ssl:` based on config) |
+| `ssl_enabled` | Whether SSL is enabled |
+| `ssl_ca_cert` | CA certificate for client configuration (sensitive) |
 
 ## Troubleshooting
 

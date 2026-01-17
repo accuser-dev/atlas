@@ -132,3 +132,49 @@ variable "host_address" {
   description = "Physical network address of the host node (for proxy device connections from other nodes)"
   type        = string
 }
+
+# -----------------------------------------------------------------------------
+# SSL/TLS Configuration
+# -----------------------------------------------------------------------------
+
+variable "enable_ssl" {
+  description = "Enable SSL/TLS for OVN database connections"
+  type        = bool
+  default     = false
+}
+
+variable "ssl_ca_cert" {
+  description = "CA certificate for SSL connections (PEM format)"
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.ssl_ca_cert == "" || can(regex("^-----BEGIN CERTIFICATE-----", var.ssl_ca_cert))
+    error_message = "ssl_ca_cert must be a valid PEM-encoded certificate starting with '-----BEGIN CERTIFICATE-----'"
+  }
+}
+
+variable "ssl_cert" {
+  description = "Server certificate for OVN databases (PEM format)"
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.ssl_cert == "" || can(regex("^-----BEGIN CERTIFICATE-----", var.ssl_cert))
+    error_message = "ssl_cert must be a valid PEM-encoded certificate starting with '-----BEGIN CERTIFICATE-----'"
+  }
+}
+
+variable "ssl_key" {
+  description = "Server private key for OVN databases (PEM format)"
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.ssl_key == "" || can(regex("^-----BEGIN .* PRIVATE KEY-----", var.ssl_key))
+    error_message = "ssl_key must be a valid PEM-encoded private key"
+  }
+}
