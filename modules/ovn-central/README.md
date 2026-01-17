@@ -74,7 +74,24 @@ module "ovn_central" {
 
 ### Post-Deployment Setup
 
-After deploying the container, configure IncusOS nodes as OVN chassis:
+After deploying the container, configure IncusOS nodes as OVN chassis.
+
+**Automated (Recommended):**
+
+```bash
+# Configure all cluster nodes automatically
+make configure-ovn-chassis ENV=cluster01
+
+# Verify chassis registration
+make verify-ovn-chassis ENV=cluster01
+```
+
+The Makefile targets automatically:
+- Read the southbound connection from Terraform outputs
+- Discover all cluster nodes and their IPs
+- Configure each node with the correct tunnel address
+
+**Manual (Reference):**
 
 ```bash
 # On each IncusOS node, configure OVN chassis
@@ -88,7 +105,7 @@ incus admin os service edit ovn --target=node1 << 'EOF'
 }
 EOF
 
-# Configure Incus to use OVN northbound
+# Configure Incus to use OVN northbound (handled by ovn-config module)
 incus config set network.ovn.northbound_connection=tcp:192.168.71.5:6641
 ```
 

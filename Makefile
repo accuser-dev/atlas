@@ -14,7 +14,8 @@ INCUS_REMOTE := $(if $(filter cluster01,$(ENV)),cluster01:,)
         init plan apply destroy import import-dynamic clean-incus clean-images \
         deploy validate clean clean-docker clean-tofu clean-bootstrap format \
         backup-snapshot backup-export backup-list backup-dynamic \
-        test test-health test-connectivity test-storage test-network
+        test test-health test-connectivity test-storage test-network \
+        configure-ovn-chassis verify-ovn-chassis
 
 # Default target
 help:
@@ -65,6 +66,10 @@ help:
 	@echo "  make test-connectivity - Run service connectivity tests"
 	@echo "  make test-storage      - Run storage tests"
 	@echo "  make test-network      - Run network isolation tests"
+	@echo ""
+	@echo "OVN Commands (cluster01 only):"
+	@echo "  make configure-ovn-chassis ENV=cluster01  - Configure OVN on all cluster nodes"
+	@echo "  make verify-ovn-chassis ENV=cluster01     - Verify OVN chassis registration"
 	@echo ""
 	@echo "Utility Commands:"
 	@echo "  make format            - Format OpenTofu files"
@@ -476,3 +481,85 @@ test-storage:
 
 test-network:
 	@./test/integration/run-tests.sh network
+
+# =============================================================================
+# OVN Chassis Configuration (cluster01 only)
+# =============================================================================
+
+# Configure OVN on all IncusOS cluster nodes
+# This enables OVN networking by connecting each node to the OVN southbound database
+configure-ovn-chassis:
+	@if [ "$(ENV)" != "cluster01" ]; then \
+		echo "ERROR: OVN chassis configuration is only applicable to cluster01"; \
+		echo "Usage: make configure-ovn-chassis ENV=cluster01"; \
+		exit 1; \
+	fi
+	@echo "Configuring OVN chassis on cluster01 nodes..."
+	@echo ""
+	@# Check if OVN is enabled
+	@NETWORK_BACKEND=$$(cd $(ENV_DIR) && tofu output -raw network_backend 2>/dev/null); \
+	if [ "$$NETWORK_BACKEND" != "ovn" ]; then \
+		echo "ERROR: OVN is not enabled in cluster01 (network_backend=$$NETWORK_BACKEND)"; \
+		exit 1; \
+	fi
+	@# Get southbound connection from Terraform output
+	@SOUTHBOUND=$$(cd $(ENV_DIR) && tofu output -raw ovn_central_southbound_connection 2>/dev/null); \
+	if [ -z "$$SOUTHBOUND" ]; then \
+		echo "ERROR: Could not get OVN southbound connection from Terraform output"; \
+		echo "Ensure ovn-central is deployed: make apply ENV=cluster01"; \
+		exit 1; \
+	fi; \
+	echo "OVN Southbound: $$SOUTHBOUND"; \
+	echo ""; \
+	# Get node names and IPs from Terraform output \
+	NODES=$$(cd $(ENV_DIR) && tofu output -json cluster_nodes | jq -r '.[]'); \
+	IPS=$$(cd $(ENV_DIR) && tofu output -json cluster_ips | jq -r '.[]'); \
+	# Convert to arrays \
+	NODE_ARRAY=($$NODES); \
+	IP_ARRAY=($$IPS); \
+	# Configure each node \
+	for i in $${!NODE_ARRAY[@]}; do \
+		NODE=$${NODE_ARRAY[$$i]}; \
+		IP=$${IP_ARRAY[$$i]}; \
+		echo "Configuring $$NODE (tunnel_address=$$IP)..."; \
+		echo '{"config": {"database": "'$$SOUTHBOUND'", "enabled": true, "tunnel_address": "'$$IP'"}}' | \
+			incus admin os service edit ovn cluster01: --target=$$NODE; \
+		if [ $$? -eq 0 ]; then \
+			echo "  ✓ $$NODE configured"; \
+		else \
+			echo "  ✗ $$NODE failed"; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "Chassis configuration complete."; \
+	echo "Run 'make verify-ovn-chassis ENV=cluster01' to verify registration."
+
+# Verify OVN chassis registration
+verify-ovn-chassis:
+	@if [ "$(ENV)" != "cluster01" ]; then \
+		echo "ERROR: OVN chassis verification is only applicable to cluster01"; \
+		exit 1; \
+	fi
+	@echo "Verifying OVN chassis registration..."
+	@echo ""
+	@# Check network backend
+	@NETWORK_BACKEND=$$(cd $(ENV_DIR) && tofu output -raw network_backend 2>/dev/null); \
+	if [ "$$NETWORK_BACKEND" != "ovn" ]; then \
+		echo "ERROR: OVN is not enabled in cluster01"; \
+		exit 1; \
+	fi
+	@echo "=== OVN Southbound Database Status ==="
+	@incus exec cluster01:ovn-central01 -- ovn-sbctl show
+	@echo ""
+	@echo "=== Expected Nodes ==="
+	@cd $(ENV_DIR) && tofu output -json cluster_nodes | jq -r '.[]'
+	@echo ""
+	@CHASSIS_COUNT=$$(incus exec cluster01:ovn-central01 -- ovn-sbctl show 2>/dev/null | grep -c "Chassis" || echo "0"); \
+	NODE_COUNT=$$(cd $(ENV_DIR) && tofu output -json cluster_nodes | jq 'length'); \
+	echo "Chassis registered: $$CHASSIS_COUNT / $$NODE_COUNT"; \
+	if [ "$$CHASSIS_COUNT" -ge "$$NODE_COUNT" ]; then \
+		echo "✓ All chassis registered"; \
+	else \
+		echo "✗ Some chassis missing - run 'make configure-ovn-chassis ENV=cluster01'"; \
+		exit 1; \
+	fi
