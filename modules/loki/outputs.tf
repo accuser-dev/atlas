@@ -37,3 +37,13 @@ output "tls_enabled" {
   description = "Whether TLS is enabled for this instance (always false for system containers)"
   value       = false
 }
+
+output "external_access_enabled" {
+  description = "Whether external access via proxy device is enabled"
+  value       = var.enable_external_access
+}
+
+output "external_port" {
+  description = "Host port for external Loki access (when proxy device is enabled)"
+  value       = var.enable_external_access ? var.external_port : null
+}
