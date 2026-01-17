@@ -111,7 +111,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        environment: [iapetus, cluster]
+        environment: [iapetus, cluster01]
       fail-fast: false
 
     steps:

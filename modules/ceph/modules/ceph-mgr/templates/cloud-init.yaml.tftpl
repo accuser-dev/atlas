@@ -1,0 +1,138 @@
+#cloud-config
+# Ceph MGR container configuration
+# Uses Debian Trixie with systemd service management
+
+# Configure eth1 (management network) for internet access before package installation
+# eth0 is the storage network (no internet), eth1 has NAT to internet
+bootcmd:
+  - |
+    # Wait for eth1 to appear (management network from profile)
+    for i in $(seq 1 30); do
+      if ip link show eth1 > /dev/null 2>&1; then
+        dhclient -v eth1 || true
+        break
+      fi
+      sleep 1
+    done
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - ceph-mgr
+  - ceph-common
+  - ceph-base
+%{ if enable_dashboard ~}
+  - ceph-mgr-dashboard
+%{ endif ~}
+
+write_files:
+  # Ceph configuration file
+  - path: /etc/ceph/${cluster_name}.conf
+    permissions: '0644'
+    content: |
+      [global]
+      fsid = ${cluster_fsid}
+      mon_initial_members = ${mon_initial_members}
+      mon_host = ${mon_host}
+
+      public_network = ${public_network}
+      cluster_network = ${cluster_network}
+
+      auth_cluster_required = cephx
+      auth_service_required = cephx
+      auth_client_required = cephx
+
+      [mgr]
+%{ if enable_prometheus ~}
+      mgr/prometheus/server_port = ${prometheus_port}
+%{ endif ~}
+
+  # MGR setup script
+  - path: /usr/local/bin/ceph-mgr-setup.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -eu
+
+      CLUSTER="${cluster_name}"
+      MGR_ID="${mgr_id}"
+      MGR_DATA="/var/lib/ceph/mgr/$${CLUSTER}-$${MGR_ID}"
+      SETUP_MARKER="/var/lib/ceph/.mgr_setup_complete"
+
+      if [ -f "$SETUP_MARKER" ]; then
+        echo "MGR already configured, starting service..."
+        systemctl enable "ceph-mgr@$${MGR_ID}"
+        systemctl start "ceph-mgr@$${MGR_ID}"
+        exit 0
+      fi
+
+      echo "Waiting for admin keyring..."
+
+      # Wait for admin keyring (must be copied from bootstrap MON)
+      MAX_WAIT=600
+      WAITED=0
+      while [ ! -f /etc/ceph/$${CLUSTER}.client.admin.keyring ]; do
+        if [ $WAITED -ge $MAX_WAIT ]; then
+          echo "ERROR: Timeout waiting for admin keyring"
+          echo "Copy /etc/ceph/$${CLUSTER}.client.admin.keyring from bootstrap MON"
+          exit 1
+        fi
+        echo "Waiting for /etc/ceph/$${CLUSTER}.client.admin.keyring... ($WAITED/$MAX_WAIT)"
+        sleep 10
+        WAITED=$((WAITED + 10))
+      done
+
+      echo "Setting up Ceph MGR..."
+
+      # Create MGR data directory
+      mkdir -p "$MGR_DATA"
+
+      # Create MGR keyring
+      ceph auth get-or-create mgr.$${MGR_ID} \
+        mon 'allow profile mgr' \
+        osd 'allow *' \
+        mds 'allow *' \
+        > "$MGR_DATA/keyring"
+
+      # Set ownership
+      chown -R ceph:ceph /var/lib/ceph
+      chown -R ceph:ceph /etc/ceph
+
+      # Enable and start MGR
+      systemctl enable "ceph-mgr@$${MGR_ID}"
+      systemctl start "ceph-mgr@$${MGR_ID}"
+
+      # Wait for MGR to be active
+      sleep 10
+
+%{ if enable_prometheus ~}
+      # Enable Prometheus module
+      ceph mgr module enable prometheus || true
+%{ endif ~}
+
+%{ if enable_dashboard ~}
+      # Enable Dashboard module
+      ceph mgr module enable dashboard || true
+      ceph dashboard set-ssl-certificate-file /etc/ceph/dashboard.crt || true
+      ceph dashboard set-ssl-certificate-key-file /etc/ceph/dashboard.key || true
+%{ endif ~}
+
+      # Mark setup complete
+      touch "$SETUP_MARKER"
+      echo "MGR setup complete!"
+      ceph mgr services
+
+runcmd:
+  # Ensure eth1 (management network) has DHCP - bootcmd may have failed if dhclient wasn't installed
+  - |
+    if ip link show eth1 > /dev/null 2>&1; then
+      if ! ip -4 addr show eth1 | grep -q "inet "; then
+        dhclient -v eth1 || true
+      fi
+    fi
+  # Ensure ceph user exists
+  - id ceph || useradd --system --no-create-home --shell /usr/sbin/nologin ceph
+  - mkdir -p /var/lib/ceph /etc/ceph
+  - chown -R ceph:ceph /var/lib/ceph /etc/ceph
+  - /usr/local/bin/ceph-mgr-setup.sh

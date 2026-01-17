@@ -200,10 +200,7 @@ module "prometheus01" {
   instance_name = "prometheus01"
   profile_name  = "prometheus"
 
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   prometheus_port = "9090"
 
@@ -309,10 +306,7 @@ module "alertmanager01" {
   instance_name = "alertmanager01"
   profile_name  = "alertmanager"
 
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   alertmanager_port = "9093"
 
@@ -337,18 +331,15 @@ module "mosquitto01" {
   instance_name = "mosquitto01"
   profile_name  = "mosquitto"
 
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.production_network_profile.name,
-  ]
+  profiles = local.production_profiles
 
   mqtt_port  = "1883"
   mqtts_port = "8883"
 
   # External access via proxy devices (bridge mode only)
   # With OVN, we use OVN load balancers instead
-  enable_external_access = var.network_backend == "bridge" && !module.base.production_network_is_physical
-  use_ovn_lb             = var.network_backend == "ovn"
+  enable_external_access = local.bridge_external_access
+  use_ovn_lb             = local.use_ovn_lb
   external_mqtt_port     = "1883"
   external_mqtts_port    = "8883"
 
@@ -369,10 +360,7 @@ module "coredns01" {
   instance_name = "coredns01"
   profile_name  = "coredns"
 
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.production_network_profile.name,
-  ]
+  profiles = local.production_profiles
 
   domain = var.dns_domain
 
@@ -402,8 +390,8 @@ module "coredns01" {
 
   # External access via proxy devices (bridge mode only)
   # With OVN, we use OVN load balancers instead
-  enable_external_access = var.network_backend == "bridge" && !module.base.production_network_is_physical
-  use_ovn_lb             = var.network_backend == "ovn"
+  enable_external_access = local.bridge_external_access
+  use_ovn_lb             = local.use_ovn_lb
   external_dns_port      = "53"
 
   cpu_limit    = local.services.coredns.cpu
@@ -435,10 +423,7 @@ module "alloy01" {
   instance_name = "alloy01"
   profile_name  = "alloy"
 
-  profiles = [
-    module.base.container_base_profile.name,
-    module.base.management_network_profile.name,
-  ]
+  profiles = local.management_profiles
 
   loki_push_url = var.loki_push_url
 
@@ -459,117 +444,129 @@ module "alloy01" {
 # =============================================================================
 # OVN load balancers replace proxy devices for external service access
 # VIPs must be within the uplink network's ipv4.ovn.ranges
+#
+# Configuration is centralized in locals.tf (local.ovn_load_balancers)
 
-module "mosquitto_lb" {
+module "ovn_lb" {
   source = "../../modules/ovn-load-balancer"
 
-  count = var.network_backend == "ovn" && var.mosquitto_lb_address != "" ? 1 : 0
+  for_each = local.use_ovn_lb ? {
+    for k, v in local.ovn_load_balancers : k => v if v.enabled
+  } : {}
 
-  network_name   = module.base.production_network_name
-  listen_address = var.mosquitto_lb_address
-  description    = "OVN load balancer for Mosquitto MQTT broker"
-
-  backends = [
-    {
-      name           = "mosquitto01"
-      target_address = module.mosquitto01.ipv4_address
-      target_port    = 1883
-    }
-  ]
-
-  ports = [
-    {
-      description = "MQTT"
-      protocol    = "tcp"
-      listen_port = 1883
-    },
-    {
-      description = "MQTTS"
-      protocol    = "tcp"
-      listen_port = 8883
-    }
-  ]
+  network_name   = each.value.network == "production" ? module.base.production_network_name : module.base.management_network_name
+  listen_address = each.value.listen_address
+  description    = each.value.description
+  backends       = each.value.backends
+  ports          = each.value.ports
 }
 
-module "coredns_lb" {
-  source = "../../modules/ovn-load-balancer"
+# =============================================================================
+# Ceph Distributed Storage
+# =============================================================================
+# Provides distributed block storage and S3-compatible object storage.
+# Requires a storage network configured on IncusOS hosts.
+#
+# Deployment order: MON (bootstrap) → MON (join) → MGR → OSD → RGW
+# Post-deployment: Copy keys from bootstrap MON to other containers
 
-  count = var.network_backend == "ovn" && var.coredns_lb_address != "" ? 1 : 0
+module "ceph" {
+  source = "../../modules/ceph"
 
-  network_name   = module.base.production_network_name
-  listen_address = var.coredns_lb_address
-  description    = "OVN load balancer for CoreDNS"
+  count = var.enable_ceph ? 1 : 0
 
-  backends = [
-    {
-      name           = "coredns01"
-      target_address = module.coredns01.ipv4_address
-      target_port    = 53
+  cluster_name = "ceph"
+  cluster_fsid = var.ceph_cluster_fsid
+
+  # Include management network profile for internet access during package installation
+  profiles     = [module.base.container_base_profile.name, module.base.management_network_profile.name]
+  storage_pool = "local"
+
+  # Network configuration
+  storage_network_name = var.ceph_storage_network_name
+  public_network       = var.ceph_public_network
+  cluster_network      = var.ceph_cluster_network
+
+  # MON configuration (3 monitors for quorum)
+  # First node in the cluster is the bootstrap node
+  mons = {
+    for i, node in local.cluster_nodes : node => {
+      target_node  = node
+      static_ip    = lookup(var.ceph_mon_ips, node, null)
+      is_bootstrap = i == 0
     }
-  ]
+  }
 
-  ports = [
-    {
-      description = "DNS over UDP"
-      protocol    = "udp"
-      listen_port = 53
-    },
-    {
-      description = "DNS over TCP"
-      protocol    = "tcp"
-      listen_port = 53
+  mon_cpu_limit    = local.services.ceph_mon.cpu
+  mon_memory_limit = local.services.ceph_mon.memory
+
+  # MGR configuration (runs on first node)
+  mgrs = {
+    (local.cluster_nodes[0]) = {
+      target_node = local.cluster_nodes[0]
+      static_ip   = lookup(var.ceph_mgr_ips, local.cluster_nodes[0], null)
     }
-  ]
+  }
+
+  mgr_cpu_limit         = local.services.ceph_mgr.cpu
+  mgr_memory_limit      = local.services.ceph_mgr.memory
+  enable_mgr_prometheus = true
+
+  # OSD configuration (one per node, using the discovered HDD)
+  osds = {
+    for node in local.cluster_nodes : node => {
+      target_node      = node
+      osd_block_device = var.ceph_osd_devices[node]
+      static_ip        = lookup(var.ceph_osd_ips, node, null)
+    } if contains(keys(var.ceph_osd_devices), node)
+  }
+
+  osd_cpu_limit    = local.services.ceph_osd.cpu
+  osd_memory_limit = local.services.ceph_osd.memory
+
+  # RGW configuration (S3 API, runs on first node)
+  rgws = {
+    (local.cluster_nodes[0]) = {
+      target_node = local.cluster_nodes[0]
+      static_ip   = lookup(var.ceph_rgw_ips, local.cluster_nodes[0], null)
+    }
+  }
+
+  rgw_cpu_limit    = local.services.ceph_rgw.cpu
+  rgw_memory_limit = local.services.ceph_rgw.memory
 }
 
-module "alloy_syslog_lb" {
+# =============================================================================
+# Ceph RGW Load Balancer (OVN)
+# =============================================================================
+# Provides LAN-routable VIP for S3 API access from external hosts (e.g., iapetus)
+
+module "ceph_rgw_lb" {
   source = "../../modules/ovn-load-balancer"
 
-  count = var.network_backend == "ovn" && var.alloy_syslog_lb_address != "" ? 1 : 0
+  count = var.network_backend == "ovn" && var.enable_ceph && var.ceph_rgw_lb_address != "" ? 1 : 0
 
-  network_name   = module.base.management_network_name
-  listen_address = var.alloy_syslog_lb_address
-  description    = "OVN load balancer for Alloy syslog receiver (IncusOS host logs)"
+  # Use the Ceph storage network since RGW is on that network
+  network_name   = var.ceph_storage_network_name
+  listen_address = var.ceph_rgw_lb_address
+  description    = "OVN load balancer for Ceph RGW S3 API"
 
   backends = [
-    {
-      name           = "alloy01"
-      target_address = module.alloy01.ipv4_address
-      target_port    = 1514
+    for k, v in module.ceph[0].rgw_instances : {
+      name           = k
+      description    = "Ceph RGW on ${k}"
+      target_address = v.ipv4_address
+      target_port    = 7480
     }
   ]
 
   ports = [
     {
-      description = "Syslog over UDP"
-      protocol    = "udp"
-      listen_port = 1514
-    }
-  ]
-}
-
-module "prometheus_lb" {
-  source = "../../modules/ovn-load-balancer"
-
-  count = var.network_backend == "ovn" && var.prometheus_lb_address != "" ? 1 : 0
-
-  network_name   = module.base.management_network_name
-  listen_address = var.prometheus_lb_address
-  description    = "OVN load balancer for Prometheus (enables federation from iapetus)"
-
-  backends = [
-    {
-      name           = "prometheus01"
-      target_address = module.prometheus01.ipv4_address
-      target_port    = 9090
-    }
-  ]
-
-  ports = [
-    {
-      description = "Prometheus HTTP"
+      description = "S3 API HTTP"
       protocol    = "tcp"
-      listen_port = 9090
+      listen_port = 7480
     }
   ]
+
+  depends_on = [module.ceph]
 }
