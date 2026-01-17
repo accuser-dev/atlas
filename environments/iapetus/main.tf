@@ -145,6 +145,10 @@ module "loki01" {
   data_volume_name        = "loki01-data"
   data_volume_size        = "50GB"
 
+  # External access via proxy device (for cross-environment log shipping from cluster01)
+  enable_external_access = true
+  external_port          = "3100"
+
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.loki.cpu
   memory_limit = local.services.loki.memory
@@ -245,9 +249,8 @@ module "coredns01" {
   additional_records = var.dns_additional_records
 
   # Nameserver IP - the LAN-routable address where clients reach the DNS server
-  # In OVN mode: use the OVN load balancer VIP
-  # In physical/bridge mode: use the static IP or production network gateway
-  nameserver_ip = var.network_backend == "ovn" ? var.coredns_lb_address : (var.dns_nameserver_ip != "" ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0])
+  # Use the static IP (for physical mode) or production network gateway (for bridge mode)
+  nameserver_ip = var.dns_nameserver_ip != "" ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0]
 
   # Forwarding configuration
   incus_dns_server     = split("/", var.management_network_ipv4)[0] # Management network gateway
@@ -497,25 +500,3 @@ module "haproxy01" {
   memory_limit = local.services.haproxy.memory
 }
 
-# =============================================================================
-# OVN Load Balancers (Optional - when using OVN backend)
-# =============================================================================
-# OVN load balancers replace proxy devices for external service access
-# VIPs must be within the uplink network's ipv4.ovn.ranges
-#
-# Configuration is centralized in locals.tf (local.ovn_load_balancers)
-
-module "ovn_lb" {
-  source = "../../modules/ovn-load-balancer"
-
-  for_each = local.use_ovn_lb ? {
-    for k, v in local.ovn_load_balancers : k => v if v.enabled
-  } : {}
-
-  network_name   = each.value.network == "production" ? module.base.production_network_name : module.base.management_network_name
-  listen_address = each.value.listen_address
-  description    = each.value.description
-  backends       = each.value.backends
-  ports          = each.value.ports
-  health_check   = try(each.value.health_check, {})
-}

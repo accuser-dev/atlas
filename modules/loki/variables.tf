@@ -164,3 +164,21 @@ variable "snapshot_pattern" {
   type        = string
   default     = "auto-{{creation_date}}"
 }
+
+# External Access Configuration
+variable "enable_external_access" {
+  description = "Enable external access via proxy device (for bridge networking mode)"
+  type        = bool
+  default     = false
+}
+
+variable "external_port" {
+  description = "Host port for external Loki access when using proxy device"
+  type        = string
+  default     = "3100"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.external_port)) && tonumber(var.external_port) >= 1 && tonumber(var.external_port) <= 65535
+    error_message = "External port must be a number between 1 and 65535"
+  }
+}

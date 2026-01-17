@@ -71,6 +71,20 @@ resource "incus_profile" "loki" {
     }
   }
 
+  # Proxy device for external access (bridge networking mode)
+  dynamic "device" {
+    for_each = var.enable_external_access ? [1] : []
+    content {
+      name = "loki-proxy"
+      type = "proxy"
+      properties = {
+        listen  = "tcp:0.0.0.0:${var.external_port}"
+        connect = "tcp:127.0.0.1:${var.loki_port}"
+        bind    = "host"
+      }
+    }
+  }
+
   depends_on = [
     incus_storage_volume.loki_data
   ]
