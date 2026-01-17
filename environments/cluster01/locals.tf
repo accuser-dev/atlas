@@ -47,6 +47,7 @@ locals {
         { description = "MQTT", protocol = "tcp", listen_port = 1883 },
         { description = "MQTTS", protocol = "tcp", listen_port = 8883 },
       ]
+      health_check = { enabled = true }
     }
 
     coredns = {
@@ -63,6 +64,7 @@ locals {
         { description = "DNS over UDP", protocol = "udp", listen_port = 53 },
         { description = "DNS over TCP", protocol = "tcp", listen_port = 53 },
       ]
+      health_check = { enabled = true }
     }
 
     alloy_syslog = {
@@ -78,6 +80,7 @@ locals {
       ports = [
         { description = "Syslog over UDP", protocol = "udp", listen_port = 1514 },
       ]
+      health_check = { enabled = true }
     }
 
     prometheus = {
@@ -93,6 +96,7 @@ locals {
       ports = [
         { description = "Prometheus HTTP", protocol = "tcp", listen_port = 9090 },
       ]
+      health_check = { enabled = true }
     }
   }
 

@@ -517,4 +517,5 @@ module "ovn_lb" {
   description    = each.value.description
   backends       = each.value.backends
   ports          = each.value.ports
+  health_check   = try(each.value.health_check, {})
 }
