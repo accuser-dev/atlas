@@ -1,5 +1,6 @@
 # OpenTofu / Terraform
 modules/**/.terraform/
+modules/**/.terraform.lock.hcl
 environments/**/.terraform/
 environments/**/*.tfstate
 environments/**/*.tfstate.*
@@ -23,6 +24,11 @@ docker/**/*.log
 *.swp
 *.swo
 *~
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/agents/
+**/.claude/
 
 # OS files
 .DS_Store

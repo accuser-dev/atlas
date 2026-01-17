@@ -62,6 +62,7 @@ locals {
         { description = "DNS over UDP", protocol = "udp", listen_port = 53 },
         { description = "DNS over TCP", protocol = "tcp", listen_port = 53 },
       ]
+      health_check = { enabled = true }
     }
 
     haproxy = {
@@ -77,6 +78,7 @@ locals {
       ports = [
         { description = "Incus API (HTTPS)", protocol = "tcp", listen_port = 8443 },
       ]
+      health_check = { enabled = true }
     }
 
     loki = {
@@ -92,6 +94,7 @@ locals {
       ports = [
         { description = "Loki HTTP API", protocol = "tcp", listen_port = 3100 },
       ]
+      health_check = { enabled = true }
     }
 
     grafana = {
@@ -107,6 +110,7 @@ locals {
       ports = [
         { description = "Grafana HTTP", protocol = "tcp", listen_port = 3000 },
       ]
+      health_check = { enabled = true }
     }
   }
 

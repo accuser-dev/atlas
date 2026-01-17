@@ -8,6 +8,7 @@ This module creates OVN network load balancers for exposing services on LAN-rout
 - **LAN-Routable VIPs**: External access without proxy devices
 - **Multiple Backends**: Distribute traffic across containers
 - **Multiple Ports**: Single VIP with multiple port mappings
+- **Health Checks**: Automatic backend health monitoring (OVN native)
 - **OVN Native**: Uses Incus OVN load balancer resources
 
 ## Usage
@@ -133,6 +134,39 @@ module "grafana_lb" {
 }
 ```
 
+### Health Checks
+
+Enable automatic health monitoring to remove unhealthy backends from rotation:
+
+```hcl
+module "web_lb" {
+  source = "../../modules/ovn-load-balancer"
+
+  network_name   = "ovn-production"
+  listen_address = "192.168.68.20"
+
+  backends = [
+    { name = "web01", target_address = "10.10.0.10" },
+    { name = "web02", target_address = "10.10.0.11" },
+  ]
+
+  ports = [
+    { listen_port = 80 },
+  ]
+
+  # Enable health checks with custom settings
+  health_check = {
+    enabled       = true
+    interval      = 5     # Check every 5 seconds
+    timeout       = 10    # Timeout after 10 seconds
+    failure_count = 3     # Mark offline after 3 failures
+    success_count = 2     # Mark online after 2 successes
+  }
+}
+```
+
+Health checks are TCP-based and test connectivity to each backend's target port.
+
 ## Variables
 
 | Name | Description | Type | Default | Required |
@@ -142,6 +176,7 @@ module "grafana_lb" {
 | `backends` | Backend targets | `list(object)` | n/a | yes |
 | `ports` | Port mappings | `list(object)` | n/a | yes |
 | `description` | Load balancer description | `string` | `""` | no |
+| `health_check` | Health check configuration | `object` | `{}` | no |
 
 ### Backend Object
 
@@ -161,12 +196,25 @@ module "grafana_lb" {
 | `target_backends` | Subset of backends (optional) | `list(string)` | all |
 | `description` | Port description | `string` | `""` |
 
+### Health Check Object
+
+| Field | Description | Type | Default |
+|-------|-------------|------|---------|
+| `enabled` | Enable health checks | `bool` | `false` |
+| `interval` | Seconds between health checks | `number` | `10` |
+| `timeout` | Seconds before check times out | `number` | `30` |
+| `failure_count` | Failures before marking offline | `number` | `3` |
+| `success_count` | Successes before marking online | `number` | `3` |
+
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| `load_balancer_id` | OVN load balancer resource ID |
 | `listen_address` | Configured VIP address |
+| `network` | Network the load balancer is attached to |
+| `backends` | Configured backends |
+| `ports` | Configured port mappings |
+| `health_check_enabled` | Whether health checks are enabled |
 
 ## Prerequisites
 

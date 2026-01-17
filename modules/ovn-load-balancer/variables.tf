@@ -57,3 +57,35 @@ variable "ports" {
     error_message = "Protocol must be 'tcp' or 'udp'."
   }
 }
+
+variable "health_check" {
+  description = "Health check configuration. When enabled, OVN monitors backend health and removes unhealthy backends from rotation."
+  type = object({
+    enabled       = optional(bool, false)
+    interval      = optional(number, 10)
+    timeout       = optional(number, 30)
+    failure_count = optional(number, 3)
+    success_count = optional(number, 3)
+  })
+  default = {}
+
+  validation {
+    condition     = try(var.health_check.interval, 10) >= 1
+    error_message = "health_check.interval must be at least 1 second."
+  }
+
+  validation {
+    condition     = try(var.health_check.timeout, 30) >= 1
+    error_message = "health_check.timeout must be at least 1 second."
+  }
+
+  validation {
+    condition     = try(var.health_check.failure_count, 3) >= 1
+    error_message = "health_check.failure_count must be at least 1."
+  }
+
+  validation {
+    condition     = try(var.health_check.success_count, 3) >= 1
+    error_message = "health_check.success_count must be at least 1."
+  }
+}

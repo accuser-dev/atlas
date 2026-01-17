@@ -21,3 +21,8 @@ output "ports" {
   description = "Configured port mappings for the load balancer"
   value       = var.ports
 }
+
+output "health_check_enabled" {
+  description = "Whether health checks are enabled for this load balancer"
+  value       = try(var.health_check.enabled, false)
+}
