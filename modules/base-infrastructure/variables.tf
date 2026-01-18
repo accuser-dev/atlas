@@ -210,6 +210,50 @@ variable "ovn_production_external" {
 }
 
 # =============================================================================
+# Network ACL Configuration (OVN only)
+# =============================================================================
+
+variable "management_network_acls" {
+  description = "List of ACL names to apply to the management network (OVN only)"
+  type        = list(string)
+  default     = []
+}
+
+variable "production_network_acls" {
+  description = "List of ACL names to apply to the production network (OVN only)"
+  type        = list(string)
+  default     = []
+}
+
+variable "gitops_network_acls" {
+  description = "List of ACL names to apply to the gitops network (OVN only)"
+  type        = list(string)
+  default     = []
+}
+
+variable "acl_default_ingress_action" {
+  description = "Default action for ingress traffic not matching any ACL rule (allow, drop, reject)"
+  type        = string
+  default     = "allow"
+
+  validation {
+    condition     = contains(["allow", "drop", "reject"], var.acl_default_ingress_action)
+    error_message = "acl_default_ingress_action must be 'allow', 'drop', or 'reject'"
+  }
+}
+
+variable "acl_default_egress_action" {
+  description = "Default action for egress traffic not matching any ACL rule (allow, drop, reject)"
+  type        = string
+  default     = "allow"
+
+  validation {
+    condition     = contains(["allow", "drop", "reject"], var.acl_default_egress_action)
+    error_message = "acl_default_egress_action must be 'allow', 'drop', or 'reject'"
+  }
+}
+
+# =============================================================================
 # DNS Zone Configuration
 # =============================================================================
 

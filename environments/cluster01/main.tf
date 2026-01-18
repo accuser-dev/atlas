@@ -89,6 +89,11 @@ module "base" {
   # Note: Only works when OVN is enabled (creates ovn-management network)
   # For bridge mode with external incusbr0, configure dns.zone.forward manually
   dns_zone_forward = var.enable_incus_dns_zone && var.network_backend == "ovn" ? var.incus_dns_zone_name : ""
+
+  # Network ACLs for microsegmentation (OVN only)
+  # ACLs are initially deployed in logging mode to monitor traffic patterns
+  management_network_acls = var.network_backend == "ovn" ? [module.management_acl[0].name] : []
+  production_network_acls = var.network_backend == "ovn" ? [module.production_acl[0].name] : []
 }
 
 # =============================================================================

@@ -121,13 +121,21 @@ resource "incus_network" "ovn_production" {
   description = "OVN production network for public-facing services"
   type        = "ovn"
 
-  config = {
-    "network"      = var.ovn_uplink_network
-    "bridge.mtu"   = "1442"
-    "ipv4.address" = var.production_network_ipv4
-    "ipv4.nat"     = tostring(var.production_network_nat)
-    "ipv4.dhcp"    = "true"
-  }
+  config = merge(
+    {
+      "network"      = var.ovn_uplink_network
+      "bridge.mtu"   = "1442"
+      "ipv4.address" = var.production_network_ipv4
+      "ipv4.nat"     = tostring(var.production_network_nat)
+      "ipv4.dhcp"    = "true"
+    },
+    # Network ACLs for microsegmentation
+    length(var.production_network_acls) > 0 ? {
+      "security.acls"                        = join(",", var.production_network_acls)
+      "security.acls.default.ingress.action" = var.acl_default_ingress_action
+      "security.acls.default.egress.action"  = var.acl_default_egress_action
+    } : {}
+  )
 }
 
 # Data source for existing OVN production network (when shared across environments)
@@ -155,6 +163,12 @@ resource "incus_network" "ovn_management" {
     # Link to Incus network zone for automatic DNS registration
     var.dns_zone_forward != "" ? {
       "dns.zone.forward" = var.dns_zone_forward
+    } : {},
+    # Network ACLs for microsegmentation
+    length(var.management_network_acls) > 0 ? {
+      "security.acls"                        = join(",", var.management_network_acls)
+      "security.acls.default.ingress.action" = var.acl_default_ingress_action
+      "security.acls.default.egress.action"  = var.acl_default_egress_action
     } : {}
   )
 }
@@ -167,13 +181,21 @@ resource "incus_network" "ovn_gitops" {
   description = "OVN GitOps network for Atlantis and CI/CD automation"
   type        = "ovn"
 
-  config = {
-    "network"      = var.ovn_uplink_network
-    "bridge.mtu"   = "1442"
-    "ipv4.address" = var.gitops_network_ipv4
-    "ipv4.nat"     = tostring(var.gitops_network_nat)
-    "ipv4.dhcp"    = "true"
-  }
+  config = merge(
+    {
+      "network"      = var.ovn_uplink_network
+      "bridge.mtu"   = "1442"
+      "ipv4.address" = var.gitops_network_ipv4
+      "ipv4.nat"     = tostring(var.gitops_network_nat)
+      "ipv4.dhcp"    = "true"
+    },
+    # Network ACLs for microsegmentation
+    length(var.gitops_network_acls) > 0 ? {
+      "security.acls"                        = join(",", var.gitops_network_acls)
+      "security.acls.default.ingress.action" = var.acl_default_ingress_action
+      "security.acls.default.egress.action"  = var.acl_default_egress_action
+    } : {}
+  )
 }
 
 # =============================================================================
