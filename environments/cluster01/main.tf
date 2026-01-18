@@ -26,23 +26,69 @@ data "external" "cluster_nodes" {
     # Query cluster nodes and return as JSON with both names and IPs
     # External data source requires string values
     # Use cluster01: remote explicitly since this script runs outside provider context
-    cluster_json=$(incus cluster list cluster01: --format json 2>/dev/null)
+
+    # Check if incus command is available
+    if ! command -v incus &>/dev/null; then
+      echo '{"error": "incus command not found", "nodes_json": "[]", "ips_json": "[]"}'
+      exit 0
+    fi
+
+    # Check if jq command is available
+    if ! command -v jq &>/dev/null; then
+      echo '{"error": "jq command not found", "nodes_json": "[]", "ips_json": "[]"}'
+      exit 0
+    fi
+
+    # Query cluster nodes with error handling
+    if ! cluster_json=$(incus cluster list cluster01: --format json 2>&1); then
+      echo "{\"error\": \"Failed to query cluster: $(echo "$cluster_json" | tr -d '\n' | sed 's/"/\\"/g')\", \"nodes_json\": \"[]\", \"ips_json\": \"[]\"}"
+      exit 0
+    fi
+
+    # Validate JSON response
+    if ! echo "$cluster_json" | jq empty 2>/dev/null; then
+      echo '{"error": "Invalid JSON response from incus", "nodes_json": "[]", "ips_json": "[]"}'
+      exit 0
+    fi
+
+    # Extract node names and IPs
     nodes=$(echo "$cluster_json" | jq -c '[.[].server_name]')
     # Extract IPs from URLs (https://192.168.71.5:8443 -> 192.168.71.5)
     ips=$(echo "$cluster_json" | jq -c '[.[].url | gsub("https://"; "") | gsub(":8443"; "")]')
-    echo "{\"nodes_json\": $(echo "$nodes" | jq -Rs '.'), \"ips_json\": $(echo "$ips" | jq -Rs '.')}"
+
+    echo "{\"error\": \"\", \"nodes_json\": $(echo "$nodes" | jq -Rs '.'), \"ips_json\": $(echo "$ips" | jq -Rs '.')}"
   EOF
   ]
 }
 
 locals {
+  # Check if cluster query failed
+  cluster_query_error = lookup(data.external.cluster_nodes.result, "error", "")
+
   # Parse the cluster nodes from the external data source
   # The nodes_json is a JSON-encoded string containing a JSON array
+  # Returns empty lists if query failed
   cluster_nodes = jsondecode(data.external.cluster_nodes.result.nodes_json)
   cluster_ips   = jsondecode(data.external.cluster_nodes.result.ips_json)
 
   # Create a map of node names to their IPs for easy lookup
   node_ip_map = zipmap(local.cluster_nodes, local.cluster_ips)
+}
+
+# Validate cluster query succeeded before proceeding
+# This provides a clear error message if cluster discovery fails
+check "cluster_connectivity" {
+  assert {
+    condition     = local.cluster_query_error == ""
+    error_message = "Failed to query cluster nodes: ${local.cluster_query_error}. Ensure the 'cluster01:' remote is configured and accessible."
+  }
+}
+
+check "cluster_has_nodes" {
+  assert {
+    condition     = length(local.cluster_nodes) > 0
+    error_message = "No cluster nodes discovered. The cluster may be empty or inaccessible."
+  }
 }
 
 # =============================================================================
