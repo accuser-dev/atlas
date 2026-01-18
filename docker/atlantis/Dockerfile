@@ -1,9 +1,13 @@
 # Custom Atlantis with OpenTofu for GitOps workflow
-# Pinned to v0.35.0 for reproducibility and security
-FROM ghcr.io/runatlantis/atlantis:v0.35.0 AS base
+# Version is parameterized via build arg for easier updates
+ARG ATLANTIS_VERSION=v0.35.0
+FROM ghcr.io/runatlantis/atlantis:${ATLANTIS_VERSION} AS base
 
 # Final stage
 FROM base
+
+# Redeclare ARG after FROM to use in labels
+ARG ATLANTIS_VERSION=v0.35.0
 
 # Switch to root to install additional tools
 USER root
@@ -33,7 +37,7 @@ USER atlantis
 LABEL maintainer="hello@accuser.dev"
 LABEL description="Custom Atlantis for GitOps Terraform/OpenTofu workflow"
 LABEL org.opencontainers.image.source="https://github.com/accuser-dev/atlas"
-LABEL org.opencontainers.image.version="0.35.0"
+LABEL org.opencontainers.image.version="${ATLANTIS_VERSION}"
 LABEL org.opencontainers.image.title="Atlas Atlantis"
 LABEL org.opencontainers.image.description="Atlantis GitOps server for Terraform/OpenTofu with PR automation"
 LABEL org.opencontainers.image.vendor="accuser"

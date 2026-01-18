@@ -245,13 +245,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Read Step CLI version
-        id: step-version
+      - name: Read version files
+        id: versions
         run: |
           if [ -f .step-version ]; then
-            echo "version=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
+            echo "step=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
           else
-            echo "version=" >> $GITHUB_OUTPUT
+            echo "step=" >> $GITHUB_OUTPUT
+          fi
+          if [ -f .atlantis-version ]; then
+            echo "atlantis=$(cat .atlantis-version | tr -d '\n')" >> $GITHUB_OUTPUT
+          else
+            echo "atlantis=" >> $GITHUB_OUTPUT
           fi
 
       - name: Build image
@@ -263,7 +268,8 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           build-args: |
-            STEP_VERSION=${{ steps.step-version.outputs.version }}
+            STEP_VERSION=${{ steps.versions.outputs.step }}
+            ATLANTIS_VERSION=${{ steps.versions.outputs.atlantis }}
 
       - name: Summary
         run: |
@@ -294,13 +300,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Read Step CLI version
-        id: step-version
+      - name: Read version files
+        id: versions
         run: |
           if [ -f .step-version ]; then
-            echo "version=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
+            echo "step=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
           else
-            echo "version=" >> $GITHUB_OUTPUT
+            echo "step=" >> $GITHUB_OUTPUT
+          fi
+          if [ -f .atlantis-version ]; then
+            echo "atlantis=$(cat .atlantis-version | tr -d '\n')" >> $GITHUB_OUTPUT
+          else
+            echo "atlantis=" >> $GITHUB_OUTPUT
           fi
 
       - name: Build image for testing
@@ -311,7 +322,8 @@ jobs:
           tags: atlas/${{ matrix.service }}:test
           cache-from: type=gha,scope=${{ matrix.service }}
           build-args: |
-            STEP_VERSION=${{ steps.step-version.outputs.version }}
+            STEP_VERSION=${{ steps.versions.outputs.step }}
+            ATLANTIS_VERSION=${{ steps.versions.outputs.atlantis }}
 
       - name: Run smoke tests
         env:
@@ -355,13 +367,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Read Step CLI version
-        id: step-version
+      - name: Read version files
+        id: versions
         run: |
           if [ -f .step-version ]; then
-            echo "version=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
+            echo "step=$(cat .step-version | tr -d '\n')" >> $GITHUB_OUTPUT
           else
-            echo "version=" >> $GITHUB_OUTPUT
+            echo "step=" >> $GITHUB_OUTPUT
+          fi
+          if [ -f .atlantis-version ]; then
+            echo "atlantis=$(cat .atlantis-version | tr -d '\n')" >> $GITHUB_OUTPUT
+          else
+            echo "atlantis=" >> $GITHUB_OUTPUT
           fi
 
       - name: Build image for scanning
@@ -372,7 +389,8 @@ jobs:
           tags: atlas/${{ matrix.service }}:test
           cache-from: type=gha,scope=${{ matrix.service }}
           build-args: |
-            STEP_VERSION=${{ steps.step-version.outputs.version }}
+            STEP_VERSION=${{ steps.versions.outputs.step }}
+            ATLANTIS_VERSION=${{ steps.versions.outputs.atlantis }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
