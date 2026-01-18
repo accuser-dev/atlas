@@ -36,6 +36,20 @@ variable "backends" {
     condition     = length(var.backends) > 0
     error_message = "At least one backend must be specified."
   }
+
+  validation {
+    condition = alltrue([
+      for b in var.backends : can(regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$", b.target_address))
+    ])
+    error_message = "All backend target_address values must be valid IPv4 addresses."
+  }
+
+  validation {
+    condition = alltrue([
+      for b in var.backends : b.target_port == null || (b.target_port >= 1 && b.target_port <= 65535)
+    ])
+    error_message = "Backend target_port must be between 1 and 65535 when specified."
+  }
 }
 
 variable "ports" {
@@ -55,6 +69,11 @@ variable "ports" {
   validation {
     condition     = alltrue([for p in var.ports : contains(["tcp", "udp"], p.protocol)])
     error_message = "Protocol must be 'tcp' or 'udp'."
+  }
+
+  validation {
+    condition     = alltrue([for p in var.ports : p.listen_port >= 1 && p.listen_port <= 65535])
+    error_message = "All listen_port values must be between 1 and 65535."
   }
 }
 

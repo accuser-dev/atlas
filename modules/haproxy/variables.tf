@@ -93,6 +93,11 @@ variable "stats_port" {
   description = "Port for HAProxy stats interface"
   type        = number
   default     = 8404
+
+  validation {
+    condition     = var.stats_port >= 1 && var.stats_port <= 65535
+    error_message = "Stats port must be between 1 and 65535."
+  }
 }
 
 variable "stats_user" {
@@ -122,6 +127,20 @@ variable "frontends" {
     options         = optional(list(string), [])
   }))
   default = []
+
+  validation {
+    condition = alltrue([
+      for f in var.frontends : f.bind_port >= 1 && f.bind_port <= 65535
+    ])
+    error_message = "All frontend bind_port values must be between 1 and 65535."
+  }
+
+  validation {
+    condition = alltrue([
+      for f in var.frontends : contains(["tcp", "http"], f.mode)
+    ])
+    error_message = "Frontend mode must be 'tcp' or 'http'."
+  }
 }
 
 variable "backends" {
@@ -139,4 +158,27 @@ variable "backends" {
     }))
   }))
   default = []
+
+  validation {
+    condition = alltrue([
+      for b in var.backends : contains(["tcp", "http"], b.mode)
+    ])
+    error_message = "Backend mode must be 'tcp' or 'http'."
+  }
+
+  validation {
+    condition = alltrue([
+      for b in var.backends : contains(["roundrobin", "leastconn", "source", "uri", "first"], b.balance)
+    ])
+    error_message = "Backend balance must be one of: roundrobin, leastconn, source, uri, first."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for b in var.backends : [
+        for s in b.servers : s.port >= 1 && s.port <= 65535
+      ]
+    ]))
+    error_message = "All backend server port values must be between 1 and 65535."
+  }
 }

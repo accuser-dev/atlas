@@ -17,6 +17,11 @@ variable "ca_cert" {
   type        = string
   default     = ""
   sensitive   = true
+
+  validation {
+    condition     = var.ca_cert == "" || can(regex("^-----BEGIN CERTIFICATE-----", var.ca_cert))
+    error_message = "ca_cert must be empty or a valid PEM-formatted certificate starting with '-----BEGIN CERTIFICATE-----'."
+  }
 }
 
 variable "client_cert" {
@@ -24,6 +29,11 @@ variable "client_cert" {
   type        = string
   default     = ""
   sensitive   = true
+
+  validation {
+    condition     = var.client_cert == "" || can(regex("^-----BEGIN CERTIFICATE-----", var.client_cert))
+    error_message = "client_cert must be empty or a valid PEM-formatted certificate starting with '-----BEGIN CERTIFICATE-----'."
+  }
 }
 
 variable "client_key" {
@@ -31,10 +41,20 @@ variable "client_key" {
   type        = string
   default     = ""
   sensitive   = true
+
+  validation {
+    condition     = var.client_key == "" || can(regex("^-----BEGIN (RSA |EC |PRIVATE KEY|ENCRYPTED PRIVATE KEY)", var.client_key))
+    error_message = "client_key must be empty or a valid PEM-formatted private key."
+  }
 }
 
 variable "integration_bridge" {
   description = "OVS integration bridge name (default: br-int)"
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.integration_bridge == "" || can(regex("^[a-zA-Z][a-zA-Z0-9_-]*$", var.integration_bridge))
+    error_message = "integration_bridge must be empty or a valid bridge name (alphanumeric, hyphens, underscores, starting with a letter)."
+  }
 }
