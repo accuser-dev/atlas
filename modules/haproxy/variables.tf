@@ -125,6 +125,9 @@ variable "frontends" {
     mode            = optional(string, "tcp")
     default_backend = string
     options         = optional(list(string), [])
+    # TLS configuration
+    ssl             = optional(bool, false)
+    ssl_certificate = optional(string, "") # Name of certificate from tls_certificates map
   }))
   default = []
 
@@ -181,4 +184,18 @@ variable "backends" {
     ]))
     error_message = "All backend server port values must be between 1 and 65535."
   }
+}
+
+# =============================================================================
+# TLS Configuration
+# =============================================================================
+
+variable "tls_certificates" {
+  description = "Map of TLS certificates for SSL termination. Key is the certificate name, value contains cert and key."
+  type = map(object({
+    certificate = string
+    private_key = string
+  }))
+  default   = {}
+  sensitive = true
 }

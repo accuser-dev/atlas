@@ -308,6 +308,27 @@ module "prometheus01" {
               service: 'alloy'
               instance: 'alloy01'
 
+%{if var.enable_postgresql~}
+      # PostgreSQL metrics (via postgres_exporter)
+      - job_name: 'postgresql'
+        static_configs:
+          - targets: ['postgresql01.incus:9187']
+            labels:
+              service: 'postgresql'
+              instance: 'postgresql01'
+%{endif~}
+
+%{if var.enable_forgejo~}
+      # Forgejo metrics
+      - job_name: 'forgejo'
+        static_configs:
+          - targets: ['forgejo01.incus:3000']
+            labels:
+              service: 'forgejo'
+              instance: 'forgejo01'
+        metrics_path: '/metrics'
+%{endif~}
+
 %{if var.network_backend == "ovn"~}
       # OVN Central metrics
       - job_name: 'ovn-central'
@@ -463,6 +484,101 @@ module "coredns01" {
 }
 
 # =============================================================================
+# PostgreSQL Database
+# =============================================================================
+# Shared PostgreSQL server for application databases.
+# Each application can have its own database and user.
+
+module "postgresql01" {
+  source = "../../modules/postgresql"
+
+  count = var.enable_postgresql ? 1 : 0
+
+  instance_name = "postgresql01"
+  profile_name  = "postgresql"
+  profiles      = local.production_profiles
+
+  # PostgreSQL admin password
+  admin_password = var.postgresql_admin_password
+
+  # Create database and user for Forgejo
+  databases = var.enable_forgejo ? [{ name = "forgejo", owner = "forgejo" }] : []
+  users     = var.enable_forgejo ? [{ name = "forgejo", password = var.forgejo_db_password }] : []
+
+  enable_data_persistence = true
+  data_volume_name        = "postgresql01-data"
+  data_volume_size        = "20GB"
+
+  # Pin to specific cluster node for storage volume co-location
+  target_node = "node01"
+
+  cpu_limit    = local.services.postgresql.cpu
+  memory_limit = local.services.postgresql.memory
+
+  # Enable Prometheus metrics via postgres_exporter
+  enable_metrics = true
+}
+
+# =============================================================================
+# Forgejo Git Forge
+# =============================================================================
+# Self-hosted Git forge with PostgreSQL backend.
+# SSH access is available on the internal network for git operations.
+
+module "forgejo01" {
+  source = "../../modules/forgejo"
+
+  count = var.enable_forgejo ? 1 : 0
+
+  instance_name = "forgejo01"
+  profile_name  = "forgejo"
+  profiles      = local.production_profiles
+
+  # Forgejo version and domain
+  forgejo_version = "10.0.0"
+  domain          = var.forgejo_domain
+
+  # Admin user configuration
+  admin_username = var.forgejo_admin_username
+  admin_password = var.forgejo_admin_password
+  admin_email    = var.forgejo_admin_email
+
+  # PostgreSQL database connection (both on production network)
+  database_type     = "postgres"
+  database_host     = module.postgresql01[0].ipv4_address
+  database_port     = "5432"
+  database_name     = "forgejo"
+  database_user     = "forgejo"
+  database_password = var.forgejo_db_password
+
+  enable_data_persistence = true
+  data_volume_name        = "forgejo01-data"
+  data_volume_size        = "50GB"
+
+  # Pin to specific cluster node for storage volume co-location
+  target_node = "node01"
+
+  cpu_limit    = local.services.forgejo.cpu
+  memory_limit = local.services.forgejo.memory
+
+  # Enable SSH for git operations (internal network)
+  enable_ssh_access = true
+
+  # Enable HTTPS directly on Forgejo (no reverse proxy needed)
+  # Uses internal port 3000 since Forgejo runs as non-root and can't bind to 443
+  # OVN LB forwards external 443 -> internal 3000
+  enable_tls      = var.forgejo_lb_address != "" ? true : false
+  http_port       = "3000"
+  tls_certificate = var.forgejo_lb_address != "" ? tls_self_signed_cert.forgejo[0].cert_pem : ""
+  tls_private_key = var.forgejo_lb_address != "" ? tls_private_key.forgejo[0].private_key_pem : ""
+
+  # Enable Prometheus metrics
+  enable_metrics = true
+
+  depends_on = [module.postgresql01]
+}
+
+# =============================================================================
 # Incus Metrics
 # =============================================================================
 
@@ -524,6 +640,96 @@ module "ovn_lb" {
   backends       = each.value.backends
   ports          = each.value.ports
   health_check   = try(each.value.health_check, {})
+}
+
+# -----------------------------------------------------------------------------
+# Forgejo Load Balancer (separate due to multi-backend requirement)
+# -----------------------------------------------------------------------------
+# Forgejo serves HTTPS directly on port 443
+# SSH port 22 forwards to Forgejo internal SSH on 2222
+
+resource "incus_network_lb" "forgejo" {
+  count = var.enable_forgejo && var.forgejo_lb_address != "" && local.use_ovn_lb ? 1 : 0
+
+  network        = module.base.production_network_name
+  listen_address = var.forgejo_lb_address
+  description    = "OVN load balancer for Forgejo Git forge"
+
+  config = {
+    "healthcheck"               = "true"
+    "healthcheck.interval"      = "10"
+    "healthcheck.timeout"       = "30"
+    "healthcheck.failure_count" = "3"
+    "healthcheck.success_count" = "3"
+  }
+
+  backend {
+    name           = "forgejo01-https"
+    target_address = module.forgejo01[0].ipv4_address
+    target_port    = 3000
+  }
+
+  backend {
+    name           = "forgejo01-ssh"
+    target_address = module.forgejo01[0].ipv4_address
+    target_port    = 2222
+  }
+
+  port {
+    description    = "Forgejo HTTPS"
+    protocol       = "tcp"
+    listen_port    = 443
+    target_backend = ["forgejo01-https"]
+  }
+
+  port {
+    description    = "Forgejo SSH"
+    protocol       = "tcp"
+    listen_port    = 22
+    target_backend = ["forgejo01-ssh"]
+  }
+
+  depends_on = [module.forgejo01]
+}
+
+# -----------------------------------------------------------------------------
+# Forgejo TLS Certificate
+# -----------------------------------------------------------------------------
+# Self-signed certificate for Forgejo HTTPS access
+# Can be replaced with step-ca ACME certificates later
+
+resource "tls_private_key" "forgejo" {
+  count = var.enable_forgejo ? 1 : 0
+
+  algorithm   = "ECDSA"
+  ecdsa_curve = "P384"
+}
+
+resource "tls_self_signed_cert" "forgejo" {
+  count = var.enable_forgejo ? 1 : 0
+
+  private_key_pem = tls_private_key.forgejo[0].private_key_pem
+
+  subject {
+    common_name  = var.forgejo_domain
+    organization = "Atlas Infrastructure"
+  }
+
+  dns_names = [
+    var.forgejo_domain,
+    "forgejo01.incus",
+    "localhost",
+  ]
+
+  ip_addresses = var.forgejo_lb_address != "" ? [var.forgejo_lb_address] : []
+
+  validity_period_hours = 8760 # 1 year
+
+  allowed_uses = [
+    "key_encipherment",
+    "digital_signature",
+    "server_auth",
+  ]
 }
 
 # =============================================================================

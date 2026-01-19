@@ -129,19 +129,28 @@ module "management_acl" {
     },
     # Allow Prometheus to scrape targets
     {
-      action           = "allow"
-      destination      = "@internal"
-      protocol         = "tcp"
-      description      = "Prometheus scraping targets"
-      state            = "logged"
+      action      = "allow"
+      destination = "@internal"
+      protocol    = "tcp"
+      description = "Prometheus scraping targets"
+      state       = "logged"
     },
-    # Allow HTTPS for external APIs
+    # Allow HTTPS for external APIs (Forgejo, package downloads)
     {
       action           = "allow"
       destination      = "@external"
       protocol         = "tcp"
       destination_port = "443"
       description      = "HTTPS to external services"
+      state            = "logged"
+    },
+    # Allow HTTP for package downloads
+    {
+      action           = "allow"
+      destination      = "@external"
+      protocol         = "tcp"
+      destination_port = "80"
+      description      = "HTTP to external services"
       state            = "logged"
     },
     # Allow ICMP for diagnostics
@@ -242,6 +251,58 @@ module "production_acl" {
       description      = "Mosquitto metrics"
       state            = "logged"
     },
+    # Allow PostgreSQL connections (from Forgejo)
+    {
+      action           = "allow"
+      source           = "@internal"
+      protocol         = "tcp"
+      destination_port = "5432"
+      description      = "PostgreSQL (internal)"
+      state            = "logged"
+    },
+    # Allow PostgreSQL metrics scraping
+    {
+      action           = "allow"
+      source           = "@internal"
+      protocol         = "tcp"
+      destination_port = "9187"
+      description      = "PostgreSQL metrics (internal)"
+      state            = "logged"
+    },
+    # Allow Forgejo HTTP (web UI)
+    {
+      action           = "allow"
+      source           = "@internal"
+      protocol         = "tcp"
+      destination_port = "3000"
+      description      = "Forgejo HTTP (internal)"
+      state            = "logged"
+    },
+    {
+      action           = "allow"
+      source           = "@external"
+      protocol         = "tcp"
+      destination_port = "3000"
+      description      = "Forgejo HTTP (external)"
+      state            = "logged"
+    },
+    # Allow Forgejo SSH (git operations)
+    {
+      action           = "allow"
+      source           = "@internal"
+      protocol         = "tcp"
+      destination_port = "22"
+      description      = "Forgejo SSH (internal)"
+      state            = "logged"
+    },
+    {
+      action           = "allow"
+      source           = "@external"
+      protocol         = "tcp"
+      destination_port = "22"
+      description      = "Forgejo SSH (external)"
+      state            = "logged"
+    },
     # Allow ICMP for diagnostics
     {
       action      = "allow"
@@ -281,6 +342,33 @@ module "production_acl" {
       destination = "@internal"
       description = "Internal communication"
       state       = "logged"
+    },
+    # Allow HTTPS for external APIs (Forgejo webhooks, mirrors)
+    {
+      action           = "allow"
+      destination      = "@external"
+      protocol         = "tcp"
+      destination_port = "443"
+      description      = "HTTPS to external services"
+      state            = "logged"
+    },
+    # Allow HTTP for package downloads
+    {
+      action           = "allow"
+      destination      = "@external"
+      protocol         = "tcp"
+      destination_port = "80"
+      description      = "HTTP to external services"
+      state            = "logged"
+    },
+    # Allow Forgejo SSH to external git remotes
+    {
+      action           = "allow"
+      destination      = "@external"
+      protocol         = "tcp"
+      destination_port = "22"
+      description      = "SSH to external git remotes"
+      state            = "logged"
     },
     # Allow ICMP for diagnostics
     {

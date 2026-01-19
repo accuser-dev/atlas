@@ -44,8 +44,8 @@ locals {
         target_port    = 1883
       }]
       ports = [
-        { description = "MQTT", protocol = "tcp", listen_port = 1883 },
-        { description = "MQTTS", protocol = "tcp", listen_port = 8883 },
+        { description = "MQTT", protocol = "tcp", listen_port = 1883, target_backends = null },
+        { description = "MQTTS", protocol = "tcp", listen_port = 8883, target_backends = null },
       ]
       health_check = { enabled = true }
     }
@@ -61,8 +61,8 @@ locals {
         target_port    = 53
       }]
       ports = [
-        { description = "DNS over UDP", protocol = "udp", listen_port = 53 },
-        { description = "DNS over TCP", protocol = "tcp", listen_port = 53 },
+        { description = "DNS over UDP", protocol = "udp", listen_port = 53, target_backends = null },
+        { description = "DNS over TCP", protocol = "tcp", listen_port = 53, target_backends = null },
       ]
       health_check = { enabled = true }
     }
@@ -78,7 +78,7 @@ locals {
         target_port    = 1514
       }]
       ports = [
-        { description = "Syslog over UDP", protocol = "udp", listen_port = 1514 },
+        { description = "Syslog over UDP", protocol = "udp", listen_port = 1514, target_backends = null },
       ]
       health_check = { enabled = true }
     }
@@ -94,10 +94,13 @@ locals {
         target_port    = 9090
       }]
       ports = [
-        { description = "Prometheus HTTP", protocol = "tcp", listen_port = 9090 },
+        { description = "Prometheus HTTP", protocol = "tcp", listen_port = 9090, target_backends = null },
       ]
       health_check = { enabled = true }
     }
+
+    # Forgejo LB is managed separately in main.tf due to multiple backends requirement
+    # (HTTP on port 3000, SSH on port 22 -> 2222)
   }
 
   # ==========================================================================
@@ -146,6 +149,16 @@ locals {
     ceph_rgw = {
       cpu    = "2"
       memory = "2GB"
+    }
+    postgresql = {
+      cpu    = "2"
+      memory = "1GB"
+      port   = 5432
+    }
+    forgejo = {
+      cpu    = "2"
+      memory = "1GB"
+      port   = 3000
     }
   }
 }

@@ -14,7 +14,23 @@ write_files:
     content: |
       ${indent(6, haproxy_config)}
 
+%{ for name, cert in tls_certificates ~}
+  # TLS certificate: ${name}
+  - path: /etc/haproxy/certs/${name}.pem
+    permissions: '0600'
+    owner: haproxy:haproxy
+    defer: true
+    content: |
+      ${indent(6, cert.certificate)}
+      ${indent(6, cert.private_key)}
+%{ endfor ~}
+
 runcmd:
+  # Create certs directory
+  - mkdir -p /etc/haproxy/certs
+  - chown haproxy:haproxy /etc/haproxy/certs
+  - chmod 700 /etc/haproxy/certs
+
   # Enable and start HAProxy service (uses package-provided systemd unit)
   - systemctl daemon-reload
   - systemctl enable haproxy

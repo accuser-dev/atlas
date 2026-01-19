@@ -32,7 +32,11 @@ frontend stats
 %{ for frontend in frontends ~}
 # Frontend: ${frontend.name}
 frontend ${frontend.name}
+%{ if frontend.ssl && frontend.ssl_certificate != "" ~}
+    bind ${frontend.bind_address}:${frontend.bind_port} ssl crt /etc/haproxy/certs/${frontend.ssl_certificate}.pem
+%{ else ~}
     bind ${frontend.bind_address}:${frontend.bind_port}
+%{ endif ~}
     mode ${frontend.mode}
 %{ for option in frontend.options ~}
     ${option}

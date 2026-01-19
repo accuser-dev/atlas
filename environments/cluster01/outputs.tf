@@ -101,6 +101,49 @@ output "alloy_syslog_endpoint" {
 }
 
 # =============================================================================
+# PostgreSQL Database
+# =============================================================================
+
+output "postgresql_endpoint" {
+  description = "PostgreSQL connection endpoint"
+  value       = var.enable_postgresql ? module.postgresql01[0].postgresql_endpoint : null
+}
+
+output "postgresql_ipv4_address" {
+  description = "PostgreSQL container IPv4 address"
+  value       = var.enable_postgresql ? module.postgresql01[0].ipv4_address : null
+}
+
+output "postgresql_metrics_endpoint" {
+  description = "PostgreSQL Prometheus metrics endpoint"
+  value       = var.enable_postgresql ? module.postgresql01[0].metrics_endpoint : null
+}
+
+# =============================================================================
+# Forgejo Git Forge
+# =============================================================================
+
+output "forgejo_http_endpoint" {
+  description = "Forgejo web UI endpoint"
+  value       = var.enable_forgejo ? module.forgejo01[0].http_endpoint : null
+}
+
+output "forgejo_ssh_endpoint" {
+  description = "Forgejo SSH endpoint for git operations"
+  value       = var.enable_forgejo ? module.forgejo01[0].ssh_endpoint : null
+}
+
+output "forgejo_ssh_clone_url" {
+  description = "SSH clone URL format (git@host:owner/repo.git)"
+  value       = var.enable_forgejo ? module.forgejo01[0].ssh_clone_url : null
+}
+
+output "forgejo_metrics_endpoint" {
+  description = "Forgejo Prometheus metrics endpoint"
+  value       = var.enable_forgejo ? module.forgejo01[0].metrics_endpoint : null
+}
+
+# =============================================================================
 # OVN Configuration
 # =============================================================================
 
@@ -151,6 +194,21 @@ output "alloy_syslog_lb_address" {
 output "prometheus_lb_address" {
   description = "OVN load balancer VIP for Prometheus (LAN-routable, for federation from iapetus)"
   value       = var.network_backend == "ovn" && var.prometheus_lb_address != "" ? var.prometheus_lb_address : null
+}
+
+output "forgejo_lb_address" {
+  description = "OVN load balancer VIP for Forgejo (LAN-routable)"
+  value       = var.network_backend == "ovn" && var.enable_forgejo && var.forgejo_lb_address != "" ? var.forgejo_lb_address : null
+}
+
+output "forgejo_lb_https_endpoint" {
+  description = "Forgejo web UI HTTPS endpoint via OVN load balancer (LAN-routable)"
+  value       = var.network_backend == "ovn" && var.enable_forgejo && var.forgejo_lb_address != "" ? "https://${var.forgejo_lb_address}" : null
+}
+
+output "forgejo_lb_ssh_endpoint" {
+  description = "Forgejo SSH endpoint via OVN load balancer (LAN-routable)"
+  value       = var.network_backend == "ovn" && var.enable_forgejo && var.forgejo_lb_address != "" ? "ssh://git@${var.forgejo_lb_address}:22" : null
 }
 
 output "ceph_rgw_lb_address" {
@@ -204,6 +262,8 @@ output "managed_resources" {
       { "coredns" = "module.coredns01.incus_profile.coredns" },
       { "alloy" = "module.alloy01.incus_profile.alloy" },
       var.network_backend == "ovn" ? { "ovn-central" = "module.ovn_central[0].incus_profile.ovn_central" } : {},
+      var.enable_postgresql ? { "postgresql" = "module.postgresql01[0].incus_profile.postgresql" } : {},
+      var.enable_forgejo ? { "forgejo" = "module.forgejo01[0].incus_profile.forgejo" } : {},
     )
 
     # Instances: Map Incus instance name -> Terraform import path
@@ -214,6 +274,8 @@ output "managed_resources" {
       { "coredns01" = "module.coredns01.incus_instance.coredns" },
       { "alloy01" = "module.alloy01.incus_instance.alloy" },
       var.network_backend == "ovn" ? { "ovn-central01" = "module.ovn_central[0].incus_instance.ovn_central" } : {},
+      var.enable_postgresql ? { "postgresql01" = "module.postgresql01[0].incus_instance.postgresql" } : {},
+      var.enable_forgejo ? { "forgejo01" = "module.forgejo01[0].incus_instance.forgejo" } : {},
     )
 
     # Volumes: Map Incus volume name -> Terraform import path
@@ -222,6 +284,8 @@ output "managed_resources" {
       { "alertmanager01-data" = "module.alertmanager01.incus_storage_volume.alertmanager_data[0]" },
       { "mosquitto01-data" = "module.mosquitto01.incus_storage_volume.mosquitto_data[0]" },
       var.network_backend == "ovn" ? { "ovn-central01-data" = "module.ovn_central[0].incus_storage_volume.ovn_central_data[0]" } : {},
+      var.enable_postgresql ? { "postgresql01-data" = "module.postgresql01[0].incus_storage_volume.postgresql_data[0]" } : {},
+      var.enable_forgejo ? { "forgejo01-data" = "module.forgejo01[0].incus_storage_volume.forgejo_data[0]" } : {},
     )
 
     # Networks: Map network name -> Terraform import path

@@ -6,6 +6,10 @@ terraform {
       source  = "lxc/incus"
       version = ">=1.0.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = ">=4.0.0"
+    }
   }
 
   # Remote state backend using Incus S3-compatible storage buckets

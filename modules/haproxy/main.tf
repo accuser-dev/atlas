@@ -7,7 +7,8 @@
 locals {
   # Cloud-init configuration
   cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    haproxy_config = local.haproxy_config
+    haproxy_config   = local.haproxy_config
+    tls_certificates = var.tls_certificates
   })
 
   # Generate HAProxy configuration

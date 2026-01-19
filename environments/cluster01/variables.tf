@@ -273,6 +273,12 @@ variable "prometheus_lb_address" {
   default     = ""
 }
 
+variable "forgejo_lb_address" {
+  description = "OVN load balancer VIP for Forgejo (e.g., '192.168.68.14'). Must be in the uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
 # Note: OVN northbound connection is provided by the ovn-central container module
 # when network_backend = "ovn". No manual configuration required.
 
@@ -355,4 +361,70 @@ variable "ceph_rgw_lb_address" {
   description = "OVN load balancer VIP for Ceph RGW S3 API (e.g., '192.168.68.18'). Must be in the uplink's ipv4.ovn.ranges."
   type        = string
   default     = ""
+}
+
+# =============================================================================
+# PostgreSQL Configuration
+# =============================================================================
+
+variable "enable_postgresql" {
+  description = "Enable PostgreSQL database server"
+  type        = bool
+  default     = false
+}
+
+variable "postgresql_admin_password" {
+  description = "PostgreSQL admin (postgres) password"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# =============================================================================
+# Forgejo Configuration
+# =============================================================================
+
+variable "enable_forgejo" {
+  description = "Enable Forgejo Git forge"
+  type        = bool
+  default     = false
+}
+
+variable "forgejo_admin_username" {
+  description = "Forgejo admin username"
+  type        = string
+  default     = "admin"
+}
+
+variable "forgejo_admin_password" {
+  description = "Forgejo admin password"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "forgejo_admin_email" {
+  description = "Forgejo admin email"
+  type        = string
+  default     = "admin@example.com"
+}
+
+variable "forgejo_db_password" {
+  description = "Password for Forgejo database user"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "forgejo_domain" {
+  description = "Domain name for Forgejo (e.g., 'git.example.com')"
+  type        = string
+  default     = "localhost"
+}
+
+variable "forgejo_proxy_stats_password" {
+  description = "Password for HAProxy stats interface (Forgejo reverse proxy)"
+  type        = string
+  default     = ""
+  sensitive   = true
 }
