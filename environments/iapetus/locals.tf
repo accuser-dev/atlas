@@ -129,6 +129,36 @@ locals {
   }
 
   # ==========================================================================
+  # OVN DNS Records (auto-generated from LB VIP addresses)
+  # ==========================================================================
+  # When OVN is enabled, generate DNS records pointing to LB VIPs
+  # These override any manual records in dns_additional_records
+  # Note: Generated directly from variables to avoid cycle with module outputs
+  ovn_dns_records = local.use_ovn_lb ? [
+    for name, addr in {
+      grafana    = var.grafana_lb_address
+      prometheus = var.prometheus_lb_address
+      loki       = var.loki_lb_address
+      step-ca    = var.step_ca_lb_address
+      atlantis   = var.enable_gitops ? var.atlantis_lb_address : ""
+    } : {
+      name  = name
+      type  = "A"
+      value = addr
+      ttl   = 300
+    } if addr != ""
+  ] : []
+
+  # Merge OVN DNS records with manual records (OVN takes precedence)
+  # First, filter out manual records that have OVN equivalents
+  ovn_dns_names = toset([for r in local.ovn_dns_records : r.name])
+  filtered_additional_records = [
+    for r in var.dns_additional_records : r
+    if !contains(local.ovn_dns_names, r.name)
+  ]
+  merged_dns_records = concat(local.ovn_dns_records, local.filtered_additional_records)
+
+  # ==========================================================================
   # Service Resource Limits
   # ==========================================================================
   # Service configurations with default resource limits and ports
