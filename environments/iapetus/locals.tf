@@ -42,6 +42,93 @@ locals {
   use_ovn_lb             = var.network_backend == "ovn"
 
   # ==========================================================================
+  # OVN Load Balancer Configuration
+  # ==========================================================================
+  ovn_load_balancers = {
+    grafana = {
+      enabled        = var.grafana_lb_address != ""
+      network        = "management"
+      listen_address = var.grafana_lb_address
+      description    = "Grafana dashboard"
+      backends = [{
+        name           = "grafana01"
+        target_address = module.grafana01.ipv4_address
+        target_port    = 3000
+      }]
+      ports        = [{ description = "HTTP", protocol = "tcp", listen_port = 3000, target_backends = null }]
+      health_check = { enabled = true }
+    }
+    prometheus = {
+      enabled        = var.prometheus_lb_address != ""
+      network        = "management"
+      listen_address = var.prometheus_lb_address
+      description    = "Prometheus metrics server"
+      backends = [{
+        name           = "prometheus01"
+        target_address = module.prometheus01.ipv4_address
+        target_port    = 9090
+      }]
+      ports        = [{ description = "HTTP", protocol = "tcp", listen_port = 9090, target_backends = null }]
+      health_check = { enabled = true }
+    }
+    loki = {
+      enabled        = var.loki_lb_address != ""
+      network        = "management"
+      listen_address = var.loki_lb_address
+      description    = "Loki log aggregator"
+      backends = [{
+        name           = "loki01"
+        target_address = module.loki01.ipv4_address
+        target_port    = 3100
+      }]
+      ports        = [{ description = "HTTP", protocol = "tcp", listen_port = 3100, target_backends = null }]
+      health_check = { enabled = true }
+    }
+    step_ca = {
+      enabled        = var.step_ca_lb_address != ""
+      network        = "management"
+      listen_address = var.step_ca_lb_address
+      description    = "step-ca ACME server"
+      backends = [{
+        name           = "step-ca01"
+        target_address = module.step_ca01.ipv4_address
+        target_port    = 9000
+      }]
+      ports        = [{ description = "HTTPS", protocol = "tcp", listen_port = 9000, target_backends = null }]
+      health_check = { enabled = true }
+    }
+    coredns = {
+      enabled        = var.coredns_lb_address != ""
+      network        = "production"
+      listen_address = var.coredns_lb_address
+      description    = "CoreDNS"
+      backends = [{
+        name           = "coredns01"
+        target_address = module.coredns01.ipv4_address
+        target_port    = 53
+      }]
+      ports = [
+        { description = "DNS over UDP", protocol = "udp", listen_port = 53, target_backends = null },
+        { description = "DNS over TCP", protocol = "tcp", listen_port = 53, target_backends = null },
+      ]
+      health_check = { enabled = true }
+    }
+    atlantis = {
+      enabled        = var.atlantis_lb_address != "" && var.enable_gitops
+      network        = "gitops"
+      listen_address = var.atlantis_lb_address
+      description    = "Atlantis GitOps server"
+      backends = [{
+        name           = "atlantis01"
+        target_address = try(module.atlantis01[0].ipv4_address, "0.0.0.0")
+        target_port    = 4141
+      }]
+      ports        = [{ description = "HTTP", protocol = "tcp", listen_port = 4141, target_backends = null }]
+      health_check = { enabled = true }
+    }
+  }
+
+  # ==========================================================================
   # Service Resource Limits
   # ==========================================================================
   # Service configurations with default resource limits and ports
@@ -96,6 +183,11 @@ locals {
       cpu    = "1"
       memory = "256MB"
       port   = 8443
+    }
+    ovn_central = {
+      cpu    = "1"
+      memory = "512MB"
+      port   = 6641
     }
   }
 

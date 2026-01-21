@@ -423,6 +423,49 @@ variable "skip_ovn_config" {
   default     = false
 }
 
+variable "ovn_central_host_address" {
+  description = "Physical network IP for OVN central proxy devices. This is where other chassis connect to OVN databases."
+  type        = string
+  default     = ""
+}
+
+# OVN Load Balancer VIP Addresses
+variable "grafana_lb_address" {
+  description = "OVN load balancer VIP for Grafana. Must be in uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
+variable "prometheus_lb_address" {
+  description = "OVN load balancer VIP for Prometheus. Must be in uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
+variable "loki_lb_address" {
+  description = "OVN load balancer VIP for Loki. Must be in uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
+variable "step_ca_lb_address" {
+  description = "OVN load balancer VIP for step-ca. Must be in uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
+variable "coredns_lb_address" {
+  description = "OVN load balancer VIP for CoreDNS. Must be in uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
+variable "atlantis_lb_address" {
+  description = "OVN load balancer VIP for Atlantis. Must be in uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
 # =============================================================================
 # Cross-Environment Integration
 # =============================================================================

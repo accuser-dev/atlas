@@ -22,3 +22,8 @@ output "webhook_endpoint" {
   description = "Full webhook endpoint URL for GitHub"
   value       = "${var.atlantis_url}/events"
 }
+
+output "ipv4_address" {
+  description = "IPv4 address of the Atlantis instance"
+  value       = incus_instance.atlantis.ipv4_address
+}

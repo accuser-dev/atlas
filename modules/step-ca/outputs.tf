@@ -32,3 +32,8 @@ output "fingerprint_file_path" {
   description = "Path to the fingerprint file inside the container"
   value       = "/home/step/fingerprint"
 }
+
+output "ipv4_address" {
+  description = "IPv4 address of the step-ca instance"
+  value       = incus_instance.step_ca.ipv4_address
+}

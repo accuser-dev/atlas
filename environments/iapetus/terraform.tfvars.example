@@ -128,6 +128,29 @@ allowed_ip_range = "192.168.1.0/24"
 # atlantis_repo_allowlist = ["github.com/your-org/your-repo"]
 
 # ============================================================================
+# OPTIONAL: OVN NETWORKING
+# ============================================================================
+# OVN provides overlay networking with load balancer VIPs for LAN access.
+#
+# Prerequisites:
+#   1. Configure OVN ranges on the physical network (eno2):
+#      incus network set eno2 ipv4.ovn.ranges=192.168.68.10-192.168.68.19
+#
+# To enable OVN networking:
+# network_backend = "ovn"
+# ovn_uplink_network = "eno2"
+# ovn_central_host_address = "192.168.68.79"  # iapetus LAN IP for OVN proxy devices
+#
+# OVN Load Balancer VIPs (only used when network_backend = "ovn")
+# Must be within the ipv4.ovn.ranges (192.168.68.10-192.168.68.19)
+# grafana_lb_address    = "192.168.68.10"  # Grafana (port 3000)
+# prometheus_lb_address = "192.168.68.11"  # Prometheus (port 9090)
+# loki_lb_address       = "192.168.68.12"  # Loki (port 3100)
+# step_ca_lb_address    = "192.168.68.13"  # step-ca ACME (port 9000)
+# coredns_lb_address    = "192.168.68.14"  # CoreDNS (port 53 TCP/UDP)
+# atlantis_lb_address   = "192.168.68.15"  # Atlantis (port 4141, requires enable_gitops)
+
+# ============================================================================
 # USAGE INSTRUCTIONS
 # ============================================================================
 # 1. Copy this file: cp terraform.tfvars.example terraform.tfvars

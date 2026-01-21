@@ -178,6 +178,35 @@ output "incus_oidc_config" {
 }
 
 # =============================================================================
+# OVN Central
+# =============================================================================
+
+output "ovn_central_ipv4_address" {
+  description = "IPv4 address of the OVN central container"
+  value       = var.ovn_central_host_address != "" ? module.ovn_central[0].ipv4_address : null
+}
+
+output "ovn_central_northbound_connection" {
+  description = "OVN northbound connection string for Incus configuration"
+  value       = var.ovn_central_host_address != "" ? module.ovn_central[0].northbound_connection : null
+}
+
+output "ovn_central_southbound_connection" {
+  description = "OVN southbound connection string for chassis configuration"
+  value       = var.ovn_central_host_address != "" ? module.ovn_central[0].southbound_connection : null
+}
+
+output "ovn_central_metrics_endpoint" {
+  description = "OVN central Prometheus metrics endpoint"
+  value       = var.ovn_central_host_address != "" ? module.ovn_central[0].metrics_endpoint : null
+}
+
+output "network_backend" {
+  description = "Current network backend (bridge or ovn)"
+  value       = var.network_backend
+}
+
+# =============================================================================
 # HAProxy Load Balancer
 # =============================================================================
 
@@ -213,6 +242,7 @@ output "managed_resources" {
       var.enable_oidc ? { "dex" = "module.dex01[0].incus_profile.dex" } : {},
       var.enable_oidc ? { "openfga" = "module.openfga01[0].incus_profile.openfga" } : {},
       var.enable_haproxy ? { "haproxy" = "module.haproxy01[0].incus_profile.haproxy" } : {},
+      var.ovn_central_host_address != "" ? { "ovn-central" = "module.ovn_central[0].incus_profile.ovn_central" } : {},
     )
 
     # Instances: Map Incus instance name -> Terraform import path
@@ -227,6 +257,7 @@ output "managed_resources" {
       var.enable_oidc ? { "dex01" = "module.dex01[0].incus_instance.dex" } : {},
       var.enable_oidc ? { "openfga01" = "module.openfga01[0].incus_instance.openfga" } : {},
       var.enable_haproxy ? { "haproxy01" = "module.haproxy01[0].incus_instance.haproxy" } : {},
+      var.ovn_central_host_address != "" ? { "ovn-central01" = "module.ovn_central[0].incus_instance.ovn_central" } : {},
     )
 
     # Volumes: Map Incus volume name -> Terraform import path
@@ -238,6 +269,7 @@ output "managed_resources" {
       var.enable_gitops ? { "atlantis01-data" = "module.atlantis01[0].incus_storage_volume.atlantis_data[0]" } : {},
       var.enable_oidc ? { "dex01-data" = "module.dex01[0].incus_storage_volume.dex_data[0]" } : {},
       var.enable_oidc ? { "openfga01-data" = "module.openfga01[0].incus_storage_volume.openfga_data[0]" } : {},
+      var.ovn_central_host_address != "" ? { "ovn-central01-data" = "module.ovn_central[0].incus_storage_volume.ovn_data[0]" } : {},
     )
 
     # Networks: Map network name -> Terraform import path
