@@ -301,11 +301,13 @@ module "coredns01" {
   dns_records = []
 
   # Additional static DNS records (hosts, cluster nodes, manually configured services)
-  additional_records = var.dns_additional_records
+  # In OVN mode, auto-generated LB VIP records are merged with manual records
+  additional_records = local.use_ovn_lb ? local.merged_dns_records : var.dns_additional_records
 
   # Nameserver IP - the LAN-routable address where clients reach the DNS server
-  # Use the static IP (for physical mode) or production network gateway (for bridge mode)
-  nameserver_ip = var.dns_nameserver_ip != "" ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0]
+  # In OVN mode: use the OVN LB VIP for LAN access
+  # Otherwise: use the static IP (physical mode) or production network gateway (bridge mode)
+  nameserver_ip = local.use_ovn_lb && var.coredns_lb_address != "" ? var.coredns_lb_address : (var.dns_nameserver_ip != "" ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0])
 
   # Forwarding configuration
   incus_dns_server     = split("/", var.management_network_ipv4)[0] # Management network gateway
