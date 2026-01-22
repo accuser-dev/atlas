@@ -12,10 +12,11 @@ INCUS_REMOTE := $(if $(filter cluster01,$(ENV)),cluster01:,)
         list-images \
         bootstrap bootstrap-init bootstrap-plan bootstrap-apply \
         init plan apply destroy import import-dynamic clean-incus clean-images \
-        deploy validate clean clean-docker clean-tofu clean-bootstrap format \
+        deploy deploy-full validate clean clean-docker clean-tofu clean-bootstrap format \
         backup-snapshot backup-export backup-list backup-dynamic \
         test test-health test-connectivity test-storage test-network \
-        configure-ovn-chassis verify-ovn-chassis
+        configure-ovn-chassis verify-ovn-chassis \
+        ansible-setup configure configure-runner configure-runner-register
 
 # Default target
 help:
@@ -71,7 +72,14 @@ help:
 	@echo "  make configure-ovn-chassis ENV=cluster01  - Configure OVN on all cluster nodes"
 	@echo "  make verify-ovn-chassis ENV=cluster01     - Verify OVN chassis registration"
 	@echo ""
-	@echo "Utility Commands:"
+	@echo "Ansible Commands (Hybrid Terraform + Ansible):"
+	@echo "  make ansible-setup                        - Install Ansible Galaxy requirements"
+	@echo "  make configure                            - Run full Ansible configuration"
+	@echo "  make configure-runner                     - Configure Forgejo runners only"
+	@echo "  make configure-runner-register            - Configure + register (needs FORGEJO_RUNNER_TOKEN)"
+	@echo "  make deploy-full                          - Apply Terraform + run Ansible configure"
+	@echo ""
+	@echo "Utility Commands:
 	@echo "  make format            - Format OpenTofu files"
 	@echo "  make clean             - Clean all build artifacts"
 	@echo "  make clean-docker      - Clean Docker build cache"
@@ -563,3 +571,70 @@ verify-ovn-chassis:
 		echo "✗ Some chassis missing - run 'make configure-ovn-chassis ENV=cluster01'"; \
 		exit 1; \
 	fi
+
+# =============================================================================
+# Ansible Configuration (Hybrid Terraform + Ansible)
+# =============================================================================
+
+# Install Ansible Galaxy requirements (run once)
+ansible-setup:
+	@echo "Installing Ansible Galaxy requirements..."
+	cd ansible && ansible-galaxy collection install -r requirements.yml --force
+	@echo ""
+	@echo "Ansible setup complete."
+
+# Run full Ansible configuration for all services
+configure:
+	@echo "Running Ansible configuration for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/site.yml
+	@echo ""
+	@echo "Configuration complete for $(ENV)."
+
+# Configure Forgejo runners only (without registration)
+configure-runner:
+	@echo "Configuring Forgejo runners for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/forgejo-runner.yml --skip-tags register
+	@echo ""
+	@echo "Runner configuration complete (registration skipped)."
+	@echo "To register, run: FORGEJO_RUNNER_TOKEN=<token> make configure-runner-register ENV=$(ENV)"
+
+# Configure and register Forgejo runners (requires FORGEJO_RUNNER_TOKEN)
+configure-runner-register:
+	@echo "Configuring and registering Forgejo runners for $(ENV)..."
+	@if [ -z "$$FORGEJO_RUNNER_TOKEN" ]; then \
+		echo "ERROR: FORGEJO_RUNNER_TOKEN environment variable not set."; \
+		echo ""; \
+		echo "Get a registration token from Forgejo:"; \
+		echo "  1. Go to Admin > Actions > Runners"; \
+		echo "  2. Click 'Create new runner'"; \
+		echo "  3. Copy the registration token"; \
+		echo ""; \
+		echo "Then run:"; \
+		echo "  FORGEJO_RUNNER_TOKEN=<token> make configure-runner-register ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) FORGEJO_RUNNER_TOKEN="$$FORGEJO_RUNNER_TOKEN" ansible-playbook playbooks/forgejo-runner.yml
+	@echo ""
+	@echo "Runner configuration and registration complete."
+	@echo "Check Forgejo Admin > Actions > Runners to verify the runner is online."
+
+# Full deployment: Terraform apply + Ansible configure
+deploy-full: apply configure
+	@echo ""
+	@echo "Full deployment complete for $(ENV)!"
+	@echo "Terraform infrastructure deployed and Ansible configuration applied."

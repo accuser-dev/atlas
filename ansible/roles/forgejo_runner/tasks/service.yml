@@ -1,0 +1,39 @@
+# =============================================================================
+# Forgejo Runner Service Tasks
+# =============================================================================
+# Creates and manages the systemd service.
+
+---
+- name: Template systemd service file
+  ansible.builtin.template:
+    src: forgejo-runner.service.j2
+    dest: "/etc/systemd/system/{{ forgejo_runner_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart forgejo-runner
+
+- name: Flush handlers to reload systemd
+  ansible.builtin.meta: flush_handlers
+
+- name: Check if runner is registered before starting
+  ansible.builtin.stat:
+    path: "{{ forgejo_runner_config_dir }}/.runner"
+  register: runner_registered_for_service
+
+- name: Enable and start service
+  ansible.builtin.systemd:
+    name: "{{ forgejo_runner_service_name }}"
+    state: started
+    enabled: "{{ forgejo_runner_service_enabled }}"
+    daemon_reload: true
+  when: runner_registered_for_service.stat.exists
+
+- name: Service not started - registration required
+  ansible.builtin.debug:
+    msg: |
+      Service not started - runner must be registered first.
+      Run: FORGEJO_RUNNER_TOKEN=<token> make configure-runner-register ENV=cluster01
+  when: not runner_registered_for_service.stat.exists

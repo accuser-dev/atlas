@@ -1,0 +1,80 @@
+# =============================================================================
+# Forgejo Runner Installation Tasks
+# =============================================================================
+# Downloads and installs the Forgejo runner binary.
+
+---
+- name: Create runner group
+  ansible.builtin.group:
+    name: "{{ forgejo_runner_group }}"
+    gid: "{{ forgejo_runner_gid }}"
+    state: present
+
+- name: Create runner user
+  ansible.builtin.user:
+    name: "{{ forgejo_runner_user }}"
+    uid: "{{ forgejo_runner_uid }}"
+    group: "{{ forgejo_runner_group }}"
+    home: "{{ forgejo_runner_home }}"
+    shell: /bin/bash
+    system: true
+    create_home: true
+    state: present
+
+- name: Create runner directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ forgejo_runner_user }}"
+    group: "{{ forgejo_runner_group }}"
+    mode: "0755"
+  loop:
+    - "{{ forgejo_runner_home }}"
+    - "{{ forgejo_runner_work_dir }}"
+    - "{{ forgejo_runner_config_dir }}"
+    - "{{ forgejo_runner_cache_dir }}"
+
+- name: Detect system architecture
+  ansible.builtin.set_fact:
+    runner_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}"
+
+- name: Check if runner binary exists
+  ansible.builtin.stat:
+    path: "/usr/local/bin/forgejo-runner"
+  register: runner_binary
+
+- name: Get installed runner version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/forgejo-runner --version
+  register: installed_version
+  changed_when: false
+  failed_when: false
+  when: runner_binary.stat.exists
+
+- name: Parse installed version
+  ansible.builtin.set_fact:
+    installed_runner_version: "{{ installed_version.stdout | regex_search('v?([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | first | default('') }}"
+  when: runner_binary.stat.exists and installed_version.rc == 0
+
+- name: Download Forgejo runner
+  ansible.builtin.get_url:
+    url: "https://code.forgejo.org/forgejo/runner/releases/download/v{{ forgejo_runner_version }}/forgejo-runner-{{ forgejo_runner_version }}-linux-{{ runner_arch }}"
+    dest: "/usr/local/bin/forgejo-runner"
+    mode: "0755"
+    owner: root
+    group: root
+  when: >
+    not runner_binary.stat.exists or
+    (installed_runner_version is defined and installed_runner_version != forgejo_runner_version)
+  notify: Restart forgejo-runner
+
+- name: Verify runner binary
+  ansible.builtin.command:
+    cmd: /usr/local/bin/forgejo-runner --version
+  register: verify_version
+  changed_when: false
+  failed_when: verify_version.rc != 0
+
+- name: Display installed version
+  ansible.builtin.debug:
+    msg: "Forgejo runner installed: {{ verify_version.stdout }}"

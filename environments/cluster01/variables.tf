@@ -428,3 +428,25 @@ variable "forgejo_proxy_stats_password" {
   default     = ""
   sensitive   = true
 }
+
+# =============================================================================
+# Forgejo Runner Configuration
+# =============================================================================
+
+variable "enable_forgejo_runner" {
+  description = "Enable Forgejo Actions runner"
+  type        = bool
+  default     = false
+}
+
+variable "forgejo_runner_labels" {
+  description = "Labels for the Forgejo runner (e.g., 'debian-trixie:host,linux_amd64:host')"
+  type        = string
+  default     = "debian-trixie:host,linux_amd64:host"
+}
+
+variable "forgejo_runner_insecure" {
+  description = "Skip TLS verification for Forgejo runner connection (useful for self-signed certs)"
+  type        = bool
+  default     = false
+}

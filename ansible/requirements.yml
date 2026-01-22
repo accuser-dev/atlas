@@ -1,0 +1,9 @@
+# =============================================================================
+# Ansible Galaxy Requirements
+# =============================================================================
+# Install with: ansible-galaxy collection install -r requirements.yml
+
+collections:
+  # Incus connection plugin for container management
+  - name: community.general
+    version: ">=9.0.0"

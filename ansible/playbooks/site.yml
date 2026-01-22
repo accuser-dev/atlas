@@ -1,0 +1,17 @@
+# =============================================================================
+# Atlas Ansible Site Playbook
+# =============================================================================
+# Main playbook that includes all service playbooks.
+#
+# Usage:
+#   ENV=cluster01 ansible-playbook playbooks/site.yml
+#
+# To run specific services only:
+#   ENV=cluster01 ansible-playbook playbooks/site.yml --limit forgejo_runners
+
+---
+- name: Configure all Atlas services
+  ansible.builtin.import_playbook: forgejo-runner.yml
+  tags:
+    - forgejo_runner
+    - runners

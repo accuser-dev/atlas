@@ -1,0 +1,29 @@
+#cloud-config
+# =============================================================================
+# Forgejo Runner - Minimal Cloud-Init Configuration
+# =============================================================================
+# This cloud-init only prepares the system for Ansible.
+# All runner configuration is handled by the forgejo_runner Ansible role.
+
+package_update: true
+package_upgrade: false
+
+packages:
+  # Required for Ansible connection via community.general.incus plugin
+  - python3
+  - python3-apt
+  # Useful utilities for CI jobs
+  - git
+  - curl
+  - wget
+  - jq
+  - ca-certificates
+  # Build essentials for common CI tasks
+  - build-essential
+
+# Ensure system is ready for Ansible
+runcmd:
+  # Create marker file indicating cloud-init completed
+  - touch /var/lib/cloud/instance/ansible-ready
+  # Ensure Python3 is the default
+  - update-alternatives --install /usr/bin/python python /usr/bin/python3 1 || true

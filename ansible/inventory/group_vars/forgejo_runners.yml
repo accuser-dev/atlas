@@ -1,0 +1,50 @@
+# =============================================================================
+# Forgejo Runner Group Variables
+# =============================================================================
+# Default configuration for Forgejo runners.
+# Values can be overridden by Terraform outputs via the dynamic inventory.
+
+# Forgejo runner version
+forgejo_runner_version: "6.2.2"
+
+# Runner configuration
+forgejo_runner_name: "{{ inventory_hostname }}"
+forgejo_runner_labels: "debian-trixie:docker://node:20-bookworm,linux_amd64:host"
+
+# Execution mode: "host" (no Docker) or "docker" (Docker-in-Docker)
+forgejo_runner_execution_mode: "host"
+
+# Directories
+forgejo_runner_home: "/opt/forgejo-runner"
+forgejo_runner_work_dir: "/opt/forgejo-runner/workdir"
+forgejo_runner_config_dir: "/etc/forgejo-runner"
+
+# User/group
+forgejo_runner_user: "forgejo-runner"
+forgejo_runner_group: "forgejo-runner"
+
+# Service configuration
+forgejo_runner_service_name: "forgejo-runner"
+
+# Capacity (number of concurrent jobs)
+forgejo_runner_capacity: 1
+
+# Cache configuration
+forgejo_runner_cache_enabled: true
+forgejo_runner_cache_dir: "/opt/forgejo-runner/cache"
+
+# Log level (debug, info, warn, error)
+forgejo_runner_log_level: "info"
+
+# Fetch interval (how often to check for new jobs)
+forgejo_runner_fetch_interval: "2s"
+
+# Fetch timeout
+forgejo_runner_fetch_timeout: "5s"
+
+# Report interval (how often to report job status)
+forgejo_runner_report_interval: "1s"
+
+# Host network configuration (for host mode)
+# When true, jobs can access the host network
+forgejo_runner_host_network: true

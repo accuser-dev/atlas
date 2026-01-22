@@ -1,0 +1,79 @@
+# =============================================================================
+# Forgejo Runner Configuration
+# =============================================================================
+# Managed by Ansible - do not edit manually
+# Template: forgejo_runner/templates/config.yaml.j2
+
+log:
+  level: {{ forgejo_runner_log_level }}
+
+runner:
+  # Working directory for job execution
+  file: {{ forgejo_runner_config_dir }}/.runner
+
+  # Capacity - how many concurrent jobs this runner can handle
+  capacity: {{ forgejo_runner_capacity }}
+
+  # Environment variables available to all jobs
+  envs: {}
+
+  # Environment file (optional)
+  env_file: ""
+
+  # Timeout for job execution (0 = no timeout)
+  timeout: 3h
+
+{% if forgejo_runner_insecure %}
+  # Skip TLS verification (for self-signed certificates)
+  insecure: true
+{% endif %}
+
+  # Fetch interval - how often to check for new jobs
+  fetch_interval: {{ forgejo_runner_fetch_interval }}
+
+  # Fetch timeout
+  fetch_timeout: {{ forgejo_runner_fetch_timeout }}
+
+cache:
+  # Enable caching for faster builds
+  enabled: {{ forgejo_runner_cache_enabled | lower }}
+
+{% if forgejo_runner_cache_enabled %}
+  # Cache directory
+  dir: {{ forgejo_runner_cache_dir }}
+
+  # Cache host (external cache server, optional)
+  host: ""
+
+  # Cache port
+  port: 0
+{% endif %}
+
+container:
+  # Container network (not used in host mode)
+  network: ""
+
+  # Use host network for container jobs
+  network_mode: "{{ 'host' if forgejo_runner_host_network else 'bridge' }}"
+
+  # Enable IPv6
+  enable_ipv6: false
+
+  # Privileged mode (for Docker-in-Docker, not applicable in host mode)
+  privileged: false
+
+  # Container options
+  options: ""
+
+  # Working directory inside container
+  workdir_parent: ""
+
+  # Valid volumes that can be mounted
+  valid_volumes: []
+
+  # Force pull images (not applicable in host mode)
+  force_pull: false
+
+host:
+  # Working directory for host mode execution
+  workdir_parent: {{ forgejo_runner_work_dir }}

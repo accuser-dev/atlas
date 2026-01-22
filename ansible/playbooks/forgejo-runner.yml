@@ -1,0 +1,60 @@
+# =============================================================================
+# Forgejo Runner Playbook
+# =============================================================================
+# Configures Forgejo runners on target containers.
+#
+# Usage:
+#   # Configure without registration (requires token later)
+#   ENV=cluster01 ansible-playbook playbooks/forgejo-runner.yml
+#
+#   # Configure and register
+#   FORGEJO_RUNNER_TOKEN=<token> ENV=cluster01 ansible-playbook playbooks/forgejo-runner.yml
+#
+#   # Skip registration step
+#   ENV=cluster01 ansible-playbook playbooks/forgejo-runner.yml --skip-tags register
+
+---
+- name: Configure Forgejo Runners
+  hosts: forgejo_runners
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring Forgejo runner: {{ inventory_hostname }}
+          Forgejo URL: {{ forgejo_url | default('NOT SET') }}
+          Labels: {{ forgejo_runner_labels }}
+          Execution mode: {{ forgejo_runner_execution_mode }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      # Timeout after 5 minutes
+      async: 300
+      poll: 10
+
+  roles:
+    - role: forgejo_runner
+
+  post_tasks:
+    - name: Verify runner status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ forgejo_runner_service_name }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          Runner configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}
+          {% if service_status.rc != 0 %}
+          NOTE: Service not running - registration may be required.
+          Run: FORGEJO_RUNNER_TOKEN=<token> make configure-runner-register ENV=cluster01
+          {% endif %}

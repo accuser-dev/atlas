@@ -1,0 +1,65 @@
+# =============================================================================
+# Forgejo Runner Registration Tasks
+# =============================================================================
+# Registers the runner with the Forgejo instance.
+# Registration is idempotent - skips if .runner file already exists.
+
+---
+- name: Check if runner is already registered
+  ansible.builtin.stat:
+    path: "{{ forgejo_runner_config_dir }}/.runner"
+  register: runner_registered
+
+- name: Registration required check
+  ansible.builtin.debug:
+    msg: "Runner already registered, skipping registration"
+  when: runner_registered.stat.exists
+
+- name: Register runner with Forgejo
+  when: not runner_registered.stat.exists
+  block:
+    - name: Check for registration token
+      ansible.builtin.assert:
+        that:
+          - forgejo_runner_token is defined and forgejo_runner_token | length > 0
+        fail_msg: |
+          Registration token not provided.
+          Set FORGEJO_RUNNER_TOKEN environment variable before running:
+            FORGEJO_RUNNER_TOKEN=<token> make configure-runner-register ENV=cluster01
+
+          Get token from Forgejo: Admin > Actions > Runners > Create new runner
+        success_msg: "Registration token provided"
+
+    - name: Build registration command
+      ansible.builtin.set_fact:
+        register_cmd: >-
+          /usr/local/bin/forgejo-runner register
+          --no-interactive
+          --instance "{{ forgejo_url }}"
+          --token "{{ forgejo_runner_token }}"
+          --name "{{ forgejo_runner_name }}"
+          --labels "{{ forgejo_runner_labels }}"
+          --config "{{ forgejo_runner_config_dir }}/config.yaml"
+
+    - name: Register runner
+      ansible.builtin.command:
+        cmd: "{{ register_cmd }}"
+        chdir: "{{ forgejo_runner_config_dir }}"
+        creates: "{{ forgejo_runner_config_dir }}/.runner"
+      become: true
+      become_user: "{{ forgejo_runner_user }}"
+      register: registration_result
+      changed_when: registration_result.rc == 0
+
+    - name: Display registration result
+      ansible.builtin.debug:
+        msg: "Runner registered successfully: {{ forgejo_runner_name }}"
+      when: registration_result.rc == 0
+
+- name: Ensure .runner file permissions
+  ansible.builtin.file:
+    path: "{{ forgejo_runner_config_dir }}/.runner"
+    owner: "{{ forgejo_runner_user }}"
+    group: "{{ forgejo_runner_group }}"
+    mode: "0600"
+  when: runner_registered.stat.exists or (registration_result is defined and registration_result.rc == 0)

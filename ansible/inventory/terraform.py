@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""
+Dynamic Ansible inventory from Terraform/OpenTofu outputs.
+
+Reads `tofu output -json` from the appropriate environment directory
+and generates an Ansible inventory for configured services.
+
+Usage:
+    ENV=cluster01 ansible-inventory --list
+    ENV=cluster01 ansible-playbook playbooks/forgejo-runner.yml
+"""
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+def get_env_dir() -> Path:
+    """Get the environment directory based on ENV variable."""
+    env = os.environ.get("ENV", "cluster01")
+    repo_root = Path(__file__).parent.parent.parent
+    env_dir = repo_root / "environments" / env
+
+    if not env_dir.exists():
+        sys.stderr.write(f"Error: Environment directory not found: {env_dir}\n")
+        sys.exit(1)
+
+    return env_dir
+
+
+def get_terraform_output(env_dir: Path) -> dict:
+    """Run tofu output and return parsed JSON."""
+    try:
+        result = subprocess.run(
+            ["tofu", "output", "-json"],
+            cwd=env_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(f"Error running tofu output: {e.stderr}\n")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        sys.stderr.write(f"Error parsing tofu output: {e}\n")
+        sys.exit(1)
+
+
+def get_incus_remote() -> str:
+    """Get the Incus remote name based on ENV variable."""
+    env = os.environ.get("ENV", "cluster01")
+    # For cluster environments, use the cluster remote
+    if env == "cluster01":
+        return "cluster01"
+    # For iapetus (local), no remote prefix needed
+    return ""
+
+
+def build_inventory(tf_output: dict) -> dict:
+    """Build Ansible inventory from Terraform outputs."""
+    env = os.environ.get("ENV", "cluster01")
+    incus_remote = get_incus_remote()
+
+    inventory = {
+        "_meta": {
+            "hostvars": {}
+        },
+        "all": {
+            "children": ["forgejo_runners"]
+        },
+        "forgejo_runners": {
+            "hosts": [],
+            "vars": {
+                "ansible_connection": "community.general.incus",
+                "ansible_incus_remote": incus_remote,
+            }
+        }
+    }
+
+    # Check for Forgejo runner outputs
+    if "forgejo_runner_instances" in tf_output:
+        runner_instances = tf_output["forgejo_runner_instances"]["value"]
+
+        for instance_name, instance_data in runner_instances.items():
+            # Add to group
+            inventory["forgejo_runners"]["hosts"].append(instance_name)
+
+            # Add host variables
+            inventory["_meta"]["hostvars"][instance_name] = {
+                "ansible_incus_host": instance_name,
+                "ipv4_address": instance_data.get("ipv4_address", ""),
+            }
+
+    # Add ansible_vars from Terraform if available
+    if "forgejo_runner_ansible_vars" in tf_output:
+        ansible_vars = tf_output["forgejo_runner_ansible_vars"]["value"]
+        inventory["forgejo_runners"]["vars"].update(ansible_vars)
+
+    return inventory
+
+
+def main():
+    """Main entry point."""
+    # Parse arguments
+    if len(sys.argv) == 2 and sys.argv[1] == "--list":
+        env_dir = get_env_dir()
+        tf_output = get_terraform_output(env_dir)
+        inventory = build_inventory(tf_output)
+        print(json.dumps(inventory, indent=2))
+    elif len(sys.argv) == 3 and sys.argv[1] == "--host":
+        # Return empty dict for host mode (not used with _meta)
+        print(json.dumps({}))
+    else:
+        sys.stderr.write("Usage: terraform.py --list | --host <hostname>\n")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

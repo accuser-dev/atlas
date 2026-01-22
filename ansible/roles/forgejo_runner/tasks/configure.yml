@@ -1,0 +1,14 @@
+# =============================================================================
+# Forgejo Runner Configuration Tasks
+# =============================================================================
+# Creates the runner configuration file.
+
+---
+- name: Template runner configuration
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: "{{ forgejo_runner_config_dir }}/config.yaml"
+    owner: "{{ forgejo_runner_user }}"
+    group: "{{ forgejo_runner_group }}"
+    mode: "0640"
+  notify: Restart forgejo-runner

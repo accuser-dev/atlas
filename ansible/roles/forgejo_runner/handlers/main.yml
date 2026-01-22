@@ -1,0 +1,14 @@
+# =============================================================================
+# Forgejo Runner Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart forgejo-runner
+  ansible.builtin.systemd:
+    name: "{{ forgejo_runner_service_name }}"
+    state: restarted
+  when: runner_registered_for_service is defined and runner_registered_for_service.stat.exists

@@ -733,6 +733,40 @@ resource "tls_self_signed_cert" "forgejo" {
 }
 
 # =============================================================================
+# Forgejo Runner (Hybrid Terraform + Ansible)
+# =============================================================================
+# Container lifecycle managed by Terraform, configuration by Ansible.
+# After deployment, run: FORGEJO_RUNNER_TOKEN=<token> make configure-runner-register ENV=cluster01
+
+module "forgejo_runner01" {
+  source = "../../modules/forgejo-runner"
+
+  count = var.enable_forgejo_runner ? 1 : 0
+
+  instance_name = "forgejo-runner01"
+  profile_name  = "forgejo-runner"
+
+  profiles = local.production_profiles
+
+  # Forgejo connection - always use internal address (LB VIP is not reachable from inside OVN)
+  forgejo_url     = var.enable_forgejo ? "https://${module.forgejo01[0].ipv4_address}:3000" : ""
+  runner_labels   = var.forgejo_runner_labels
+  runner_insecure = var.forgejo_runner_insecure
+
+  enable_data_persistence = true
+  data_volume_name        = "forgejo-runner01-data"
+  data_volume_size        = "20GB"
+
+  # Pin to specific cluster node for storage volume co-location
+  target_node = "node01"
+
+  cpu_limit    = local.services.forgejo_runner.cpu
+  memory_limit = local.services.forgejo_runner.memory
+
+  depends_on = [module.forgejo01]
+}
+
+# =============================================================================
 # Ceph Distributed Storage
 # =============================================================================
 # Provides distributed block storage and S3-compatible object storage.
