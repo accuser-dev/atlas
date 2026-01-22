@@ -1,0 +1,34 @@
+[Unit]
+Description=Prometheus Alertmanager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ alertmanager_user }}
+Group={{ alertmanager_group }}
+{% if alertmanager_enable_tls %}
+ExecStartPre=/usr/local/bin/setup-tls.sh
+{% endif %}
+ExecStart={{ alertmanager_binary_path }} \
+  --config.file={{ alertmanager_config_dir }}/alertmanager.yml \
+  --storage.path={{ alertmanager_data_dir }} \
+  --web.listen-address=:{{ alertmanager_port }} \
+  --cluster.listen-address=
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ alertmanager_data_dir }}
+{% if alertmanager_enable_tls %}
+ReadWritePaths={{ alertmanager_tls_dir }}
+{% endif %}
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

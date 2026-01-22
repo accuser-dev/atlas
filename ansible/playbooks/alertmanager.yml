@@ -1,0 +1,49 @@
+# =============================================================================
+# Alertmanager Playbook
+# =============================================================================
+# Configures Alertmanager on target containers.
+#
+# Usage:
+#   ENV=cluster01 ansible-playbook playbooks/alertmanager.yml
+
+---
+- name: Configure Alertmanager
+  hosts: alertmanager
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring Alertmanager: {{ inventory_hostname }}
+          Version: {{ alertmanager_version | default('NOT SET') }}
+          Port: {{ alertmanager_port | default('9093') }}
+          TLS: {{ alertmanager_enable_tls | default(false) }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: alertmanager
+
+  post_tasks:
+    - name: Verify alertmanager status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ alertmanager_service_name | default('alertmanager') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          Alertmanager configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}
+          Endpoint: {{ 'https' if alertmanager_enable_tls | default(false) else 'http' }}://{{ ipv4_address | default(inventory_hostname) }}:{{ alertmanager_port | default('9093') }}

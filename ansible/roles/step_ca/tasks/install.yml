@@ -1,0 +1,147 @@
+# =============================================================================
+# step-ca Installation Tasks
+# =============================================================================
+# Downloads and installs step-cli and step-ca binaries.
+
+---
+- name: Check if step-ca service exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/step-ca.service
+  register: step_ca_service_file
+
+- name: Stop step-ca service for user management
+  ansible.builtin.systemd:
+    name: step-ca
+    state: stopped
+  when: step_ca_service_file.stat.exists
+  ignore_errors: true
+
+- name: Create step group
+  ansible.builtin.group:
+    name: "{{ step_group }}"
+    gid: "{{ step_gid }}"
+    system: true
+    state: present
+
+- name: Check if step user exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ step_user }}"
+  register: step_user_check
+  failed_when: false
+
+- name: Create step user
+  ansible.builtin.user:
+    name: "{{ step_user }}"
+    uid: "{{ step_uid }}"
+    group: "{{ step_group }}"
+    home: "{{ step_home }}"
+    shell: /usr/sbin/nologin
+    system: true
+    create_home: true
+    state: present
+  when: step_user_check.failed | default(false) or step_user_check.ansible_facts.getent_passwd[step_user] is none
+
+- name: Detect system architecture
+  ansible.builtin.set_fact:
+    step_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}"
+
+- name: Check if step binary exists
+  ansible.builtin.stat:
+    path: "{{ step_binary_path }}"
+  register: step_binary
+
+- name: Download and install step-cli
+  when: not step_binary.stat.exists
+  block:
+    - name: Create temporary directory for step-cli
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: step_cli_
+      register: step_cli_temp_dir
+
+    - name: Download step-cli archive
+      ansible.builtin.get_url:
+        url: "https://github.com/smallstep/cli/releases/download/v{{ step_version }}/step_linux_{{ step_version }}_{{ step_arch }}.tar.gz"
+        dest: "{{ step_cli_temp_dir.path }}/step.tar.gz"
+        mode: "0644"
+
+    - name: Extract step-cli archive
+      ansible.builtin.unarchive:
+        src: "{{ step_cli_temp_dir.path }}/step.tar.gz"
+        dest: "{{ step_cli_temp_dir.path }}"
+        remote_src: true
+
+    - name: Install step binary
+      ansible.builtin.copy:
+        src: "{{ step_cli_temp_dir.path }}/step_{{ step_version }}/bin/step"
+        dest: "{{ step_binary_path }}"
+        mode: "0755"
+        owner: root
+        group: root
+        remote_src: true
+
+    - name: Clean up step-cli temp directory
+      ansible.builtin.file:
+        path: "{{ step_cli_temp_dir.path }}"
+        state: absent
+
+- name: Check if step-ca binary exists
+  ansible.builtin.stat:
+    path: "{{ step_ca_binary_path }}"
+  register: step_ca_binary
+
+- name: Download and install step-ca
+  when: not step_ca_binary.stat.exists
+  block:
+    - name: Create temporary directory for step-ca
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: step_ca_
+      register: step_ca_temp_dir
+
+    - name: Download step-ca archive
+      ansible.builtin.get_url:
+        url: "https://github.com/smallstep/certificates/releases/download/v{{ step_version }}/step-ca_linux_{{ step_version }}_{{ step_arch }}.tar.gz"
+        dest: "{{ step_ca_temp_dir.path }}/step-ca.tar.gz"
+        mode: "0644"
+
+    - name: Extract step-ca archive
+      ansible.builtin.unarchive:
+        src: "{{ step_ca_temp_dir.path }}/step-ca.tar.gz"
+        dest: "{{ step_ca_temp_dir.path }}"
+        remote_src: true
+
+    - name: Install step-ca binary
+      ansible.builtin.copy:
+        src: "{{ step_ca_temp_dir.path }}/step-ca"
+        dest: "{{ step_ca_binary_path }}"
+        mode: "0755"
+        owner: root
+        group: root
+        remote_src: true
+
+    - name: Clean up step-ca temp directory
+      ansible.builtin.file:
+        path: "{{ step_ca_temp_dir.path }}"
+        state: absent
+
+- name: Verify step binary
+  ansible.builtin.command:
+    cmd: "{{ step_binary_path }} version"
+  register: verify_step
+  changed_when: false
+  failed_when: verify_step.rc != 0
+
+- name: Verify step-ca binary
+  ansible.builtin.command:
+    cmd: "{{ step_ca_binary_path }} version"
+  register: verify_step_ca
+  changed_when: false
+  failed_when: verify_step_ca.rc != 0
+
+- name: Display installed versions
+  ansible.builtin.debug:
+    msg: |
+      step-cli: {{ verify_step.stdout_lines[0] }}
+      step-ca: {{ verify_step_ca.stdout_lines[0] }}

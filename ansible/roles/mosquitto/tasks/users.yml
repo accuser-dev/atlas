@@ -1,0 +1,36 @@
+# =============================================================================
+# Mosquitto User Management Tasks
+# =============================================================================
+# Creates and manages MQTT users with hashed passwords.
+
+---
+- name: Remove old password file if regenerating
+  ansible.builtin.file:
+    path: "{{ mosquitto_config_dir }}/passwd"
+    state: absent
+  when: mosquitto_users | length > 0
+  changed_when: false  # Always regenerate for idempotency
+
+- name: Create MQTT users with hashed passwords
+  ansible.builtin.command:
+    cmd: "mosquitto_passwd -b {{ mosquitto_config_dir }}/passwd {{ item.key }} {{ item.value }}"
+  loop: "{{ mosquitto_users | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: mosquitto_users | length > 0
+  no_log: true
+  notify: Restart mosquitto
+
+- name: Set password file permissions
+  ansible.builtin.file:
+    path: "{{ mosquitto_config_dir }}/passwd"
+    owner: "{{ mosquitto_user }}"
+    group: "{{ mosquitto_group }}"
+    mode: "0640"
+  when: mosquitto_users | length > 0
+
+- name: Remove password file if no users configured
+  ansible.builtin.file:
+    path: "{{ mosquitto_config_dir }}/passwd"
+    state: absent
+  when: mosquitto_users | length == 0

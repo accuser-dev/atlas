@@ -1,0 +1,44 @@
+# =============================================================================
+# Alertmanager Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# Alertmanager version (from Terraform)
+alertmanager_version: "0.27.0"
+
+# Listen port
+alertmanager_port: "9093"
+
+# Configuration content (from Terraform)
+alertmanager_config: ""
+
+# TLS configuration
+alertmanager_enable_tls: false
+stepca_url: ""
+stepca_fingerprint: ""
+cert_duration: "24h"
+step_version: "0.28.2"
+
+# Directories
+alertmanager_config_dir: "/etc/alertmanager"
+alertmanager_data_dir: "/var/lib/alertmanager"
+alertmanager_tls_dir: "/etc/alertmanager/tls"
+
+# User/group configuration
+alertmanager_user: "alertmanager"
+alertmanager_group: "alertmanager"
+alertmanager_uid: 1100
+alertmanager_gid: 1100
+
+# Service configuration
+alertmanager_service_name: "alertmanager"
+alertmanager_service_enabled: true
+
+# Binary paths
+alertmanager_binary_path: "/usr/local/bin/alertmanager"
+alertmanager_amtool_path: "/usr/local/bin/amtool"
+step_binary_path: "/usr/local/bin/step"
+
+# State: present or absent
+alertmanager_state: present

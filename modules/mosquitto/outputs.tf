@@ -52,3 +52,31 @@ output "ipv4_address" {
   description = "IPv4 address of the Mosquitto container"
   value       = incus_instance.mosquitto.ipv4_address
 }
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.mosquitto.name
+    ipv4_address = incus_instance.mosquitto.ipv4_address
+  }
+}
+
+output "ansible_vars" {
+  description = "Variables passed to Ansible for Mosquitto configuration"
+  sensitive   = true
+  value = {
+    mosquitto_mqtt_port       = var.mqtt_port
+    mosquitto_mqtts_port      = var.mqtts_port
+    mosquitto_enable_tls      = var.enable_tls
+    mosquitto_users           = var.mqtt_users
+    mosquitto_config          = var.mosquitto_config
+    stepca_url                = var.stepca_url
+    stepca_fingerprint        = var.stepca_fingerprint
+    cert_duration             = var.cert_duration
+    step_version              = var.step_version
+  }
+}

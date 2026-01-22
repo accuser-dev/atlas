@@ -1,0 +1,15 @@
+[Unit]
+Description=Prometheus PostgreSQL Exporter
+After=postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=postgres
+Environment="DATA_SOURCE_NAME=user=postgres host=/var/run/postgresql/ sslmode=disable"
+ExecStart=/usr/local/bin/postgres_exporter --web.listen-address=:{{ postgresql_metrics_port }}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

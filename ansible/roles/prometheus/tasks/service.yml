@@ -1,0 +1,41 @@
+# =============================================================================
+# Prometheus Service Tasks
+# =============================================================================
+# Manages the prometheus systemd service.
+
+---
+- name: Ensure systemd is reloaded
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable prometheus service
+  ansible.builtin.systemd:
+    name: "{{ prometheus_service_name }}"
+    enabled: "{{ prometheus_service_enabled }}"
+
+- name: Start prometheus service
+  ansible.builtin.systemd:
+    name: "{{ prometheus_service_name }}"
+    state: started
+
+- name: Wait for prometheus to be ready
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ prometheus_port }}/-/ready"
+    method: GET
+    status_code: 200
+  register: prometheus_ready
+  until: prometheus_ready.status == 200
+  retries: 30
+  delay: 2
+
+- name: Verify prometheus is healthy
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ prometheus_port }}/-/healthy"
+    method: GET
+    status_code: 200
+  register: prometheus_healthy
+  changed_when: false
+
+- name: Display prometheus status
+  ansible.builtin.debug:
+    msg: "Prometheus is running and healthy on port {{ prometheus_port }}"

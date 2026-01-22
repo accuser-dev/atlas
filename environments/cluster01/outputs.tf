@@ -144,9 +144,10 @@ output "forgejo_metrics_endpoint" {
 }
 
 # =============================================================================
-# Forgejo Runner (Hybrid Terraform + Ansible)
+# Ansible Integration Outputs (Hybrid Terraform + Ansible)
 # =============================================================================
 
+# Forgejo Runner
 output "forgejo_runner_instances" {
   description = "Forgejo runner instances for Ansible inventory"
   value = var.enable_forgejo_runner ? {
@@ -156,7 +157,77 @@ output "forgejo_runner_instances" {
 
 output "forgejo_runner_ansible_vars" {
   description = "Variables passed to Ansible for runner configuration"
-  value       = var.enable_forgejo_runner ? module.forgejo_runner01[0].ansible_vars : {}
+  value       = var.enable_forgejo_runner ? module.forgejo_runner01[0].ansible_vars : null
+}
+
+# Prometheus
+output "prometheus_instances" {
+  description = "Prometheus instances for Ansible inventory"
+  value = {
+    "prometheus01" = module.prometheus01.instance_info
+  }
+}
+
+output "prometheus_ansible_vars" {
+  description = "Variables passed to Ansible for Prometheus configuration"
+  sensitive   = true
+  value       = module.prometheus01.ansible_vars
+}
+
+# Alertmanager
+output "alertmanager_instances" {
+  description = "Alertmanager instances for Ansible inventory"
+  value = {
+    "alertmanager01" = module.alertmanager01.instance_info
+  }
+}
+
+output "alertmanager_ansible_vars" {
+  description = "Variables passed to Ansible for Alertmanager configuration"
+  sensitive   = true
+  value       = module.alertmanager01.ansible_vars
+}
+
+# Mosquitto
+output "mosquitto_instances" {
+  description = "Mosquitto instances for Ansible inventory"
+  value = {
+    "mosquitto01" = module.mosquitto01.instance_info
+  }
+}
+
+output "mosquitto_ansible_vars" {
+  description = "Variables passed to Ansible for Mosquitto configuration"
+  sensitive   = true
+  value       = module.mosquitto01.ansible_vars
+}
+
+# PostgreSQL
+output "postgresql_instances" {
+  description = "PostgreSQL instances for Ansible inventory"
+  value = var.enable_postgresql ? {
+    "postgresql01" = module.postgresql01[0].instance_info
+  } : {}
+}
+
+output "postgresql_ansible_vars" {
+  description = "Variables passed to Ansible for PostgreSQL configuration"
+  sensitive   = true
+  value       = var.enable_postgresql ? module.postgresql01[0].ansible_vars : null
+}
+
+# Forgejo
+output "forgejo_instances" {
+  description = "Forgejo instances for Ansible inventory"
+  value = var.enable_forgejo ? {
+    "forgejo01" = module.forgejo01[0].instance_info
+  } : {}
+}
+
+output "forgejo_ansible_vars" {
+  description = "Variables passed to Ansible for Forgejo configuration"
+  sensitive   = true
+  value       = var.enable_forgejo ? module.forgejo01[0].ansible_vars : null
 }
 
 # =============================================================================

@@ -7,10 +7,51 @@
 #   ENV=cluster01 ansible-playbook playbooks/site.yml
 #
 # To run specific services only:
-#   ENV=cluster01 ansible-playbook playbooks/site.yml --limit forgejo_runners
+#   ENV=cluster01 ansible-playbook playbooks/site.yml --limit prometheus
+#   ENV=cluster01 ansible-playbook playbooks/site.yml --tags forgejo_runner
 
 ---
-- name: Configure all Atlas services
+# Monitoring Stack
+- name: Configure Prometheus
+  ansible.builtin.import_playbook: prometheus.yml
+  tags:
+    - prometheus
+    - monitoring
+
+- name: Configure Alertmanager
+  ansible.builtin.import_playbook: alertmanager.yml
+  tags:
+    - alertmanager
+    - monitoring
+
+# Infrastructure Services
+- name: Configure PostgreSQL
+  ansible.builtin.import_playbook: postgresql.yml
+  tags:
+    - postgresql
+    - database
+
+- name: Configure step-ca
+  ansible.builtin.import_playbook: step-ca.yml
+  tags:
+    - step_ca
+    - tls
+    - pki
+
+- name: Configure Mosquitto
+  ansible.builtin.import_playbook: mosquitto.yml
+  tags:
+    - mosquitto
+    - mqtt
+
+# Application Services
+- name: Configure Forgejo
+  ansible.builtin.import_playbook: forgejo.yml
+  tags:
+    - forgejo
+    - git
+
+- name: Configure Forgejo Runners
   ansible.builtin.import_playbook: forgejo-runner.yml
   tags:
     - forgejo_runner

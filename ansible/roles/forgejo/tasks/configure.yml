@@ -1,0 +1,46 @@
+# =============================================================================
+# Forgejo Configuration Tasks
+# =============================================================================
+# Templates configuration files and TLS certificates.
+
+---
+- name: Write TLS certificate
+  ansible.builtin.copy:
+    content: "{{ forgejo_tls_cert }}"
+    dest: "{{ forgejo_config_dir }}/cert.pem"
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "0644"
+  when: forgejo_enable_tls and forgejo_tls_cert | length > 0
+  notify: Restart forgejo
+
+- name: Write TLS private key
+  ansible.builtin.copy:
+    content: "{{ forgejo_tls_key }}"
+    dest: "{{ forgejo_config_dir }}/key.pem"
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "0600"
+  when: forgejo_enable_tls and forgejo_tls_key | length > 0
+  no_log: true
+  notify: Restart forgejo
+
+- name: Template Forgejo configuration
+  ansible.builtin.template:
+    src: app.ini.j2
+    dest: "{{ forgejo_config_dir }}/app.ini"
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "0600"
+  notify: Restart forgejo
+
+- name: Write systemd service file
+  ansible.builtin.template:
+    src: forgejo.service.j2
+    dest: "/etc/systemd/system/{{ forgejo_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart forgejo

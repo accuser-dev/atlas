@@ -1,0 +1,37 @@
+# =============================================================================
+# Mosquitto Service Tasks
+# =============================================================================
+# Manages the Mosquitto systemd service.
+
+---
+- name: Ensure systemd is reloaded
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable mosquitto service
+  ansible.builtin.systemd:
+    name: "{{ mosquitto_service_name }}"
+    enabled: "{{ mosquitto_service_enabled }}"
+
+- name: Start mosquitto service
+  ansible.builtin.systemd:
+    name: "{{ mosquitto_service_name }}"
+    state: started
+
+- name: Wait for mosquitto to be ready
+  ansible.builtin.wait_for:
+    port: "{{ mosquitto_mqtt_port }}"
+    host: 127.0.0.1
+    delay: 2
+    timeout: 30
+
+- name: Test MQTT connection
+  ansible.builtin.command:
+    cmd: "mosquitto_sub -h 127.0.0.1 -p {{ mosquitto_mqtt_port }} -t '$SYS/#' -C 1 -W 5"
+  register: mqtt_test
+  changed_when: false
+  failed_when: false
+
+- name: Display mosquitto status
+  ansible.builtin.debug:
+    msg: "Mosquitto is running on port {{ mosquitto_mqtt_port }}{{ ' and ' + mosquitto_mqtts_port + ' (TLS)' if mosquitto_enable_tls else '' }}"

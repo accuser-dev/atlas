@@ -1,0 +1,114 @@
+# =============================================================================
+# Forgejo Installation Tasks
+# =============================================================================
+# Downloads and installs the Forgejo binary.
+
+---
+- name: Check if forgejo service exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/forgejo.service
+  register: forgejo_service_file
+
+- name: Stop forgejo service for user management
+  ansible.builtin.systemd:
+    name: forgejo
+    state: stopped
+  when: forgejo_service_file.stat.exists
+  ignore_errors: true
+
+- name: Ensure git group exists
+  ansible.builtin.group:
+    name: "{{ forgejo_group }}"
+    gid: "{{ forgejo_gid }}"
+    state: present
+
+- name: Check if git user exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ forgejo_user }}"
+  register: forgejo_user_check
+  failed_when: false
+
+- name: Ensure git user exists
+  ansible.builtin.user:
+    name: "{{ forgejo_user }}"
+    uid: "{{ forgejo_uid }}"
+    group: "{{ forgejo_group }}"
+    home: "{{ forgejo_data_dir }}"
+    shell: /bin/bash
+    system: true
+    create_home: true
+    state: present
+  when: forgejo_user_check.failed | default(false) or forgejo_user_check.ansible_facts.getent_passwd[forgejo_user] is none
+
+- name: Create forgejo directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "0755"
+  loop:
+    - "{{ forgejo_data_dir }}"
+    - "{{ forgejo_data_dir }}/data"
+    - "{{ forgejo_data_dir }}/data/sessions"
+    - "{{ forgejo_data_dir }}/data/avatars"
+    - "{{ forgejo_data_dir }}/data/repo-avatars"
+    - "{{ forgejo_data_dir }}/data/attachments"
+    - "{{ forgejo_data_dir }}/data/lfs"
+    - "{{ forgejo_repositories_dir }}"
+    - "{{ forgejo_log_dir }}"
+    - "{{ forgejo_data_dir }}/custom"
+
+- name: Create config directory
+  ansible.builtin.file:
+    path: "{{ forgejo_config_dir }}"
+    state: directory
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "0750"
+
+- name: Detect system architecture
+  ansible.builtin.set_fact:
+    forgejo_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}"
+
+- name: Check if forgejo binary exists
+  ansible.builtin.stat:
+    path: "{{ forgejo_binary_path }}"
+  register: forgejo_binary
+
+- name: Get installed forgejo version
+  ansible.builtin.command:
+    cmd: "{{ forgejo_binary_path }} --version"
+  register: installed_version
+  changed_when: false
+  failed_when: false
+  when: forgejo_binary.stat.exists
+
+- name: Parse installed version
+  ansible.builtin.set_fact:
+    installed_forgejo_version: "{{ (installed_version.stdout | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''])) | first }}"
+  when: forgejo_binary.stat.exists and installed_version.rc == 0
+
+- name: Download Forgejo binary
+  ansible.builtin.get_url:
+    url: "https://codeberg.org/forgejo/forgejo/releases/download/v{{ forgejo_version }}/forgejo-{{ forgejo_version }}-linux-{{ forgejo_arch }}"
+    dest: "{{ forgejo_binary_path }}"
+    mode: "0755"
+    owner: root
+    group: root
+  when: >
+    not forgejo_binary.stat.exists or
+    (installed_forgejo_version is defined and installed_forgejo_version != forgejo_version)
+  notify: Restart forgejo
+
+- name: Verify forgejo binary
+  ansible.builtin.command:
+    cmd: "{{ forgejo_binary_path }} --version"
+  register: verify_version
+  changed_when: false
+  failed_when: verify_version.rc != 0
+
+- name: Display installed version
+  ansible.builtin.debug:
+    msg: "Forgejo installed: {{ verify_version.stdout }}"

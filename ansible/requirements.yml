@@ -7,3 +7,11 @@ collections:
   # Incus connection plugin for container management
   - name: community.general
     version: ">=9.0.0"
+
+  # PostgreSQL management modules (postgresql_user, postgresql_db, postgresql_pg_hba)
+  - name: community.postgresql
+    version: ">=3.0.0"
+
+  # Cryptography modules for certificate handling
+  - name: community.crypto
+    version: ">=2.0.0"

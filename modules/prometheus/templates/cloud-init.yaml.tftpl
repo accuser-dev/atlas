@@ -1,97 +1,17 @@
 #cloud-config
-# Prometheus system container configuration
-# Uses Debian Trixie with systemd service management
+# Prometheus system container - minimal bootstrap for Ansible
+# All service configuration is managed by Ansible
 
 package_update: true
 package_upgrade: false
 
 packages:
+  - python3
+  - python3-apt
   - curl
 
-write_files:
-  # Prometheus configuration file
-  - path: /etc/prometheus/prometheus.yml
-    permissions: '0644'
-    content: |
-      ${indent(6, prometheus_config)}
-
-%{ if alert_rules != "" ~}
-  # Alert rules file
-  - path: /etc/prometheus/alerts/alerts.yml
-    permissions: '0644'
-    content: |
-      ${indent(6, alert_rules)}
-%{ endif ~}
-
-%{ if incus_metrics_certificate != "" ~}
-  # Incus metrics certificate for mTLS
-  - path: /etc/prometheus/tls/metrics.crt
-    permissions: '0600'
-    content: |
-      ${indent(6, incus_metrics_certificate)}
-%{ endif ~}
-
-%{ if incus_metrics_private_key != "" ~}
-  # Incus metrics private key
-  - path: /etc/prometheus/tls/metrics.key
-    permissions: '0600'
-    content: |
-      ${indent(6, incus_metrics_private_key)}
-%{ endif ~}
-
-  # systemd service unit for Prometheus
-  - path: /etc/systemd/system/prometheus.service
-    permissions: '0644'
-    content: |
-      [Unit]
-      Description=Prometheus monitoring system
-      After=network-online.target
-      Wants=network-online.target
-
-      [Service]
-      Type=simple
-      User=prometheus
-      Group=prometheus
-      ExecStart=/usr/local/bin/prometheus \
-        --config.file=/etc/prometheus/prometheus.yml \
-        --storage.tsdb.path=/prometheus \
-        --storage.tsdb.retention.time=${retention_time} \
-%{ if retention_size != "" ~}
-        --storage.tsdb.retention.size=${retention_size} \
-%{ endif ~}
-        --web.listen-address=:${prometheus_port} \
-        --web.enable-lifecycle
-      Restart=on-failure
-      RestartSec=10
-      StandardOutput=journal
-      StandardError=journal
-
-      # Security hardening
-      NoNewPrivileges=yes
-      ProtectSystem=strict
-      ProtectHome=yes
-      ReadWritePaths=/prometheus
-      PrivateTmp=yes
-
-      [Install]
-      WantedBy=multi-user.target
-
 runcmd:
-  # Download and install Prometheus
-  - |
-    PROMETHEUS_VERSION="${prometheus_version}"
-    cd /tmp
-    curl -sLO "https://github.com/prometheus/prometheus/releases/download/v$${PROMETHEUS_VERSION}/prometheus-$${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
-    tar -xzf "prometheus-$${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
-    mv "prometheus-$${PROMETHEUS_VERSION}.linux-amd64/prometheus" /usr/local/bin/prometheus
-    mv "prometheus-$${PROMETHEUS_VERSION}.linux-amd64/promtool" /usr/local/bin/promtool
-    chmod +x /usr/local/bin/prometheus /usr/local/bin/promtool
-    rm -rf "prometheus-$${PROMETHEUS_VERSION}.linux-amd64.tar.gz" "prometheus-$${PROMETHEUS_VERSION}.linux-amd64"
-  # Create prometheus user and directories
-  - useradd --system --no-create-home --shell /usr/sbin/nologin prometheus 2>/dev/null || true
-  - mkdir -p /prometheus /etc/prometheus/tls /etc/prometheus/alerts
-  - chown -R prometheus:prometheus /prometheus /etc/prometheus
-  # Enable and start prometheus service
-  - systemctl daemon-reload
-  - systemctl enable prometheus
-  - systemctl start prometheus
+  # Ensure python3 is the default
+  - update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+  # Signal that cloud-init is complete and Ansible can proceed
+  - touch /var/lib/cloud/instance/ansible-ready

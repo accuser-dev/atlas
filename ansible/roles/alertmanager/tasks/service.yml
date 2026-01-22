@@ -1,0 +1,43 @@
+# =============================================================================
+# Alertmanager Service Tasks
+# =============================================================================
+# Manages the alertmanager systemd service.
+
+---
+- name: Ensure systemd is reloaded
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable alertmanager service
+  ansible.builtin.systemd:
+    name: "{{ alertmanager_service_name }}"
+    enabled: "{{ alertmanager_service_enabled }}"
+
+- name: Start alertmanager service
+  ansible.builtin.systemd:
+    name: "{{ alertmanager_service_name }}"
+    state: started
+
+- name: Wait for alertmanager to be ready
+  ansible.builtin.uri:
+    url: "{{ 'https' if alertmanager_enable_tls else 'http' }}://127.0.0.1:{{ alertmanager_port }}/-/ready"
+    method: GET
+    status_code: 200
+    validate_certs: false
+  register: alertmanager_ready
+  until: alertmanager_ready.status == 200
+  retries: 30
+  delay: 2
+
+- name: Verify alertmanager is healthy
+  ansible.builtin.uri:
+    url: "{{ 'https' if alertmanager_enable_tls else 'http' }}://127.0.0.1:{{ alertmanager_port }}/-/healthy"
+    method: GET
+    status_code: 200
+    validate_certs: false
+  register: alertmanager_healthy
+  changed_when: false
+
+- name: Display alertmanager status
+  ansible.builtin.debug:
+    msg: "Alertmanager is running and healthy on port {{ alertmanager_port }}"

@@ -1,140 +1,18 @@
 #cloud-config
-# Alertmanager system container cloud-init configuration
-# Uses Debian Trixie with systemd service management
+# Alertmanager system container - minimal bootstrap for Ansible
+# All service configuration is managed by Ansible
 
 package_update: true
 package_upgrade: false
 
 packages:
+  - python3
+  - python3-apt
   - curl
-%{ if enable_tls ~}
   - tar
-%{ endif ~}
-
-write_files:
-  # Alertmanager configuration file
-  - path: /etc/alertmanager/alertmanager.yml
-    permissions: '0644'
-    content: |
-      ${indent(6, alertmanager_config)}
-
-%{ if enable_tls ~}
-  # TLS entrypoint script
-  - path: /usr/local/bin/setup-tls.sh
-    permissions: '0755'
-    content: |
-      #!/bin/bash
-      # TLS setup script for Alertmanager
-      set -eu
-
-      TLS_DIR="/etc/alertmanager/tls"
-      CERT_FILE="$${TLS_DIR}/alertmanager.crt"
-      KEY_FILE="$${TLS_DIR}/alertmanager.key"
-      CA_FILE="$${TLS_DIR}/ca.crt"
-
-      # Create TLS directory
-      mkdir -p "$${TLS_DIR}"
-
-      # Bootstrap trust to the CA
-      if ! step ca bootstrap --ca-url "${stepca_url}" --fingerprint "${stepca_fingerprint}" --force; then
-        echo "ERROR: Failed to bootstrap CA trust"
-        exit 1
-      fi
-
-      # Get hostname for certificate
-      HOSTNAME=$(hostname)
-      echo "INFO: Requesting certificate for hostname: $${HOSTNAME}"
-
-      # Request certificate using ACME
-      if ! step ca certificate "$${HOSTNAME}" "$${CERT_FILE}" "$${KEY_FILE}" \
-          --ca-url "${stepca_url}" \
-          --provisioner acme \
-          --not-after "${cert_duration}" \
-          --force; then
-        echo "ERROR: Failed to obtain certificate"
-        exit 1
-      fi
-
-      # Copy root CA for client verification
-      if ! cp "$(step path)/certs/root_ca.crt" "$${CA_FILE}"; then
-        echo "ERROR: Failed to copy root CA certificate"
-        exit 1
-      fi
-
-      # Set proper ownership
-      chown -R alertmanager:alertmanager "$${TLS_DIR}"
-      chmod 600 "$${KEY_FILE}"
-
-      echo "INFO: Certificate obtained successfully"
-%{ endif ~}
-
-  # systemd service unit for Alertmanager
-  - path: /etc/systemd/system/alertmanager.service
-    permissions: '0644'
-    content: |
-      [Unit]
-      Description=Prometheus Alertmanager
-      After=network-online.target
-      Wants=network-online.target
-
-      [Service]
-      Type=simple
-      User=alertmanager
-      Group=alertmanager
-%{ if enable_tls ~}
-      ExecStartPre=/usr/local/bin/setup-tls.sh
-%{ endif ~}
-      ExecStart=/usr/local/bin/alertmanager \
-        --config.file=/etc/alertmanager/alertmanager.yml \
-        --storage.path=/var/lib/alertmanager \
-        --web.listen-address=:${alertmanager_port} \
-        --cluster.listen-address=
-      Restart=on-failure
-      RestartSec=10
-      StandardOutput=journal
-      StandardError=journal
-
-      # Security hardening
-      NoNewPrivileges=yes
-      ProtectSystem=strict
-      ProtectHome=yes
-      ReadWritePaths=/var/lib/alertmanager
-%{ if enable_tls ~}
-      ReadWritePaths=/etc/alertmanager/tls
-%{ endif ~}
-      PrivateTmp=yes
-
-      [Install]
-      WantedBy=multi-user.target
 
 runcmd:
-  # Download and install Alertmanager
-  - |
-    ALERTMANAGER_VERSION="${alertmanager_version}"
-    cd /tmp
-    curl -sLO "https://github.com/prometheus/alertmanager/releases/download/v$${ALERTMANAGER_VERSION}/alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64.tar.gz"
-    tar -xzf "alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64.tar.gz"
-    mv "alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64/alertmanager" /usr/local/bin/
-    mv "alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64/amtool" /usr/local/bin/
-    chmod +x /usr/local/bin/alertmanager /usr/local/bin/amtool
-    rm -rf "alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64.tar.gz" "alertmanager-$${ALERTMANAGER_VERSION}.linux-amd64"
-%{ if enable_tls ~}
-  # Install step-cli for TLS certificate management
-  - |
-    STEP_VERSION="${step_version}"
-    cd /tmp
-    curl -sLO "https://github.com/smallstep/cli/releases/download/v$${STEP_VERSION}/step_linux_$${STEP_VERSION}_amd64.tar.gz"
-    tar -xzf "step_linux_$${STEP_VERSION}_amd64.tar.gz"
-    mv "step_$${STEP_VERSION}/bin/step" /usr/local/bin/step
-    chmod +x /usr/local/bin/step
-    rm -rf "step_linux_$${STEP_VERSION}_amd64.tar.gz" "step_$${STEP_VERSION}"
-%{ endif ~}
-  # Create alertmanager user and directories
-  - groupadd --system alertmanager 2>/dev/null || true
-  - useradd --system --gid alertmanager --no-create-home --shell /usr/sbin/nologin alertmanager 2>/dev/null || true
-  - mkdir -p /var/lib/alertmanager /etc/alertmanager
-  - chown -R alertmanager:alertmanager /var/lib/alertmanager /etc/alertmanager
-  # Enable and start alertmanager service
-  - systemctl daemon-reload
-  - systemctl enable alertmanager
-  - systemctl start alertmanager
+  # Ensure python3 is the default
+  - update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+  # Signal that cloud-init is complete and Ansible can proceed
+  - touch /var/lib/cloud/instance/ansible-ready

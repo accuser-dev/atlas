@@ -1,0 +1,13 @@
+# =============================================================================
+# Forgejo Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart forgejo
+  ansible.builtin.systemd:
+    name: "{{ forgejo_service_name }}"
+    state: restarted

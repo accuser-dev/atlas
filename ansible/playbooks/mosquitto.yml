@@ -1,0 +1,57 @@
+# =============================================================================
+# Mosquitto Playbook
+# =============================================================================
+# Configures Mosquitto MQTT broker on target containers.
+#
+# Usage:
+#   # Configure without user management
+#   ENV=cluster01 ansible-playbook playbooks/mosquitto.yml --skip-tags users
+#
+#   # Configure with users (passwords from Terraform vars)
+#   ENV=cluster01 ansible-playbook playbooks/mosquitto.yml
+
+---
+- name: Configure Mosquitto
+  hosts: mosquitto
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring Mosquitto: {{ inventory_hostname }}
+          MQTT Port: {{ mosquitto_mqtt_port | default('1883') }}
+          MQTTS Port: {{ mosquitto_mqtts_port | default('8883') }}
+          TLS: {{ mosquitto_enable_tls | default(false) }}
+          Users: {{ mosquitto_users | default({}) | length }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: mosquitto
+
+  post_tasks:
+    - name: Verify mosquitto status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ mosquitto_service_name | default('mosquitto') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          Mosquitto configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}
+          MQTT Endpoint: mqtt://{{ ipv4_address | default(inventory_hostname) }}:{{ mosquitto_mqtt_port | default('1883') }}
+          {% if mosquitto_enable_tls | default(false) %}
+          MQTTS Endpoint: mqtts://{{ ipv4_address | default(inventory_hostname) }}:{{ mosquitto_mqtts_port | default('8883') }}
+          {% endif %}

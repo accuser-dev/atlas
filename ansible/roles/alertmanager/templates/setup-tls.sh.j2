@@ -1,0 +1,43 @@
+#!/bin/bash
+# TLS setup script for Alertmanager
+set -eu
+
+TLS_DIR="{{ alertmanager_tls_dir }}"
+CERT_FILE="${TLS_DIR}/alertmanager.crt"
+KEY_FILE="${TLS_DIR}/alertmanager.key"
+CA_FILE="${TLS_DIR}/ca.crt"
+
+# Create TLS directory
+mkdir -p "${TLS_DIR}"
+
+# Bootstrap trust to the CA
+if ! {{ step_binary_path }} ca bootstrap --ca-url "{{ stepca_url }}" --fingerprint "{{ stepca_fingerprint }}" --force; then
+  echo "ERROR: Failed to bootstrap CA trust"
+  exit 1
+fi
+
+# Get hostname for certificate
+HOSTNAME=$(hostname)
+echo "INFO: Requesting certificate for hostname: ${HOSTNAME}"
+
+# Request certificate using ACME
+if ! {{ step_binary_path }} ca certificate "${HOSTNAME}" "${CERT_FILE}" "${KEY_FILE}" \
+    --ca-url "{{ stepca_url }}" \
+    --provisioner acme \
+    --not-after "{{ cert_duration }}" \
+    --force; then
+  echo "ERROR: Failed to obtain certificate"
+  exit 1
+fi
+
+# Copy root CA for client verification
+if ! cp "$({{ step_binary_path }} path)/certs/root_ca.crt" "${CA_FILE}"; then
+  echo "ERROR: Failed to copy root CA certificate"
+  exit 1
+fi
+
+# Set proper ownership
+chown -R {{ alertmanager_user }}:{{ alertmanager_group }} "${TLS_DIR}"
+chmod 600 "${KEY_FILE}"
+
+echo "INFO: Certificate obtained successfully"

@@ -1,0 +1,13 @@
+# =============================================================================
+# step-ca Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart step-ca
+  ansible.builtin.systemd:
+    name: "{{ step_ca_service_name }}"
+    state: restarted

@@ -638,3 +638,152 @@ deploy-full: apply configure
 	@echo ""
 	@echo "Full deployment complete for $(ENV)!"
 	@echo "Terraform infrastructure deployed and Ansible configuration applied."
+
+# =============================================================================
+# Individual Service Configuration Targets
+# =============================================================================
+
+# Configure Prometheus (no secrets required)
+configure-prometheus:
+	@echo "Configuring Prometheus for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/prometheus.yml
+	@echo ""
+	@echo "Prometheus configuration complete."
+
+# Configure Forgejo (without secrets)
+configure-forgejo:
+	@echo "Configuring Forgejo for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/forgejo.yml --skip-tags secrets
+	@echo ""
+	@echo "Forgejo configuration complete (secrets skipped)."
+	@echo "To configure with secrets, run: FORGEJO_DB_PASSWORD=<pw> FORGEJO_ADMIN_PASSWORD=<pw> make configure-forgejo-full ENV=$(ENV)"
+
+# Configure Forgejo with secrets (requires FORGEJO_DB_PASSWORD and FORGEJO_ADMIN_PASSWORD)
+configure-forgejo-full:
+	@echo "Configuring Forgejo with secrets for $(ENV)..."
+	@if [ -z "$$FORGEJO_DB_PASSWORD" ] || [ -z "$$FORGEJO_ADMIN_PASSWORD" ]; then \
+		echo "ERROR: FORGEJO_DB_PASSWORD and FORGEJO_ADMIN_PASSWORD environment variables required."; \
+		echo ""; \
+		echo "Run:"; \
+		echo "  FORGEJO_DB_PASSWORD=<password> FORGEJO_ADMIN_PASSWORD=<password> make configure-forgejo-full ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) FORGEJO_DB_PASSWORD="$$FORGEJO_DB_PASSWORD" FORGEJO_ADMIN_PASSWORD="$$FORGEJO_ADMIN_PASSWORD" ansible-playbook playbooks/forgejo.yml
+	@echo ""
+	@echo "Forgejo configuration with secrets complete."
+
+# Configure PostgreSQL (without user passwords)
+configure-postgresql:
+	@echo "Configuring PostgreSQL for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/postgresql.yml --skip-tags users
+	@echo ""
+	@echo "PostgreSQL configuration complete (user creation skipped)."
+	@echo "To configure with users, run: POSTGRESQL_ADMIN_PASSWORD=<pw> make configure-postgresql-full ENV=$(ENV)"
+
+# Configure PostgreSQL with user passwords (requires POSTGRESQL_ADMIN_PASSWORD)
+configure-postgresql-full:
+	@echo "Configuring PostgreSQL with users for $(ENV)..."
+	@if [ -z "$$POSTGRESQL_ADMIN_PASSWORD" ]; then \
+		echo "ERROR: POSTGRESQL_ADMIN_PASSWORD environment variable required."; \
+		echo ""; \
+		echo "Run:"; \
+		echo "  POSTGRESQL_ADMIN_PASSWORD=<password> make configure-postgresql-full ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) POSTGRESQL_ADMIN_PASSWORD="$$POSTGRESQL_ADMIN_PASSWORD" ansible-playbook playbooks/postgresql.yml
+	@echo ""
+	@echo "PostgreSQL configuration with users complete."
+
+# Configure Alertmanager (no secrets required)
+configure-alertmanager:
+	@echo "Configuring Alertmanager for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/alertmanager.yml
+	@echo ""
+	@echo "Alertmanager configuration complete."
+
+# Configure step-ca (without CA initialization)
+configure-step-ca:
+	@echo "Configuring step-ca for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/step-ca.yml --skip-tags init
+	@echo ""
+	@echo "step-ca configuration complete (initialization skipped)."
+	@echo "To initialize CA, run: STEP_CA_PASSWORD=<pw> make configure-step-ca-full ENV=$(ENV)"
+
+# Configure step-ca with CA initialization (requires STEP_CA_PASSWORD)
+configure-step-ca-full:
+	@echo "Configuring and initializing step-ca for $(ENV)..."
+	@if [ -z "$$STEP_CA_PASSWORD" ]; then \
+		echo "ERROR: STEP_CA_PASSWORD environment variable required."; \
+		echo ""; \
+		echo "Run:"; \
+		echo "  STEP_CA_PASSWORD=<password> make configure-step-ca-full ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) STEP_CA_PASSWORD="$$STEP_CA_PASSWORD" ansible-playbook playbooks/step-ca.yml
+	@echo ""
+	@echo "step-ca configuration and initialization complete."
+
+# Configure Mosquitto (without user passwords)
+configure-mosquitto:
+	@echo "Configuring Mosquitto for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/mosquitto.yml --skip-tags users
+	@echo ""
+	@echo "Mosquitto configuration complete (user creation skipped)."
+	@echo "To configure with users, run: make configure-mosquitto-full ENV=$(ENV)"
+
+# Configure Mosquitto with users (user passwords from Terraform vars)
+configure-mosquitto-full:
+	@echo "Configuring Mosquitto with users for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/mosquitto.yml
+	@echo ""
+	@echo "Mosquitto configuration with users complete."

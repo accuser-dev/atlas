@@ -1,0 +1,30 @@
+[Unit]
+Description=Forgejo - Beyond coding. We forge.
+Documentation=https://forgejo.org/docs/latest/
+After=network.target
+{% if forgejo_database_type == "postgres" %}
+After=network-online.target
+Wants=network-online.target
+{% endif %}
+
+[Service]
+Type=simple
+User={{ forgejo_user }}
+Group={{ forgejo_group }}
+WorkingDirectory={{ forgejo_data_dir }}
+ExecStart={{ forgejo_binary_path }} web --config {{ forgejo_config_dir }}/app.ini
+Restart=always
+RestartSec=5
+Environment=USER={{ forgejo_user }}
+Environment=HOME={{ forgejo_data_dir }}
+Environment=FORGEJO_WORK_DIR={{ forgejo_data_dir }}
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ forgejo_data_dir }} {{ forgejo_config_dir }}
+
+[Install]
+WantedBy=multi-user.target

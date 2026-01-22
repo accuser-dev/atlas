@@ -1,0 +1,5 @@
+[Service]
+ReadWritePaths={{ mosquitto_data_dir }}
+{% if mosquitto_enable_tls %}
+ExecStartPre=/usr/local/bin/mosquitto-tls-setup.sh
+{% endif %}

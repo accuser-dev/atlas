@@ -1,0 +1,66 @@
+# =============================================================================
+# PostgreSQL Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Display role configuration
+  ansible.builtin.debug:
+    msg: |
+      PostgreSQL Configuration:
+        Port: {{ postgresql_port }}
+        Databases: {{ postgresql_databases | length }}
+        Users: {{ postgresql_users | length }}
+        Metrics: {{ postgresql_enable_metrics }}
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: postgresql_state == 'present'
+  tags:
+    - configure
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: postgresql_state == 'present'
+  tags:
+    - service
+
+- name: Include user creation tasks
+  ansible.builtin.include_tasks: users.yml
+  when: postgresql_state == 'present'
+  tags:
+    - users
+
+- name: Include database creation tasks
+  ansible.builtin.include_tasks: databases.yml
+  when: postgresql_state == 'present'
+  tags:
+    - databases
+
+- name: Include exporter tasks
+  ansible.builtin.include_tasks: exporter.yml
+  when: postgresql_state == 'present' and postgresql_enable_metrics
+  tags:
+    - exporter
+    - metrics
+
+- name: Remove PostgreSQL
+  when: postgresql_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - "{{ postgresql_service_name }}"
+        - "{{ postgresql_exporter_service_name }}"
+      ignore_errors: true
+
+    - name: Remove exporter service file
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ postgresql_exporter_service_name }}.service"
+        state: absent
+      notify: Reload systemd

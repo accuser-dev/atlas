@@ -393,7 +393,7 @@ variable "enable_forgejo" {
 variable "forgejo_admin_username" {
   description = "Forgejo admin username"
   type        = string
-  default     = "admin"
+  default     = "forge_admin"  # "admin" is reserved in Forgejo
 }
 
 variable "forgejo_admin_password" {

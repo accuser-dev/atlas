@@ -1,0 +1,60 @@
+# =============================================================================
+# step-ca Playbook
+# =============================================================================
+# Configures step-ca Certificate Authority on target containers.
+#
+# Usage:
+#   # Configure without CA initialization (skip if password not provided)
+#   ENV=iapetus ansible-playbook playbooks/step-ca.yml --skip-tags init
+#
+#   # Configure with CA initialization
+#   STEP_CA_PASSWORD=<pw> ENV=iapetus ansible-playbook playbooks/step-ca.yml
+
+---
+- name: Configure step-ca
+  hosts: step_ca
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring step-ca: {{ inventory_hostname }}
+          CA Name: {{ step_ca_name | default('NOT SET') }}
+          Port: {{ step_ca_port | default('9000') }}
+          Cert Duration: {{ cert_duration | default('24h') }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: step_ca
+
+  post_tasks:
+    - name: Verify step-ca status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ step_ca_service_name | default('step-ca') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Read CA fingerprint
+      ansible.builtin.slurp:
+        src: /home/step/fingerprint
+      register: ca_fingerprint
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          step-ca configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}
+          ACME Endpoint: https://{{ ipv4_address | default(inventory_hostname) }}:{{ step_ca_port | default('9000') }}
+          CA Fingerprint: {{ (ca_fingerprint.content | b64decode | trim) if ca_fingerprint.content is defined else 'N/A' }}

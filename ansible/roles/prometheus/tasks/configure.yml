@@ -1,0 +1,73 @@
+# =============================================================================
+# Prometheus Configuration Tasks
+# =============================================================================
+# Templates configuration files and TLS certificates.
+
+---
+- name: Write prometheus configuration
+  ansible.builtin.copy:
+    content: "{{ prometheus_config }}"
+    dest: "{{ prometheus_config_dir }}/prometheus.yml"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: "0644"
+  notify: Reload prometheus
+
+- name: Write alert rules
+  ansible.builtin.copy:
+    content: "{{ prometheus_alert_rules_base64 | b64decode }}"
+    dest: "{{ prometheus_alerts_dir }}/alerts.yml"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: "0644"
+  when: prometheus_has_alert_rules | default(false)
+  notify: Reload prometheus
+
+- name: Remove alert rules file if not configured
+  ansible.builtin.file:
+    path: "{{ prometheus_alerts_dir }}/alerts.yml"
+    state: absent
+  when: not (prometheus_has_alert_rules | default(false))
+
+- name: Write Incus metrics certificate
+  ansible.builtin.copy:
+    content: "{{ incus_metrics_cert }}"
+    dest: "{{ prometheus_tls_dir }}/metrics.crt"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: "0600"
+  when: incus_has_metrics_cert | default(false)
+  notify: Reload prometheus
+
+- name: Write Incus metrics private key
+  ansible.builtin.copy:
+    content: "{{ incus_metrics_key }}"
+    dest: "{{ prometheus_tls_dir }}/metrics.key"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: "0600"
+  when: incus_has_metrics_cert | default(false)
+  no_log: true
+  notify: Reload prometheus
+
+- name: Validate prometheus configuration
+  ansible.builtin.command:
+    cmd: "{{ prometheus_promtool_path }} check config {{ prometheus_config_dir }}/prometheus.yml"
+  register: config_check
+  changed_when: false
+  failed_when: config_check.rc != 0
+
+- name: Display configuration validation result
+  ansible.builtin.debug:
+    msg: "Configuration validated: {{ config_check.stdout }}"
+
+- name: Write systemd service file
+  ansible.builtin.template:
+    src: prometheus.service.j2
+    dest: "/etc/systemd/system/{{ prometheus_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart prometheus

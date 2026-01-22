@@ -1,0 +1,135 @@
+# =============================================================================
+# Alertmanager Installation Tasks
+# =============================================================================
+# Downloads and installs Alertmanager and amtool binaries.
+
+---
+- name: Check if alertmanager service exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/alertmanager.service
+  register: alertmanager_service_file
+
+- name: Stop alertmanager service for user management
+  ansible.builtin.systemd:
+    name: alertmanager
+    state: stopped
+  when: alertmanager_service_file.stat.exists
+  ignore_errors: true
+
+- name: Create alertmanager group
+  ansible.builtin.group:
+    name: "{{ alertmanager_group }}"
+    gid: "{{ alertmanager_gid }}"
+    system: true
+    state: present
+
+- name: Check if alertmanager user exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ alertmanager_user }}"
+  register: alertmanager_user_check
+  failed_when: false
+
+- name: Create alertmanager user
+  ansible.builtin.user:
+    name: "{{ alertmanager_user }}"
+    uid: "{{ alertmanager_uid }}"
+    group: "{{ alertmanager_group }}"
+    home: "{{ alertmanager_data_dir }}"
+    shell: /usr/sbin/nologin
+    system: true
+    create_home: false
+    state: present
+  when: alertmanager_user_check.failed | default(false) or alertmanager_user_check.ansible_facts.getent_passwd[alertmanager_user] is none
+
+- name: Create alertmanager directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ alertmanager_user }}"
+    group: "{{ alertmanager_group }}"
+    mode: "0755"
+  loop:
+    - "{{ alertmanager_config_dir }}"
+    - "{{ alertmanager_data_dir }}"
+    - "{{ alertmanager_tls_dir }}"
+
+- name: Detect system architecture
+  ansible.builtin.set_fact:
+    alertmanager_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}"
+
+- name: Check if alertmanager binary exists
+  ansible.builtin.stat:
+    path: "{{ alertmanager_binary_path }}"
+  register: alertmanager_binary
+
+- name: Get installed alertmanager version
+  ansible.builtin.command:
+    cmd: "{{ alertmanager_binary_path }} --version"
+  register: installed_version
+  changed_when: false
+  failed_when: false
+  when: alertmanager_binary.stat.exists
+
+- name: Parse installed version
+  ansible.builtin.set_fact:
+    installed_alertmanager_version: "{{ (installed_version.stdout | regex_search('alertmanager, version ([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''])) | first }}"
+  when: alertmanager_binary.stat.exists and installed_version.rc == 0
+
+- name: Download and install Alertmanager
+  when: >
+    not alertmanager_binary.stat.exists or
+    (installed_alertmanager_version is defined and installed_alertmanager_version != alertmanager_version)
+  block:
+    - name: Create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: alertmanager_
+      register: alertmanager_temp_dir
+
+    - name: Download Alertmanager archive
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus/alertmanager/releases/download/v{{ alertmanager_version }}/alertmanager-{{ alertmanager_version }}.linux-{{ alertmanager_arch }}.tar.gz"
+        dest: "{{ alertmanager_temp_dir.path }}/alertmanager.tar.gz"
+        mode: "0644"
+
+    - name: Extract Alertmanager archive
+      ansible.builtin.unarchive:
+        src: "{{ alertmanager_temp_dir.path }}/alertmanager.tar.gz"
+        dest: "{{ alertmanager_temp_dir.path }}"
+        remote_src: true
+
+    - name: Install alertmanager binary
+      ansible.builtin.copy:
+        src: "{{ alertmanager_temp_dir.path }}/alertmanager-{{ alertmanager_version }}.linux-{{ alertmanager_arch }}/alertmanager"
+        dest: "{{ alertmanager_binary_path }}"
+        mode: "0755"
+        owner: root
+        group: root
+        remote_src: true
+      notify: Restart alertmanager
+
+    - name: Install amtool binary
+      ansible.builtin.copy:
+        src: "{{ alertmanager_temp_dir.path }}/alertmanager-{{ alertmanager_version }}.linux-{{ alertmanager_arch }}/amtool"
+        dest: "{{ alertmanager_amtool_path }}"
+        mode: "0755"
+        owner: root
+        group: root
+        remote_src: true
+
+    - name: Clean up temporary directory
+      ansible.builtin.file:
+        path: "{{ alertmanager_temp_dir.path }}"
+        state: absent
+
+- name: Verify alertmanager binary
+  ansible.builtin.command:
+    cmd: "{{ alertmanager_binary_path }} --version"
+  register: verify_version
+  changed_when: false
+  failed_when: verify_version.rc != 0
+
+- name: Display installed version
+  ansible.builtin.debug:
+    msg: "Alertmanager installed: {{ verify_version.stdout_lines[0] }}"

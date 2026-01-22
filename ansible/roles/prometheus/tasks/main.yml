@@ -1,0 +1,70 @@
+# =============================================================================
+# Prometheus Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - prometheus_config is defined and prometheus_config | length > 0
+    fail_msg: "prometheus_config must be set (typically via Terraform output)"
+    success_msg: "Required variables validated"
+  tags:
+    - always
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+  when: prometheus_state == 'present'
+  tags:
+    - install
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: prometheus_state == 'present'
+  tags:
+    - configure
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: prometheus_state == 'present'
+  tags:
+    - service
+
+- name: Remove Prometheus
+  when: prometheus_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable service
+      ansible.builtin.systemd:
+        name: "{{ prometheus_service_name }}"
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove service file
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ prometheus_service_name }}.service"
+        state: absent
+      notify: Reload systemd
+
+    - name: Remove prometheus user
+      ansible.builtin.user:
+        name: "{{ prometheus_user }}"
+        state: absent
+        remove: true
+
+    - name: Remove prometheus group
+      ansible.builtin.group:
+        name: "{{ prometheus_group }}"
+        state: absent
+
+    - name: Remove prometheus directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ prometheus_config_dir }}"
+        - "{{ prometheus_binary_path }}"
+        - "{{ prometheus_promtool_path }}"

@@ -178,6 +178,38 @@ output "incus_oidc_config" {
 }
 
 # =============================================================================
+# Ansible Integration Outputs (Hybrid Terraform + Ansible)
+# =============================================================================
+
+# Prometheus
+output "prometheus_instances" {
+  description = "Prometheus instances for Ansible inventory"
+  value = {
+    "prometheus01" = module.prometheus01.instance_info
+  }
+}
+
+output "prometheus_ansible_vars" {
+  description = "Variables passed to Ansible for Prometheus configuration"
+  sensitive   = true
+  value       = module.prometheus01.ansible_vars
+}
+
+# step-ca
+output "step_ca_instances" {
+  description = "step-ca instances for Ansible inventory"
+  value = {
+    "step-ca01" = module.step_ca01.instance_info
+  }
+}
+
+output "step_ca_ansible_vars" {
+  description = "Variables passed to Ansible for step-ca configuration"
+  sensitive   = true
+  value       = module.step_ca01.ansible_vars
+}
+
+# =============================================================================
 # OVN Central
 # =============================================================================
 

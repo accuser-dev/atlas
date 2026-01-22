@@ -1,0 +1,42 @@
+# =============================================================================
+# Mosquitto Configuration Tasks
+# =============================================================================
+# Templates the Mosquitto configuration file.
+
+---
+- name: Create TLS directory
+  ansible.builtin.file:
+    path: "{{ mosquitto_tls_dir }}"
+    state: directory
+    owner: "{{ mosquitto_user }}"
+    group: "{{ mosquitto_group }}"
+    mode: "0755"
+  when: mosquitto_enable_tls
+
+- name: Template Mosquitto configuration
+  ansible.builtin.template:
+    src: mosquitto.conf.j2
+    dest: "{{ mosquitto_config_dir }}/mosquitto.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart mosquitto
+
+- name: Create systemd override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/mosquitto.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Template systemd override
+  ansible.builtin.template:
+    src: mosquitto.service.override.j2
+    dest: /etc/systemd/system/mosquitto.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart mosquitto

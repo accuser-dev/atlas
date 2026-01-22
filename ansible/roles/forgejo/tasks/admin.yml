@@ -1,0 +1,46 @@
+# =============================================================================
+# Forgejo Admin User Tasks
+# =============================================================================
+# Creates the admin user (idempotent).
+
+---
+- name: Check if admin password is provided
+  ansible.builtin.assert:
+    that:
+      - forgejo_admin_password | length >= 8
+    fail_msg: "FORGEJO_ADMIN_PASSWORD must be set (at least 8 characters)"
+    success_msg: "Admin password is provided"
+
+- name: Check if admin user exists
+  ansible.builtin.command:
+    cmd: "{{ forgejo_binary_path }} admin user list --config {{ forgejo_config_dir }}/app.ini"
+  become: true
+  become_user: "{{ forgejo_user }}"
+  register: user_list
+  changed_when: false
+  failed_when: false
+
+- name: Check if any admin user exists
+  ansible.builtin.set_fact:
+    # Check if specified username exists OR if there's already an admin (IsActive=true AND IsAdmin=true)
+    admin_user_exists: "{{ forgejo_admin_username in user_list.stdout or 'true     true' in user_list.stdout }}"
+
+- name: Create admin user
+  ansible.builtin.command:
+    cmd: >
+      {{ forgejo_binary_path }} admin user create
+      --config {{ forgejo_config_dir }}/app.ini
+      --username "{{ forgejo_admin_username }}"
+      --password "{{ forgejo_admin_password }}"
+      --email "{{ forgejo_admin_email }}"
+      --admin
+      --must-change-password=false
+  become: true
+  become_user: "{{ forgejo_user }}"
+  when: not admin_user_exists
+  no_log: true
+  register: admin_created
+
+- name: Display admin user status
+  ansible.builtin.debug:
+    msg: "{{ 'Admin user created' if admin_created.changed | default(false) else 'Admin user already exists or admin already configured' }}"

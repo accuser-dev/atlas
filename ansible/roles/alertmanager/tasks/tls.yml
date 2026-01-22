@@ -1,0 +1,61 @@
+# =============================================================================
+# Alertmanager TLS Tasks
+# =============================================================================
+# Installs step-cli and configures TLS certificate provisioning.
+
+---
+- name: Validate TLS variables
+  ansible.builtin.assert:
+    that:
+      - stepca_url | length > 0
+      - stepca_fingerprint | length > 0
+    fail_msg: "stepca_url and stepca_fingerprint are required when TLS is enabled"
+    success_msg: "TLS variables validated"
+
+- name: Check if step-cli exists
+  ansible.builtin.stat:
+    path: "{{ step_binary_path }}"
+  register: step_binary
+
+- name: Download and install step-cli
+  when: not step_binary.stat.exists
+  block:
+    - name: Create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: step_
+      register: step_temp_dir
+
+    - name: Download step-cli archive
+      ansible.builtin.get_url:
+        url: "https://github.com/smallstep/cli/releases/download/v{{ step_version }}/step_linux_{{ step_version }}_{{ alertmanager_arch }}.tar.gz"
+        dest: "{{ step_temp_dir.path }}/step.tar.gz"
+        mode: "0644"
+
+    - name: Extract step-cli archive
+      ansible.builtin.unarchive:
+        src: "{{ step_temp_dir.path }}/step.tar.gz"
+        dest: "{{ step_temp_dir.path }}"
+        remote_src: true
+
+    - name: Install step binary
+      ansible.builtin.copy:
+        src: "{{ step_temp_dir.path }}/step_{{ step_version }}/bin/step"
+        dest: "{{ step_binary_path }}"
+        mode: "0755"
+        owner: root
+        group: root
+        remote_src: true
+
+    - name: Clean up temporary directory
+      ansible.builtin.file:
+        path: "{{ step_temp_dir.path }}"
+        state: absent
+
+- name: Write TLS setup script
+  ansible.builtin.template:
+    src: setup-tls.sh.j2
+    dest: /usr/local/bin/setup-tls.sh
+    owner: root
+    group: root
+    mode: "0755"

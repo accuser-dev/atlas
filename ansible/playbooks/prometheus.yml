@@ -1,0 +1,49 @@
+# =============================================================================
+# Prometheus Playbook
+# =============================================================================
+# Configures Prometheus on target containers.
+#
+# Usage:
+#   ENV=cluster01 ansible-playbook playbooks/prometheus.yml
+
+---
+- name: Configure Prometheus
+  hosts: prometheus
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring Prometheus: {{ inventory_hostname }}
+          Version: {{ prometheus_version | default('NOT SET') }}
+          Port: {{ prometheus_port | default('9090') }}
+          Retention: {{ prometheus_retention_time | default('30d') }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: prometheus
+
+  post_tasks:
+    - name: Verify prometheus status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ prometheus_service_name | default('prometheus') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          Prometheus configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}
+          Endpoint: http://{{ ipv4_address | default(inventory_hostname) }}:{{ prometheus_port | default('9090') }}

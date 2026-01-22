@@ -64,40 +64,93 @@ def build_inventory(tf_output: dict) -> dict:
     env = os.environ.get("ENV", "cluster01")
     incus_remote = get_incus_remote()
 
+    # Define all service groups
+    service_groups = [
+        "forgejo_runners",
+        "prometheus",
+        "forgejo",
+        "postgresql",
+        "alertmanager",
+        "step_ca",
+        "mosquitto",
+    ]
+
     inventory = {
         "_meta": {
             "hostvars": {}
         },
         "all": {
-            "children": ["forgejo_runners"]
+            "children": service_groups
         },
-        "forgejo_runners": {
+    }
+
+    # Initialize all groups with connection settings
+    for group in service_groups:
+        inventory[group] = {
             "hosts": [],
             "vars": {
                 "ansible_connection": "community.general.incus",
                 "ansible_incus_remote": incus_remote,
             }
         }
-    }
 
-    # Check for Forgejo runner outputs
-    if "forgejo_runner_instances" in tf_output:
-        runner_instances = tf_output["forgejo_runner_instances"]["value"]
+    # Helper function to add instances to a group
+    def add_instances_to_group(group_name: str, instances_key: str, vars_key: str):
+        if instances_key in tf_output:
+            instances = tf_output[instances_key]["value"]
+            # Skip if instances is None or empty
+            if instances:
+                for instance_name, instance_data in instances.items():
+                    # Add to group
+                    inventory[group_name]["hosts"].append(instance_name)
+                    # Add host variables
+                    inventory["_meta"]["hostvars"][instance_name] = {
+                        "ansible_incus_host": instance_name,
+                        "ipv4_address": instance_data.get("ipv4_address", ""),
+                    }
 
-        for instance_name, instance_data in runner_instances.items():
-            # Add to group
-            inventory["forgejo_runners"]["hosts"].append(instance_name)
+        # Add ansible_vars from Terraform if available and not null
+        if vars_key in tf_output:
+            ansible_vars = tf_output[vars_key]["value"]
+            if ansible_vars is not None:
+                inventory[group_name]["vars"].update(ansible_vars)
 
-            # Add host variables
-            inventory["_meta"]["hostvars"][instance_name] = {
-                "ansible_incus_host": instance_name,
-                "ipv4_address": instance_data.get("ipv4_address", ""),
-            }
-
-    # Add ansible_vars from Terraform if available
-    if "forgejo_runner_ansible_vars" in tf_output:
-        ansible_vars = tf_output["forgejo_runner_ansible_vars"]["value"]
-        inventory["forgejo_runners"]["vars"].update(ansible_vars)
+    # Process each service group
+    add_instances_to_group(
+        "forgejo_runners",
+        "forgejo_runner_instances",
+        "forgejo_runner_ansible_vars"
+    )
+    add_instances_to_group(
+        "prometheus",
+        "prometheus_instances",
+        "prometheus_ansible_vars"
+    )
+    add_instances_to_group(
+        "forgejo",
+        "forgejo_instances",
+        "forgejo_ansible_vars"
+    )
+    add_instances_to_group(
+        "postgresql",
+        "postgresql_instances",
+        "postgresql_ansible_vars"
+    )
+    add_instances_to_group(
+        "alertmanager",
+        "alertmanager_instances",
+        "alertmanager_ansible_vars"
+    )
+    add_instances_to_group(
+        "step_ca",
+        "step_ca_instances",
+        "step_ca_ansible_vars"
+    )
+    add_instances_to_group(
+        "mosquitto",
+        "mosquitto_instances",
+        "mosquitto_ansible_vars"
+    )
 
     return inventory
 

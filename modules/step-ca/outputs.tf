@@ -37,3 +37,27 @@ output "ipv4_address" {
   description = "IPv4 address of the step-ca instance"
   value       = incus_instance.step_ca.ipv4_address
 }
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.step_ca.name
+    ipv4_address = incus_instance.step_ca.ipv4_address
+  }
+}
+
+output "ansible_vars" {
+  description = "Variables passed to Ansible for step-ca configuration"
+  sensitive   = true
+  value = {
+    step_version   = var.step_version
+    step_ca_name   = var.ca_name
+    step_ca_dns    = var.ca_dns_names
+    step_ca_port   = var.acme_port
+    cert_duration  = var.cert_duration
+  }
+}

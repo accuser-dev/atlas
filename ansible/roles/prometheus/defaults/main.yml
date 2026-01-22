@@ -1,0 +1,46 @@
+# =============================================================================
+# Prometheus Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# Prometheus version (from Terraform)
+prometheus_version: "3.0.1"
+
+# Listen port
+prometheus_port: "9090"
+
+# Retention settings
+prometheus_retention_time: "30d"
+prometheus_retention_size: ""
+
+# Configuration content (from Terraform)
+prometheus_config: ""
+prometheus_alert_rules: ""
+
+# Incus metrics TLS certificates (from Terraform)
+incus_metrics_cert: ""
+incus_metrics_key: ""
+
+# Directories
+prometheus_config_dir: "/etc/prometheus"
+prometheus_data_dir: "/prometheus"
+prometheus_tls_dir: "/etc/prometheus/tls"
+prometheus_alerts_dir: "/etc/prometheus/alerts"
+
+# User/group configuration
+prometheus_user: "prometheus"
+prometheus_group: "prometheus"
+prometheus_uid: 1100
+prometheus_gid: 1100
+
+# Service configuration
+prometheus_service_name: "prometheus"
+prometheus_service_enabled: true
+
+# Binary paths
+prometheus_binary_path: "/usr/local/bin/prometheus"
+prometheus_promtool_path: "/usr/local/bin/promtool"
+
+# State: present or absent
+prometheus_state: present

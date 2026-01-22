@@ -1,0 +1,97 @@
+# =============================================================================
+# step-ca Initialization Tasks
+# =============================================================================
+# Initializes the CA if not already done (idempotent).
+
+---
+- name: Create step directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ step_user }}"
+    group: "{{ step_group }}"
+    mode: "0755"
+  loop:
+    - "{{ step_home }}/.step"
+    - "{{ step_secrets_dir }}"
+    - "{{ step_config_dir }}"
+    - "{{ step_certs_dir }}"
+
+- name: Check if CA is already initialized
+  ansible.builtin.stat:
+    path: "{{ step_config_dir }}/ca.json"
+  register: ca_config
+
+- name: Initialize CA
+  when: not ca_config.stat.exists
+  block:
+    - name: Generate CA password if not provided
+      ansible.builtin.set_fact:
+        generated_password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+      when: step_ca_password | length == 0
+
+    - name: Use provided or generated password
+      ansible.builtin.set_fact:
+        ca_password: "{{ step_ca_password if step_ca_password | length > 0 else generated_password }}"
+
+    - name: Write password file
+      ansible.builtin.copy:
+        content: "{{ ca_password }}"
+        dest: "{{ step_secrets_dir }}/password"
+        owner: "{{ step_user }}"
+        group: "{{ step_group }}"
+        mode: "0600"
+      no_log: true
+
+    - name: Build CA DNS names
+      ansible.builtin.set_fact:
+        ca_dns_names: "{{ step_ca_dns if step_ca_dns | length > 0 else inventory_hostname }}"
+
+    - name: Initialize step-ca
+      ansible.builtin.command:
+        cmd: >
+          {{ step_binary_path }} ca init
+          --name="{{ step_ca_name }}"
+          --dns="{{ ca_dns_names }}"
+          --address=":{{ step_ca_port }}"
+          --provisioner="acme"
+          --password-file="{{ step_secrets_dir }}/password"
+          --provisioner-password-file="{{ step_secrets_dir }}/password"
+          --acme
+          --deployment-type=standalone
+      become: true
+      become_user: "{{ step_user }}"
+      environment:
+        STEPPATH: "{{ step_home }}"
+      creates: "{{ step_config_dir }}/ca.json"
+
+    - name: Display generated password warning
+      ansible.builtin.debug:
+        msg: |
+          IMPORTANT: CA password was auto-generated and stored at {{ step_secrets_dir }}/password
+          Make sure to back up this password securely!
+      when: step_ca_password | length == 0
+
+- name: Export CA fingerprint
+  ansible.builtin.shell:
+    cmd: "{{ step_binary_path }} certificate fingerprint {{ step_certs_dir }}/root_ca.crt > {{ step_home }}/fingerprint"
+  become: true
+  become_user: "{{ step_user }}"
+  args:
+    creates: "{{ step_home }}/fingerprint"
+
+- name: Set fingerprint file permissions
+  ansible.builtin.file:
+    path: "{{ step_home }}/fingerprint"
+    owner: "{{ step_user }}"
+    group: "{{ step_group }}"
+    mode: "0644"
+
+- name: Read CA fingerprint
+  ansible.builtin.slurp:
+    src: "{{ step_home }}/fingerprint"
+  register: fingerprint_content
+
+- name: Display CA fingerprint
+  ansible.builtin.debug:
+    msg: "CA Fingerprint: {{ fingerprint_content.content | b64decode | trim }}"
