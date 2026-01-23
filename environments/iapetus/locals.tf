@@ -141,7 +141,7 @@ locals {
       loki       = var.loki_lb_address
       step-ca    = var.step_ca_lb_address
       atlantis   = var.enable_gitops ? var.atlantis_lb_address : ""
-    } : {
+      } : {
       name  = name
       type  = "A"
       value = addr

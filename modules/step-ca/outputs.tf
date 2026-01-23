@@ -54,10 +54,10 @@ output "ansible_vars" {
   description = "Variables passed to Ansible for step-ca configuration"
   sensitive   = true
   value = {
-    step_version   = var.step_version
-    step_ca_name   = var.ca_name
-    step_ca_dns    = var.ca_dns_names
-    step_ca_port   = var.acme_port
-    cert_duration  = var.cert_duration
+    step_version  = var.step_version
+    step_ca_name  = var.ca_name
+    step_ca_dns   = var.ca_dns_names
+    step_ca_port  = var.acme_port
+    cert_duration = var.cert_duration
   }
 }

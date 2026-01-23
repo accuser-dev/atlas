@@ -120,9 +120,9 @@ output "ansible_vars" {
     forgejo_admin_username = var.admin_username
     forgejo_admin_email    = var.admin_email
     # Note: admin_password passed via environment variable at runtime
-    forgejo_enable_tls    = var.enable_tls
-    forgejo_tls_cert      = var.tls_certificate
-    forgejo_tls_key       = var.tls_private_key
+    forgejo_enable_tls     = var.enable_tls
+    forgejo_tls_cert       = var.tls_certificate
+    forgejo_tls_key        = var.tls_private_key
     forgejo_enable_metrics = var.enable_metrics
     forgejo_metrics_token  = var.metrics_token
   }

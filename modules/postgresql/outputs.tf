@@ -85,14 +85,14 @@ output "ansible_vars" {
   description = "Variables passed to Ansible for PostgreSQL configuration"
   sensitive   = true
   value = {
-    postgresql_port              = var.postgresql_port
-    postgresql_admin_password    = var.admin_password
-    postgresql_databases         = var.databases
-    postgresql_users             = var.users
-    postgresql_allowed_networks  = var.allowed_networks
-    postgresql_config            = var.postgresql_config
-    postgresql_enable_metrics    = var.enable_metrics
-    postgresql_metrics_port      = var.metrics_port
-    postgres_exporter_version    = var.postgres_exporter_version
+    postgresql_port             = var.postgresql_port
+    postgresql_admin_password   = var.admin_password
+    postgresql_databases        = var.databases
+    postgresql_users            = var.users
+    postgresql_allowed_networks = var.allowed_networks
+    postgresql_config           = var.postgresql_config
+    postgresql_enable_metrics   = var.enable_metrics
+    postgresql_metrics_port     = var.metrics_port
+    postgres_exporter_version   = var.postgres_exporter_version
   }
 }
