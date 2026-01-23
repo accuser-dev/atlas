@@ -1,0 +1,20 @@
+# =============================================================================
+# Grafana Role - Datasources Provisioning Tasks
+# =============================================================================
+
+---
+- name: Create datasources provisioning file
+  ansible.builtin.template:
+    src: datasources.yaml.j2
+    dest: "{{ grafana_provisioning_dir }}/datasources/datasources.yaml"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: "0644"
+  notify: Restart grafana
+  when: grafana_datasources | length > 0
+
+- name: Remove datasources file if no datasources configured
+  ansible.builtin.file:
+    path: "{{ grafana_provisioning_dir }}/datasources/datasources.yaml"
+    state: absent
+  when: grafana_datasources | length == 0

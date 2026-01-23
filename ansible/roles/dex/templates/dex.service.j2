@@ -1,0 +1,27 @@
+# {{ ansible_managed }}
+# Dex OIDC Identity Provider
+
+[Unit]
+Description=Dex OIDC Identity Provider
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ dex_user }}
+Group={{ dex_group }}
+ExecStart=/usr/local/bin/dex serve {{ dex_config_dir }}/config.yaml
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ dex_data_dir }}
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

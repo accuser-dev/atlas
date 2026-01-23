@@ -56,3 +56,42 @@
   tags:
     - forgejo_runner
     - runners
+
+# Observability Stack
+- name: Configure Alloy
+  ansible.builtin.import_playbook: alloy.yml
+  tags:
+    - alloy
+    - observability
+
+- name: Configure Grafana
+  ansible.builtin.import_playbook: grafana.yml
+  tags:
+    - grafana
+    - observability
+
+- name: Configure Loki
+  ansible.builtin.import_playbook: loki.yml
+  tags:
+    - loki
+    - observability
+
+# DNS
+- name: Configure CoreDNS
+  ansible.builtin.import_playbook: coredns.yml
+  tags:
+    - coredns
+    - dns
+
+# Identity & Authorization
+- name: Configure OpenFGA
+  ansible.builtin.import_playbook: openfga.yml
+  tags:
+    - openfga
+    - identity
+
+- name: Configure Dex
+  ansible.builtin.import_playbook: dex.yml
+  tags:
+    - dex
+    - identity

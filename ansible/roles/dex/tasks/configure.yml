@@ -1,0 +1,15 @@
+# =============================================================================
+# Dex Role - Configuration Tasks
+# =============================================================================
+
+---
+- name: Decode and write Dex configuration
+  ansible.builtin.copy:
+    content: "{{ dex_config_base64 | b64decode }}"
+    dest: "{{ dex_config_dir }}/config.yaml"
+    owner: "{{ dex_user }}"
+    group: "{{ dex_group }}"
+    mode: "0640"
+  notify: Restart dex
+  tags:
+    - secrets

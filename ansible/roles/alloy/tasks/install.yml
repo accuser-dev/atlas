@@ -1,0 +1,87 @@
+# =============================================================================
+# Alloy Role - Installation Tasks
+# =============================================================================
+
+---
+- name: Create Alloy group
+  ansible.builtin.group:
+    name: "{{ alloy_group }}"
+    gid: "{{ alloy_gid }}"
+    system: true
+    state: present
+
+- name: Create Alloy user
+  ansible.builtin.user:
+    name: "{{ alloy_user }}"
+    uid: "{{ alloy_uid }}"
+    group: "{{ alloy_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ alloy_data_dir }}"
+    create_home: false
+    state: present
+
+- name: Create Alloy directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ alloy_user }}"
+    group: "{{ alloy_group }}"
+    mode: "0755"
+  loop:
+    - "{{ alloy_data_dir }}"
+    - "{{ alloy_config_dir }}"
+
+- name: Check if Alloy is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/alloy
+  register: alloy_binary
+
+- name: Get installed Alloy version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/alloy --version
+  register: alloy_installed_version
+  changed_when: false
+  failed_when: false
+  when: alloy_binary.stat.exists
+
+- name: Set installed version fact
+  ansible.builtin.set_fact:
+    alloy_current_version: "{{ alloy_installed_version.stdout | default('') | regex_search('v([0-9.]+)', '\\1') | first | default('0.0.0') }}"
+  when: alloy_binary.stat.exists
+
+- name: Download and install Alloy
+  when: not alloy_binary.stat.exists or (alloy_current_version | default('0.0.0')) != alloy_version
+  block:
+    - name: Create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: alloy
+      register: alloy_temp_dir
+
+    - name: Download Alloy release
+      ansible.builtin.get_url:
+        url: "https://github.com/grafana/alloy/releases/download/v{{ alloy_version }}/alloy-linux-amd64.zip"
+        dest: "{{ alloy_temp_dir.path }}/alloy.zip"
+        mode: "0644"
+
+    - name: Extract Alloy archive
+      ansible.builtin.unarchive:
+        src: "{{ alloy_temp_dir.path }}/alloy.zip"
+        dest: "{{ alloy_temp_dir.path }}"
+        remote_src: true
+
+    - name: Install Alloy binary
+      ansible.builtin.copy:
+        src: "{{ alloy_temp_dir.path }}/alloy-linux-amd64"
+        dest: /usr/local/bin/alloy
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart alloy
+
+    - name: Clean up temporary directory
+      ansible.builtin.file:
+        path: "{{ alloy_temp_dir.path }}"
+        state: absent

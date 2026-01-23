@@ -1,0 +1,90 @@
+# =============================================================================
+# Loki Role - Installation Tasks
+# =============================================================================
+
+---
+- name: Create Loki group
+  ansible.builtin.group:
+    name: "{{ loki_group }}"
+    gid: "{{ loki_gid }}"
+    system: true
+    state: present
+
+- name: Create Loki user
+  ansible.builtin.user:
+    name: "{{ loki_user }}"
+    uid: "{{ loki_uid }}"
+    group: "{{ loki_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ loki_data_dir }}"
+    create_home: false
+    state: present
+
+- name: Create Loki directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ loki_user }}"
+    group: "{{ loki_group }}"
+    mode: "0755"
+  loop:
+    - "{{ loki_data_dir }}"
+    - "{{ loki_data_dir }}/chunks"
+    - "{{ loki_data_dir }}/rules"
+    - "{{ loki_data_dir }}/compactor"
+    - "{{ loki_config_dir }}"
+
+- name: Check if Loki is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/loki
+  register: loki_binary
+
+- name: Get installed Loki version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/loki -version
+  register: loki_installed_version
+  changed_when: false
+  failed_when: false
+  when: loki_binary.stat.exists
+
+- name: Set installed version fact
+  ansible.builtin.set_fact:
+    loki_current_version: "{{ loki_installed_version.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | first | default('0.0.0') }}"
+  when: loki_binary.stat.exists
+
+- name: Download and install Loki
+  when: not loki_binary.stat.exists or (loki_current_version | default('0.0.0')) != loki_version
+  block:
+    - name: Create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: loki
+      register: loki_temp_dir
+
+    - name: Download Loki release
+      ansible.builtin.get_url:
+        url: "https://github.com/grafana/loki/releases/download/v{{ loki_version }}/loki-linux-amd64.zip"
+        dest: "{{ loki_temp_dir.path }}/loki.zip"
+        mode: "0644"
+
+    - name: Extract Loki archive
+      ansible.builtin.unarchive:
+        src: "{{ loki_temp_dir.path }}/loki.zip"
+        dest: "{{ loki_temp_dir.path }}"
+        remote_src: true
+
+    - name: Install Loki binary
+      ansible.builtin.copy:
+        src: "{{ loki_temp_dir.path }}/loki-linux-amd64"
+        dest: /usr/local/bin/loki
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart loki
+
+    - name: Clean up temporary directory
+      ansible.builtin.file:
+        path: "{{ loki_temp_dir.path }}"
+        state: absent

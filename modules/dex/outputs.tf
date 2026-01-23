@@ -49,3 +49,30 @@ output "dns_records" {
     }
   ]
 }
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "ansible_vars" {
+  description = "Variables to pass to Ansible for Dex configuration"
+  sensitive   = true
+  value = {
+    dex_version       = var.dex_version
+    dex_http_port     = var.http_port
+    dex_grpc_port     = var.grpc_port
+    dex_metrics_port  = var.metrics_port
+    dex_issuer_url    = var.issuer_url
+    dex_config_base64 = base64encode(local.dex_config)
+    dex_has_config    = true
+    # GitHub credentials via env vars: DEX_GITHUB_CLIENT_ID, DEX_GITHUB_CLIENT_SECRET
+  }
+}
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.dex.name
+    ipv4_address = incus_instance.dex.ipv4_address
+  }
+}

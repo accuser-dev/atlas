@@ -1,0 +1,29 @@
+# {{ ansible_managed }}
+# Grafana datasource provisioning
+
+apiVersion: 1
+
+datasources:
+{% for ds in grafana_datasources %}
+  - name: {{ ds.name }}
+    type: {{ ds.type }}
+    access: proxy
+    url: {{ ds.url }}
+    isDefault: {{ ds.is_default | default(false) | lower }}
+    editable: false
+{% if ds.type == "prometheus" %}
+    jsonData:
+      httpMethod: POST
+      timeInterval: "15s"
+{% if ds.tls_skip_verify | default(false) %}
+      tlsSkipVerify: true
+{% endif %}
+{% endif %}
+{% if ds.type == "loki" %}
+    jsonData:
+      maxLines: 1000
+{% if ds.tls_skip_verify | default(false) %}
+      tlsSkipVerify: true
+{% endif %}
+{% endif %}
+{% endfor %}

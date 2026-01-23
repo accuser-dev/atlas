@@ -1,0 +1,75 @@
+# =============================================================================
+# Alloy Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - alloy_version is defined and alloy_version | length > 0
+      - alloy_has_config | bool or alloy_config_base64 | length > 0
+    fail_msg: "alloy_version and alloy_config_base64 must be set (typically via Terraform output)"
+    success_msg: "Required variables validated"
+  tags:
+    - always
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+  when: alloy_state == 'present'
+  tags:
+    - install
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: alloy_state == 'present'
+  tags:
+    - configure
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: alloy_state == 'present'
+  tags:
+    - service
+
+- name: Remove Alloy
+  when: alloy_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable service
+      ansible.builtin.systemd:
+        name: "{{ alloy_service_name }}"
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove service file
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ alloy_service_name }}.service"
+        state: absent
+      notify: Reload systemd
+
+    - name: Remove Alloy binary
+      ansible.builtin.file:
+        path: /usr/local/bin/alloy
+        state: absent
+
+    - name: Remove Alloy user
+      ansible.builtin.user:
+        name: "{{ alloy_user }}"
+        state: absent
+        remove: true
+
+    - name: Remove Alloy group
+      ansible.builtin.group:
+        name: "{{ alloy_group }}"
+        state: absent
+
+    - name: Remove Alloy directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ alloy_data_dir }}"
+        - "{{ alloy_config_dir }}"

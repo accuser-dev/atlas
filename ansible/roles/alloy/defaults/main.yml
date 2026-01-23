@@ -1,0 +1,36 @@
+# =============================================================================
+# Alloy Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# Alloy version
+alloy_version: "1.5.1"
+
+# Network ports
+alloy_http_port: 12345
+
+# Syslog receiver settings
+enable_syslog_receiver: false
+syslog_port: 1514
+
+# Alloy configuration (base64 encoded, from Terraform)
+alloy_config_base64: ""
+alloy_has_config: false
+
+# Directories
+alloy_data_dir: "/var/lib/alloy"
+alloy_config_dir: "/etc/alloy"
+
+# User/group configuration
+alloy_user: "alloy"
+alloy_group: "alloy"
+alloy_uid: 10001
+alloy_gid: 10001
+
+# Service configuration
+alloy_service_name: "alloy"
+alloy_service_enabled: true
+
+# State: present or absent
+alloy_state: present

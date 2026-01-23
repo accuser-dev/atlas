@@ -5,9 +5,11 @@
 # Uses Debian Trixie system container with cloud-init and systemd for configuration
 
 locals {
-  # Cloud-init configuration
-  cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    loki_version           = var.loki_version
+  # Cloud-init configuration (minimal bootstrap only)
+  cloud_init_content = file("${path.module}/templates/cloud-init.yaml.tftpl")
+
+  # Loki configuration for Ansible
+  loki_config = templatefile("${path.module}/templates/config.yaml.tftpl", {
     loki_port              = var.loki_port
     retention_period       = var.retention_period
     retention_delete_delay = var.retention_delete_delay

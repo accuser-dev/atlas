@@ -1,15 +1,25 @@
 #cloud-config
-# CoreDNS system container cloud-init configuration
-# Uses Debian Trixie with systemd service management
+# =============================================================================
+# CoreDNS - Minimal Cloud-Init Configuration
+# =============================================================================
+# This cloud-init prepares the system for Ansible and handles early network config.
+# All CoreDNS configuration is handled by the coredns Ansible role.
+#
+# Note: systemd-resolved must be disabled here (before Ansible) because it
+# conflicts with CoreDNS binding to port 53.
 
 package_update: true
 package_upgrade: false
 
 packages:
+  # Required for Ansible connection via community.general.incus plugin
+  - python3
+  - python3-apt
+  # Utilities for downloading
   - curl
 
-write_files:
 %{ if ipv4_address != "" ~}
+write_files:
   # Static IP configuration for Debian
   - path: /etc/network/interfaces.d/eth0
     permissions: '0644'
@@ -35,72 +45,18 @@ write_files:
       network: {config: disabled}
 %{ endif ~}
 
-  - path: /etc/coredns/Corefile
-    permissions: '0644'
-    content: |
-      ${indent(6, corefile_content)}
-
-  - path: /etc/coredns/zones/${domain}.zone
-    permissions: '0644'
-    content: |
-      ${indent(6, zone_file_content)}
-
-  # systemd service unit for CoreDNS
-  - path: /etc/systemd/system/coredns.service
-    permissions: '0644'
-    content: |
-      [Unit]
-      Description=CoreDNS DNS server
-      After=network-online.target
-      Wants=network-online.target
-
-      [Service]
-      Type=simple
-      User=coredns
-      Group=coredns
-      ExecStart=/usr/local/bin/coredns -conf /etc/coredns/Corefile
-      Restart=on-failure
-      RestartSec=10
-      StandardOutput=journal
-      StandardError=journal
-
-      # Security hardening
-      NoNewPrivileges=yes
-      ProtectSystem=strict
-      ProtectHome=yes
-      ReadOnlyPaths=/etc/coredns
-      PrivateTmp=yes
-      # Allow binding to privileged port 53
-      AmbientCapabilities=CAP_NET_BIND_SERVICE
-
-      [Install]
-      WantedBy=multi-user.target
-
 runcmd:
 %{ if ipv4_address != "" ~}
   # Apply static IP configuration
   - systemctl restart networking
 %{ endif ~}
-  # Download and install CoreDNS (before disabling systemd-resolved, as we need DNS)
-  - |
-    COREDNS_VERSION="${coredns_version}"
-    cd /tmp
-    curl -sLO "https://github.com/coredns/coredns/releases/download/v$${COREDNS_VERSION}/coredns_$${COREDNS_VERSION}_linux_amd64.tgz"
-    tar -xzf "coredns_$${COREDNS_VERSION}_linux_amd64.tgz"
-    mv coredns /usr/local/bin/coredns
-    chmod +x /usr/local/bin/coredns
-    rm -f "coredns_$${COREDNS_VERSION}_linux_amd64.tgz"
-  # Create coredns user and directories
-  - groupadd --system coredns 2>/dev/null || true
-  - useradd --system --gid coredns --no-create-home --shell /usr/sbin/nologin coredns 2>/dev/null || true
-  - mkdir -p /etc/coredns/zones
-  - chown -R coredns:coredns /etc/coredns
   # Disable systemd-resolved (conflicts with CoreDNS on port 53)
-  - systemctl stop systemd-resolved
-  - systemctl disable systemd-resolved
-  # Set up static DNS resolver (systemd-resolved is now disabled)
+  # This MUST be done in cloud-init before Ansible runs
+  - systemctl stop systemd-resolved || true
+  - systemctl disable systemd-resolved || true
+  # Set up fallback DNS resolver (systemd-resolved is now disabled)
   - echo "nameserver 1.1.1.1" > /etc/resolv.conf
-  # Enable and start CoreDNS service
-  - systemctl daemon-reload
-  - systemctl enable coredns
-  - systemctl start coredns
+  # Create marker file indicating cloud-init completed
+  - touch /var/lib/cloud/instance/ansible-ready
+  # Ensure Python3 is the default
+  - update-alternatives --install /usr/bin/python python /usr/bin/python3 1 || true

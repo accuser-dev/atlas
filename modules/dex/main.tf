@@ -8,7 +8,7 @@
 # (or other upstream IdPs) while presenting a unified OIDC interface to clients.
 
 locals {
-  # Generate Dex configuration
+  # Generate Dex configuration for Ansible
   dex_config = templatefile("${path.module}/templates/config.yaml.tftpl", {
     issuer_url           = var.issuer_url
     http_port            = var.http_port
@@ -20,11 +20,8 @@ locals {
     static_clients       = var.static_clients
   })
 
-  # Cloud-init configuration
-  cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    dex_version = var.dex_version
-    dex_config  = local.dex_config
-  })
+  # Cloud-init configuration (minimal bootstrap only)
+  cloud_init_content = file("${path.module}/templates/cloud-init.yaml.tftpl")
 }
 
 # Storage volume for Dex data (SQLite database)

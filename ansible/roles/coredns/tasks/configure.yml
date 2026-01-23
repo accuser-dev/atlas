@@ -1,0 +1,23 @@
+# =============================================================================
+# CoreDNS Role - Configuration Tasks
+# =============================================================================
+
+---
+- name: Decode and write Corefile
+  ansible.builtin.copy:
+    content: "{{ corefile_base64 | b64decode }}"
+    dest: "{{ coredns_config_dir }}/Corefile"
+    owner: "{{ coredns_user }}"
+    group: "{{ coredns_group }}"
+    mode: "0644"
+  notify: Restart coredns
+
+- name: Decode and write zone file
+  ansible.builtin.copy:
+    content: "{{ zone_file_base64 | b64decode }}"
+    dest: "{{ coredns_zones_dir }}/{{ coredns_domain }}.zone"
+    owner: "{{ coredns_user }}"
+    group: "{{ coredns_group }}"
+    mode: "0644"
+  notify: Restart coredns
+  when: coredns_domain | length > 0

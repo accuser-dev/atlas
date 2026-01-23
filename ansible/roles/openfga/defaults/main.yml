@@ -1,0 +1,36 @@
+# =============================================================================
+# OpenFGA Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# OpenFGA version
+openfga_version: "1.8.2"
+
+# Network ports
+openfga_http_port: 8080
+openfga_grpc_port: 8081
+openfga_metrics_port: 3002
+openfga_playground_port: ""
+
+# Enable playground (disabled by default)
+openfga_enable_playground: false
+
+# Preshared keys for authentication (passed at runtime via environment variable)
+# OPENFGA_PRESHARED_KEYS environment variable is used
+openfga_preshared_keys: "{{ lookup('env', 'OPENFGA_PRESHARED_KEYS') }}"
+
+# Directories
+openfga_data_dir: "/var/lib/openfga"
+openfga_db_path: "/var/lib/openfga/openfga.db"
+
+# User/group configuration
+openfga_user: "openfga"
+openfga_group: "openfga"
+
+# Service configuration
+openfga_service_name: "openfga"
+openfga_service_enabled: true
+
+# State: present or absent
+openfga_state: present

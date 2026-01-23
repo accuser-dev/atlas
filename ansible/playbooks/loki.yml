@@ -1,0 +1,47 @@
+# =============================================================================
+# Loki Playbook
+# =============================================================================
+# Configures Loki log aggregation system on target containers.
+#
+# Usage:
+#   ENV=iapetus ansible-playbook playbooks/loki.yml
+
+---
+- name: Configure Loki
+  hosts: loki
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring Loki: {{ inventory_hostname }}
+          Version: {{ loki_version | default('NOT SET') }}
+          Port: {{ loki_port | default('3100') }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: loki
+
+  post_tasks:
+    - name: Verify Loki status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ loki_service_name | default('loki') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          Loki configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}

@@ -1,0 +1,38 @@
+# =============================================================================
+# OpenFGA Role - Service Tasks
+# =============================================================================
+
+---
+- name: Validate preshared keys are set
+  ansible.builtin.assert:
+    that:
+      - openfga_preshared_keys is defined and openfga_preshared_keys | length > 0
+    fail_msg: |
+      openfga_preshared_keys must be set.
+      Run with: OPENFGA_PRESHARED_KEYS=<key1,key2> make configure-openfga-full ENV=<env>
+    success_msg: "Preshared keys validated"
+  tags:
+    - secrets
+
+- name: Create OpenFGA systemd service
+  ansible.builtin.template:
+    src: openfga.service.j2
+    dest: "/etc/systemd/system/{{ openfga_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart openfga
+  tags:
+    - secrets
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start OpenFGA service
+  ansible.builtin.systemd:
+    name: "{{ openfga_service_name }}"
+    state: started
+    enabled: "{{ openfga_service_enabled }}"
+    daemon_reload: true

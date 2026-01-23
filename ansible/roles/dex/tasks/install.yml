@@ -1,0 +1,94 @@
+# =============================================================================
+# Dex Role - Installation Tasks
+# =============================================================================
+# Note: Dex no longer publishes standalone binaries.
+# We use crane to extract the binary from the official Docker image.
+
+---
+- name: Create Dex group
+  ansible.builtin.group:
+    name: "{{ dex_group }}"
+    system: true
+    state: present
+
+- name: Create Dex user
+  ansible.builtin.user:
+    name: "{{ dex_user }}"
+    group: "{{ dex_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ dex_data_dir }}"
+    create_home: false
+    state: present
+
+- name: Create Dex directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ dex_user }}"
+    group: "{{ dex_group }}"
+    mode: "0755"
+  loop:
+    - "{{ dex_data_dir }}"
+    - "{{ dex_config_dir }}"
+
+- name: Check if Dex is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/dex
+  register: dex_binary
+
+- name: Get installed Dex version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/dex version
+  register: dex_installed_version
+  changed_when: false
+  failed_when: false
+  when: dex_binary.stat.exists
+
+- name: Set installed version fact
+  ansible.builtin.set_fact:
+    dex_current_version: "{{ dex_installed_version.stdout | default('') | regex_search('v?([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | first | default('0.0.0') }}"
+  when: dex_binary.stat.exists
+
+- name: Download and install Dex
+  when: not dex_binary.stat.exists or (dex_current_version | default('0.0.0')) != dex_version
+  block:
+    - name: Create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: dex
+      register: dex_temp_dir
+
+    - name: Download crane tool
+      ansible.builtin.get_url:
+        url: "https://github.com/google/go-containerregistry/releases/download/v{{ crane_version }}/go-containerregistry_Linux_x86_64.tar.gz"
+        dest: "{{ dex_temp_dir.path }}/crane.tar.gz"
+        mode: "0644"
+
+    - name: Extract crane
+      ansible.builtin.unarchive:
+        src: "{{ dex_temp_dir.path }}/crane.tar.gz"
+        dest: "{{ dex_temp_dir.path }}"
+        remote_src: true
+
+    - name: Extract Dex binary from OCI image
+      ansible.builtin.shell: |
+        {{ dex_temp_dir.path }}/crane export "ghcr.io/dexidp/dex:v{{ dex_version }}" - | tar -xf - usr/local/bin/dex
+      args:
+        chdir: "{{ dex_temp_dir.path }}"
+      register: crane_export
+
+    - name: Install Dex binary
+      ansible.builtin.copy:
+        src: "{{ dex_temp_dir.path }}/usr/local/bin/dex"
+        dest: /usr/local/bin/dex
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart dex
+
+    - name: Clean up temporary directory
+      ansible.builtin.file:
+        path: "{{ dex_temp_dir.path }}"
+        state: absent

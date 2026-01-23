@@ -1,0 +1,26 @@
+# =============================================================================
+# Grafana Role - Configuration Tasks
+# =============================================================================
+
+---
+- name: Validate admin password is set
+  ansible.builtin.assert:
+    that:
+      - grafana_admin_password is defined and grafana_admin_password | length > 0
+    fail_msg: |
+      grafana_admin_password must be set.
+      Run with: GRAFANA_ADMIN_PASSWORD=<password> make configure-grafana-full ENV=<env>
+    success_msg: "Admin password validated"
+  tags:
+    - secrets
+
+- name: Create Grafana configuration file
+  ansible.builtin.template:
+    src: grafana.ini.j2
+    dest: "{{ grafana_config_dir }}/grafana.ini"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: "0640"
+  notify: Restart grafana
+  tags:
+    - secrets

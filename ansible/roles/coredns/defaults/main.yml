@@ -1,0 +1,35 @@
+# =============================================================================
+# CoreDNS Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# CoreDNS version
+coredns_version: "1.12.0"
+
+# Network ports
+coredns_port: 53
+coredns_health_port: 8080
+
+# Domain
+coredns_domain: ""
+
+# Configuration (base64 encoded, from Terraform)
+corefile_base64: ""
+zone_file_base64: ""
+coredns_has_config: false
+
+# Directories
+coredns_config_dir: "/etc/coredns"
+coredns_zones_dir: "/etc/coredns/zones"
+
+# User/group configuration
+coredns_user: "coredns"
+coredns_group: "coredns"
+
+# Service configuration
+coredns_service_name: "coredns"
+coredns_service_enabled: true
+
+# State: present or absent
+coredns_state: present

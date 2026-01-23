@@ -1,0 +1,29 @@
+# {{ ansible_managed }}
+# Grafana Alloy - OpenTelemetry Collector
+
+[Unit]
+Description=Grafana Alloy - OpenTelemetry Collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ alloy_user }}
+Group={{ alloy_group }}
+WorkingDirectory={{ alloy_data_dir }}
+ExecStart=/usr/local/bin/alloy run --storage.path={{ alloy_data_dir }} --server.http.listen-addr=0.0.0.0:{{ alloy_http_port }} {{ alloy_config_dir }}/config.alloy
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ alloy_data_dir }}
+ReadOnlyPaths=/var/log
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

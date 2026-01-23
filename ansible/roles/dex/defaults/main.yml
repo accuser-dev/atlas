@@ -1,0 +1,38 @@
+# =============================================================================
+# Dex Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# Dex version
+dex_version: "2.41.1"
+
+# Network ports
+dex_http_port: 5556
+dex_grpc_port: 5557
+dex_metrics_port: 5558
+
+# Issuer URL
+dex_issuer_url: ""
+
+# Configuration (base64 encoded, from Terraform)
+dex_config_base64: ""
+dex_has_config: false
+
+# Crane version (for extracting Dex binary from OCI image)
+crane_version: "0.20.2"
+
+# Directories
+dex_data_dir: "/var/dex"
+dex_config_dir: "/etc/dex"
+
+# User/group configuration
+dex_user: "dex"
+dex_group: "dex"
+
+# Service configuration
+dex_service_name: "dex"
+dex_service_enabled: true
+
+# State: present or absent
+dex_state: present

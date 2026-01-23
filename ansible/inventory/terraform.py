@@ -73,6 +73,12 @@ def build_inventory(tf_output: dict) -> dict:
         "alertmanager",
         "step_ca",
         "mosquitto",
+        "alloy",
+        "grafana",
+        "loki",
+        "coredns",
+        "openfga",
+        "dex",
     ]
 
     inventory = {
@@ -150,6 +156,36 @@ def build_inventory(tf_output: dict) -> dict:
         "mosquitto",
         "mosquitto_instances",
         "mosquitto_ansible_vars"
+    )
+    add_instances_to_group(
+        "alloy",
+        "alloy_instances",
+        "alloy_ansible_vars"
+    )
+    add_instances_to_group(
+        "grafana",
+        "grafana_instances",
+        "grafana_ansible_vars"
+    )
+    add_instances_to_group(
+        "loki",
+        "loki_instances",
+        "loki_ansible_vars"
+    )
+    add_instances_to_group(
+        "coredns",
+        "coredns_instances",
+        "coredns_ansible_vars"
+    )
+    add_instances_to_group(
+        "openfga",
+        "openfga_instances",
+        "openfga_ansible_vars"
+    )
+    add_instances_to_group(
+        "dex",
+        "dex_instances",
+        "dex_ansible_vars"
     )
 
     return inventory

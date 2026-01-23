@@ -1,0 +1,25 @@
+# =============================================================================
+# Loki Role - Service Tasks
+# =============================================================================
+
+---
+- name: Create Loki systemd service
+  ansible.builtin.template:
+    src: loki.service.j2
+    dest: "/etc/systemd/system/{{ loki_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart loki
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start Loki service
+  ansible.builtin.systemd:
+    name: "{{ loki_service_name }}"
+    state: started
+    enabled: "{{ loki_service_enabled }}"
+    daemon_reload: true

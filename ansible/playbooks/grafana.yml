@@ -1,0 +1,57 @@
+# =============================================================================
+# Grafana Playbook
+# =============================================================================
+# Configures Grafana visualization platform on target containers.
+#
+# Usage:
+#   # Configure without admin password (will fail at config step)
+#   ENV=iapetus ansible-playbook playbooks/grafana.yml --skip-tags secrets
+#
+#   # Configure with admin password
+#   GRAFANA_ADMIN_PASSWORD=<password> ENV=iapetus ansible-playbook playbooks/grafana.yml
+
+---
+- name: Configure Grafana
+  hosts: grafana
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring Grafana: {{ inventory_hostname }}
+          Version: {{ grafana_version | default('NOT SET') }}
+          Port: {{ grafana_port | default('3000') }}
+          Domain: {{ grafana_domain | default('NOT SET') }}
+          Datasources: {{ grafana_datasources | default([]) | length }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: grafana
+
+  post_tasks:
+    - name: Verify Grafana status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ grafana_service_name | default('grafana') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          Grafana configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}
+          {% if service_status.rc != 0 %}
+          NOTE: Service not running - admin password may be required.
+          Run: GRAFANA_ADMIN_PASSWORD=<password> make configure-grafana-full ENV={{ lookup('env', 'ENV') | default('iapetus') }}
+          {% endif %}

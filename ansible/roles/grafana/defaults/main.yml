@@ -1,0 +1,42 @@
+# =============================================================================
+# Grafana Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# Grafana version
+grafana_version: "11.4.0"
+
+# Network port
+grafana_port: 3000
+
+# Domain configuration
+grafana_domain: ""
+
+# Admin credentials
+grafana_admin_user: "admin"
+# Admin password from environment variable
+grafana_admin_password: "{{ lookup('env', 'GRAFANA_ADMIN_PASSWORD') }}"
+
+# Datasources (list of datasource configurations from Terraform)
+grafana_datasources: []
+
+# Directories
+grafana_install_dir: "/usr/share/grafana"
+grafana_data_dir: "/var/lib/grafana"
+grafana_log_dir: "/var/log/grafana"
+grafana_config_dir: "/etc/grafana"
+grafana_provisioning_dir: "/etc/grafana/provisioning"
+
+# User/group configuration
+grafana_user: "grafana"
+grafana_group: "grafana"
+grafana_uid: 472
+grafana_gid: 472
+
+# Service configuration
+grafana_service_name: "grafana"
+grafana_service_enabled: true
+
+# State: present or absent
+grafana_state: present

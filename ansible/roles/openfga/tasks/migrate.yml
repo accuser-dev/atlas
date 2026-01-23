@@ -1,0 +1,27 @@
+# =============================================================================
+# OpenFGA Role - Database Migration Tasks
+# =============================================================================
+
+---
+- name: Check if database exists
+  ansible.builtin.stat:
+    path: "{{ openfga_db_path }}"
+  register: openfga_db
+
+- name: Run database migration
+  ansible.builtin.command:
+    cmd: >
+      /usr/local/bin/openfga migrate
+      --datastore-engine sqlite
+      --datastore-uri 'file:{{ openfga_db_path }}'
+  register: openfga_migrate_result
+  changed_when: "'migration complete' in openfga_migrate_result.stdout or not openfga_db.stat.exists"
+  failed_when: openfga_migrate_result.rc != 0
+
+- name: Set database ownership
+  ansible.builtin.file:
+    path: "{{ openfga_db_path }}"
+    owner: "{{ openfga_user }}"
+    group: "{{ openfga_group }}"
+    mode: "0640"
+  when: openfga_db.stat.exists or openfga_migrate_result.changed

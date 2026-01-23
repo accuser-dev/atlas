@@ -209,6 +209,84 @@ output "step_ca_ansible_vars" {
   value       = module.step_ca01.ansible_vars
 }
 
+# Alloy
+output "alloy_instances" {
+  description = "Alloy instances for Ansible inventory"
+  value       = var.enable_alloy ? { "alloy01" = module.alloy01[0].instance_info } : {}
+}
+
+output "alloy_ansible_vars" {
+  description = "Variables passed to Ansible for Alloy configuration"
+  sensitive   = true
+  value       = var.enable_alloy ? module.alloy01[0].ansible_vars : null
+}
+
+# Grafana
+output "grafana_instances" {
+  description = "Grafana instances for Ansible inventory"
+  value = {
+    "grafana01" = module.grafana01.instance_info
+  }
+}
+
+output "grafana_ansible_vars" {
+  description = "Variables passed to Ansible for Grafana configuration"
+  sensitive   = true
+  value       = module.grafana01.ansible_vars
+}
+
+# Loki
+output "loki_instances" {
+  description = "Loki instances for Ansible inventory"
+  value = {
+    "loki01" = module.loki01.instance_info
+  }
+}
+
+output "loki_ansible_vars" {
+  description = "Variables passed to Ansible for Loki configuration"
+  sensitive   = true
+  value       = module.loki01.ansible_vars
+}
+
+# CoreDNS
+output "coredns_instances" {
+  description = "CoreDNS instances for Ansible inventory"
+  value = {
+    "coredns01" = module.coredns01.instance_info
+  }
+}
+
+output "coredns_ansible_vars" {
+  description = "Variables passed to Ansible for CoreDNS configuration"
+  sensitive   = true
+  value       = module.coredns01.ansible_vars
+}
+
+# OpenFGA
+output "openfga_instances" {
+  description = "OpenFGA instances for Ansible inventory"
+  value       = var.enable_oidc ? { "openfga01" = module.openfga01[0].instance_info } : {}
+}
+
+output "openfga_ansible_vars" {
+  description = "Variables passed to Ansible for OpenFGA configuration"
+  sensitive   = true
+  value       = var.enable_oidc ? module.openfga01[0].ansible_vars : null
+}
+
+# Dex
+output "dex_instances" {
+  description = "Dex instances for Ansible inventory"
+  value       = var.enable_oidc ? { "dex01" = module.dex01[0].instance_info } : {}
+}
+
+output "dex_ansible_vars" {
+  description = "Variables passed to Ansible for Dex configuration"
+  sensitive   = true
+  value       = var.enable_oidc ? module.dex01[0].ansible_vars : null
+}
+
 # =============================================================================
 # OVN Central
 # =============================================================================

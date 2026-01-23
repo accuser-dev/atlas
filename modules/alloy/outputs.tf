@@ -37,3 +37,28 @@ output "syslog_endpoint" {
   description = "Syslog receiver endpoint (UDP) - configure IncusOS hosts to send logs here"
   value       = var.enable_syslog_receiver ? "${incus_instance.alloy.ipv4_address}:${var.syslog_port}" : null
 }
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "ansible_vars" {
+  description = "Variables to pass to Ansible for Alloy configuration"
+  sensitive   = true
+  value = {
+    alloy_version          = var.alloy_version
+    alloy_http_port        = var.http_port
+    alloy_config_base64    = base64encode(local.alloy_config)
+    alloy_has_config       = true
+    enable_syslog_receiver = var.enable_syslog_receiver
+    syslog_port            = var.syslog_port
+  }
+}
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.alloy.name
+    ipv4_address = incus_instance.alloy.ipv4_address
+  }
+}

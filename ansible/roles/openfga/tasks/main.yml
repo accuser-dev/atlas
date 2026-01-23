@@ -1,0 +1,73 @@
+# =============================================================================
+# OpenFGA Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - openfga_version is defined and openfga_version | length > 0
+    fail_msg: "openfga_version must be set"
+    success_msg: "Required variables validated"
+  tags:
+    - always
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+  when: openfga_state == 'present'
+  tags:
+    - install
+
+- name: Include database migration tasks
+  ansible.builtin.include_tasks: migrate.yml
+  when: openfga_state == 'present'
+  tags:
+    - migrate
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: openfga_state == 'present'
+  tags:
+    - service
+
+- name: Remove OpenFGA
+  when: openfga_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable service
+      ansible.builtin.systemd:
+        name: "{{ openfga_service_name }}"
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove service file
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ openfga_service_name }}.service"
+        state: absent
+      notify: Reload systemd
+
+    - name: Remove OpenFGA binary
+      ansible.builtin.file:
+        path: /usr/local/bin/openfga
+        state: absent
+
+    - name: Remove OpenFGA user
+      ansible.builtin.user:
+        name: "{{ openfga_user }}"
+        state: absent
+        remove: true
+
+    - name: Remove OpenFGA group
+      ansible.builtin.group:
+        name: "{{ openfga_group }}"
+        state: absent
+
+    - name: Remove OpenFGA directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ openfga_data_dir }}"

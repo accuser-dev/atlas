@@ -1,0 +1,14 @@
+# =============================================================================
+# CoreDNS Role Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart coredns
+  ansible.builtin.systemd:
+    name: "{{ coredns_service_name }}"
+    state: restarted
+  when: coredns_service_enabled
