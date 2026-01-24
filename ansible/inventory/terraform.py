@@ -52,11 +52,13 @@ def get_terraform_output(env_dir: Path) -> dict:
 def get_incus_remote() -> str:
     """Get the Incus remote name based on ENV variable."""
     env = os.environ.get("ENV", "cluster01")
-    # For cluster environments, use the cluster remote
-    if env == "cluster01":
-        return "cluster01"
-    # For iapetus (local), no remote prefix needed
-    return ""
+    # The Incus connection plugin always needs a remote name
+    # Map environment names to their Incus remote names
+    remote_map = {
+        "cluster01": "cluster01",
+        "iapetus": "iapetus",
+    }
+    return remote_map.get(env, env)
 
 
 def build_inventory(tf_output: dict) -> dict:

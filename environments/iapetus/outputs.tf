@@ -209,18 +209,6 @@ output "step_ca_ansible_vars" {
   value       = module.step_ca01.ansible_vars
 }
 
-# Alloy
-output "alloy_instances" {
-  description = "Alloy instances for Ansible inventory"
-  value       = var.enable_alloy ? { "alloy01" = module.alloy01[0].instance_info } : {}
-}
-
-output "alloy_ansible_vars" {
-  description = "Variables passed to Ansible for Alloy configuration"
-  sensitive   = true
-  value       = var.enable_alloy ? module.alloy01[0].ansible_vars : null
-}
-
 # Grafana
 output "grafana_instances" {
   description = "Grafana instances for Ansible inventory"

@@ -3,6 +3,28 @@
 # =============================================================================
 
 ---
+- name: Stop and disable systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: stopped
+    enabled: false
+  ignore_errors: true
+
+- name: Remove resolv.conf symlink
+  ansible.builtin.file:
+    path: /etc/resolv.conf
+    state: absent
+  ignore_errors: true
+
+- name: Create static resolv.conf
+  ansible.builtin.copy:
+    dest: /etc/resolv.conf
+    content: |
+      # Managed by Ansible - CoreDNS role
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+    mode: "0644"
+
 - name: Create CoreDNS group
   ansible.builtin.group:
     name: "{{ coredns_group }}"
