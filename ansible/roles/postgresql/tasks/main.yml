@@ -13,6 +13,12 @@
         Users: {{ postgresql_users | length }}
         Metrics: {{ postgresql_enable_metrics }}
 
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+  when: postgresql_state == 'present'
+  tags:
+    - install
+
 - name: Include configuration tasks
   ansible.builtin.include_tasks: configure.yml
   when: postgresql_state == 'present'

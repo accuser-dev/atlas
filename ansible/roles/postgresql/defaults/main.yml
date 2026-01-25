@@ -31,8 +31,8 @@ postgresql_allowed_networks:
   - "172.16.0.0/12"
   - "192.168.0.0/16"
 
-# Additional PostgreSQL configuration
-postgresql_config: ""
+# Additional PostgreSQL configuration (base64 encoded)
+postgresql_config_base64: ""
 
 # Metrics configuration
 postgresql_enable_metrics: true

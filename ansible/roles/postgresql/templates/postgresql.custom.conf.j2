@@ -21,4 +21,6 @@ log_min_duration_statement = 1000
 # Connection settings
 max_connections = 100
 
-{{ postgresql_config }}
+{% if postgresql_config_base64 | default('') | length > 0 %}
+{{ postgresql_config_base64 | b64decode }}
+{% endif %}
