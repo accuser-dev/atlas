@@ -6,7 +6,7 @@
 ---
 - name: Write prometheus configuration
   ansible.builtin.copy:
-    content: "{{ prometheus_config }}"
+    content: "{{ prometheus_config_base64 | b64decode }}"
     dest: "{{ prometheus_config_dir }}/prometheus.yml"
     owner: "{{ prometheus_user }}"
     group: "{{ prometheus_group }}"

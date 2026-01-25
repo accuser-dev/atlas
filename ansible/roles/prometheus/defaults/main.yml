@@ -14,9 +14,9 @@ prometheus_port: "9090"
 prometheus_retention_time: "30d"
 prometheus_retention_size: ""
 
-# Configuration content (from Terraform)
-prometheus_config: ""
-prometheus_alert_rules: ""
+# Configuration content (from Terraform, base64 encoded)
+prometheus_config_base64: ""
+prometheus_alert_rules_base64: ""
 
 # Incus metrics TLS certificates (from Terraform)
 incus_metrics_cert: ""
