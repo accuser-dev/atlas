@@ -1,0 +1,92 @@
+// Grafana Alloy configuration for log shipping to Loki
+// River syntax - see https://grafana.com/docs/alloy/latest/
+
+// =============================================================================
+// Loki Write Endpoint
+// =============================================================================
+loki.write "default" {
+  endpoint {
+    url = "${loki_push_url}"
+  }
+}
+
+// =============================================================================
+// Local File Log Scraping
+// =============================================================================
+// Scrape system log files
+local.file_match "system_logs" {
+  path_targets = [
+    {"__path__" = "/var/log/*.log"},
+    {"__path__" = "/var/log/syslog"},
+  ]
+}
+
+loki.source.file "system" {
+  targets    = local.file_match.system_logs.targets
+  forward_to = [loki.process.add_labels.receiver]
+}
+
+%{ if enable_syslog_receiver ~}
+// =============================================================================
+// Syslog Receiver (for IncusOS host logs)
+// =============================================================================
+loki.source.syslog "incusos" {
+  listener {
+    address              = "0.0.0.0:${syslog_port}"
+    protocol             = "udp"
+    syslog_format        = "rfc5424"
+    use_incoming_timestamp = true
+    labels               = { job = "syslog" }
+  }
+
+  forward_to = [loki.process.syslog_labels.receiver]
+}
+
+// Process syslog entries with host-specific labels
+loki.process "syslog_labels" {
+  forward_to = [loki.write.default.receiver]
+
+  // Relabel to preserve syslog metadata
+  stage.labels {
+    values = {
+      hostname = "",
+      appname  = "",
+      facility = "",
+      severity = "",
+    }
+  }
+
+  // Add static labels
+  stage.static_labels {
+    values = {
+      source = "syslog",
+%{ for key, value in extra_labels ~}
+      ${key} = "${value}",
+%{ endfor ~}
+    }
+  }
+}
+
+%{ endif ~}
+// =============================================================================
+// Label Processing (for file-based logs)
+// =============================================================================
+loki.process "add_labels" {
+  forward_to = [loki.write.default.receiver]
+
+  // Add static labels
+  stage.static_labels {
+    values = {
+      job  = "alloy",
+      host = "${hostname}",
+%{ for key, value in extra_labels ~}
+      ${key} = "${value}",
+%{ endfor ~}
+    }
+  }
+
+  // Extract filename as label
+  stage.label_drop {
+    values = ["filename"]
+  }
+}

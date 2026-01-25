@@ -1,0 +1,48 @@
+# =============================================================================
+# CoreDNS Playbook
+# =============================================================================
+# Configures CoreDNS DNS server on target containers.
+#
+# Usage:
+#   ENV=iapetus ansible-playbook playbooks/coredns.yml
+
+---
+- name: Configure CoreDNS
+  hosts: coredns
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring CoreDNS: {{ inventory_hostname }}
+          Version: {{ coredns_version | default('NOT SET') }}
+          Port: {{ coredns_port | default('53') }}
+          Domain: {{ coredns_domain | default('NOT SET') }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: coredns
+
+  post_tasks:
+    - name: Verify CoreDNS status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ coredns_service_name | default('coredns') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          CoreDNS configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}

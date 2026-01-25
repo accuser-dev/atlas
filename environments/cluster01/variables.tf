@@ -393,7 +393,7 @@ variable "enable_forgejo" {
 variable "forgejo_admin_username" {
   description = "Forgejo admin username"
   type        = string
-  default     = "admin"
+  default     = "forge_admin" # "admin" is reserved in Forgejo
 }
 
 variable "forgejo_admin_password" {
@@ -427,4 +427,26 @@ variable "forgejo_proxy_stats_password" {
   type        = string
   default     = ""
   sensitive   = true
+}
+
+# =============================================================================
+# Forgejo Runner Configuration
+# =============================================================================
+
+variable "enable_forgejo_runner" {
+  description = "Enable Forgejo Actions runner"
+  type        = bool
+  default     = false
+}
+
+variable "forgejo_runner_labels" {
+  description = "Labels for the Forgejo runner (e.g., 'debian-trixie:host,linux_amd64:host')"
+  type        = string
+  default     = "debian-trixie:host,linux_amd64:host"
+}
+
+variable "forgejo_runner_insecure" {
+  description = "Skip TLS verification for Forgejo runner connection (useful for self-signed certs)"
+  type        = bool
+  default     = false
 }

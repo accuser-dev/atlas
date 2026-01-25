@@ -1,162 +1,24 @@
 #cloud-config
-# Grafana Alloy system container configuration
-# Uses Debian Trixie with systemd service management
+# =============================================================================
+# Alloy - Minimal Cloud-Init Configuration
+# =============================================================================
+# This cloud-init only prepares the system for Ansible.
+# All Alloy configuration is handled by the alloy Ansible role.
 
 package_update: true
 package_upgrade: false
 
 packages:
+  # Required for Ansible connection via community.general.incus plugin
+  - python3
+  - python3-apt
+  # Utilities for downloading
   - curl
   - unzip
 
-write_files:
-  # Alloy configuration file (River syntax)
-  - path: /etc/alloy/config.alloy
-    permissions: '0644'
-    content: |
-      // Grafana Alloy configuration for log shipping to Loki
-      // River syntax - see https://grafana.com/docs/alloy/latest/
-
-      // =============================================================================
-      // Loki Write Endpoint
-      // =============================================================================
-      loki.write "default" {
-        endpoint {
-          url = "${loki_push_url}"
-        }
-      }
-
-      // =============================================================================
-      // Local File Log Scraping
-      // =============================================================================
-      // Scrape system log files
-      local.file_match "system_logs" {
-        path_targets = [
-          {"__path__" = "/var/log/*.log"},
-          {"__path__" = "/var/log/syslog"},
-        ]
-      }
-
-      loki.source.file "system" {
-        targets    = local.file_match.system_logs.targets
-        forward_to = [loki.process.add_labels.receiver]
-      }
-
-%{ if enable_syslog_receiver ~}
-      // =============================================================================
-      // Syslog Receiver (for IncusOS host logs)
-      // =============================================================================
-      loki.source.syslog "incusos" {
-        listener {
-          address              = "0.0.0.0:${syslog_port}"
-          protocol             = "udp"
-          syslog_format        = "rfc5424"
-          use_incoming_timestamp = true
-          labels               = { job = "syslog" }
-        }
-
-        forward_to = [loki.process.syslog_labels.receiver]
-      }
-
-      // Process syslog entries with host-specific labels
-      loki.process "syslog_labels" {
-        forward_to = [loki.write.default.receiver]
-
-        // Relabel to preserve syslog metadata
-        stage.labels {
-          values = {
-            hostname = "",
-            appname  = "",
-            facility = "",
-            severity = "",
-          }
-        }
-
-        // Add static labels
-        stage.static_labels {
-          values = {
-            source = "syslog",
-%{ for key, value in extra_labels ~}
-            ${key} = "${value}",
-%{ endfor ~}
-          }
-        }
-      }
-
-%{ endif ~}
-      // =============================================================================
-      // Label Processing (for file-based logs)
-      // =============================================================================
-      loki.process "add_labels" {
-        forward_to = [loki.write.default.receiver]
-
-        // Add static labels
-        stage.static_labels {
-          values = {
-            job  = "alloy",
-            host = "${hostname}",
-%{ for key, value in extra_labels ~}
-            ${key} = "${value}",
-%{ endfor ~}
-          }
-        }
-
-        // Extract filename as label
-        stage.label_drop {
-          values = ["filename"]
-        }
-      }
-
-  # systemd service unit for Alloy
-  - path: /etc/systemd/system/alloy.service
-    permissions: '0644'
-    content: |
-      [Unit]
-      Description=Grafana Alloy - OpenTelemetry Collector
-      After=network-online.target
-      Wants=network-online.target
-
-      [Service]
-      Type=simple
-      User=alloy
-      Group=alloy
-      WorkingDirectory=/var/lib/alloy
-      ExecStart=/usr/local/bin/alloy run --storage.path=/var/lib/alloy --server.http.listen-addr=0.0.0.0:${http_port} /etc/alloy/config.alloy
-      Restart=on-failure
-      RestartSec=10
-      StandardOutput=journal
-      StandardError=journal
-
-      # Security hardening
-      NoNewPrivileges=yes
-      ProtectSystem=strict
-      ProtectHome=yes
-      ReadWritePaths=/var/lib/alloy
-      ReadOnlyPaths=/var/log
-      PrivateTmp=yes
-
-      [Install]
-      WantedBy=multi-user.target
-
+# Ensure system is ready for Ansible
 runcmd:
-  # Download and install Alloy
-  - |
-    ALLOY_VERSION="${alloy_version}"
-    cd /tmp
-    curl -sLO "https://github.com/grafana/alloy/releases/download/v$${ALLOY_VERSION}/alloy-linux-amd64.zip"
-    unzip -o "alloy-linux-amd64.zip"
-    mv alloy-linux-amd64 /usr/local/bin/alloy
-    chmod +x /usr/local/bin/alloy
-    rm -f "alloy-linux-amd64.zip"
-  # Create alloy user and directories
-  - groupadd --system --gid 10001 alloy 2>/dev/null || true
-  - useradd --system --uid 10001 --gid alloy --no-create-home --shell /usr/sbin/nologin alloy 2>/dev/null || true
-  - mkdir -p /var/lib/alloy /etc/alloy
-  - chown -R alloy:alloy /var/lib/alloy /etc/alloy
-  # Allow alloy to read system logs
-  - chmod 644 /var/log/*.log 2>/dev/null || true
-  - chmod 644 /var/log/syslog 2>/dev/null || true
-  # Enable and start alloy service
-  - systemctl daemon-reload
-  - systemctl enable alloy
-  - systemctl start alloy
+  # Create marker file indicating cloud-init completed
+  - touch /var/lib/cloud/instance/ansible-ready
+  # Ensure Python3 is the default
+  - update-alternatives --install /usr/bin/python python /usr/bin/python3 1 || true

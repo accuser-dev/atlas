@@ -1,0 +1,75 @@
+# =============================================================================
+# step-ca Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - step_ca_name is defined and step_ca_name | length > 0
+    fail_msg: "step_ca_name must be set"
+    success_msg: "Required variables validated"
+  tags:
+    - always
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+  when: step_ca_state == 'present'
+  tags:
+    - install
+
+- name: Include initialization tasks
+  ansible.builtin.include_tasks: initialize.yml
+  when: step_ca_state == 'present'
+  tags:
+    - init
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: step_ca_state == 'present'
+  tags:
+    - configure
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: step_ca_state == 'present'
+  tags:
+    - service
+
+- name: Remove step-ca
+  when: step_ca_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable service
+      ansible.builtin.systemd:
+        name: "{{ step_ca_service_name }}"
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove service file
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ step_ca_service_name }}.service"
+        state: absent
+      notify: Reload systemd
+
+    - name: Remove step user
+      ansible.builtin.user:
+        name: "{{ step_user }}"
+        state: absent
+        remove: true
+
+    - name: Remove step group
+      ansible.builtin.group:
+        name: "{{ step_group }}"
+        state: absent
+
+    - name: Remove binaries
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ step_binary_path }}"
+        - "{{ step_ca_binary_path }}"

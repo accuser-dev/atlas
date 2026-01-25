@@ -1,0 +1,41 @@
+# {{ ansible_managed }}
+# OpenFGA Fine-Grained Authorization Server
+
+[Unit]
+Description=OpenFGA Fine-Grained Authorization Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ openfga_user }}
+Group={{ openfga_group }}
+ExecStart=/usr/local/bin/openfga run \
+    --datastore-engine sqlite \
+    --datastore-uri 'file:{{ openfga_db_path }}' \
+    --http-addr 0.0.0.0:{{ openfga_http_port }} \
+    --grpc-addr 0.0.0.0:{{ openfga_grpc_port }} \
+{% if openfga_enable_playground and openfga_playground_port %}
+    --playground-enabled \
+    --playground-port {{ openfga_playground_port }} \
+{% else %}
+    --playground-enabled=false \
+{% endif %}
+    --profiler-enabled \
+    --profiler-addr 0.0.0.0:{{ openfga_metrics_port }} \
+    --authn-method preshared \
+    --authn-preshared-keys '{{ openfga_preshared_keys }}'
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ openfga_data_dir }}
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,25 @@
+# =============================================================================
+# CoreDNS Role - Service Tasks
+# =============================================================================
+
+---
+- name: Create CoreDNS systemd service
+  ansible.builtin.template:
+    src: coredns.service.j2
+    dest: "/etc/systemd/system/{{ coredns_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart coredns
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start CoreDNS service
+  ansible.builtin.systemd:
+    name: "{{ coredns_service_name }}"
+    state: started
+    enabled: "{{ coredns_service_enabled }}"
+    daemon_reload: true

@@ -1,0 +1,75 @@
+# =============================================================================
+# Forgejo Runner Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - forgejo_url is defined and forgejo_url | length > 0
+    fail_msg: "forgejo_url must be set (typically via Terraform output)"
+    success_msg: "Required variables validated"
+  tags:
+    - always
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+  when: forgejo_runner_state == 'present'
+  tags:
+    - install
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: forgejo_runner_state == 'present'
+  tags:
+    - configure
+
+- name: Include registration tasks
+  ansible.builtin.include_tasks: register.yml
+  when: forgejo_runner_state == 'present'
+  tags:
+    - register
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: forgejo_runner_state == 'present'
+  tags:
+    - service
+
+- name: Remove Forgejo runner
+  when: forgejo_runner_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable service
+      ansible.builtin.systemd:
+        name: "{{ forgejo_runner_service_name }}"
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove service file
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ forgejo_runner_service_name }}.service"
+        state: absent
+      notify: Reload systemd
+
+    - name: Remove runner user
+      ansible.builtin.user:
+        name: "{{ forgejo_runner_user }}"
+        state: absent
+        remove: true
+
+    - name: Remove runner group
+      ansible.builtin.group:
+        name: "{{ forgejo_runner_group }}"
+        state: absent
+
+    - name: Remove runner directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ forgejo_runner_home }}"
+        - "{{ forgejo_runner_config_dir }}"

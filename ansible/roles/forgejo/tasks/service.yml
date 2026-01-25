@@ -1,0 +1,34 @@
+# =============================================================================
+# Forgejo Service Tasks
+# =============================================================================
+# Manages the forgejo systemd service.
+
+---
+- name: Ensure systemd is reloaded
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable forgejo service
+  ansible.builtin.systemd:
+    name: "{{ forgejo_service_name }}"
+    enabled: "{{ forgejo_service_enabled }}"
+
+- name: Start forgejo service
+  ansible.builtin.systemd:
+    name: "{{ forgejo_service_name }}"
+    state: started
+
+- name: Wait for forgejo to be ready
+  ansible.builtin.uri:
+    url: "{{ 'https' if forgejo_enable_tls else 'http' }}://127.0.0.1:{{ forgejo_http_port }}/api/v1/version"
+    method: GET
+    status_code: 200
+    validate_certs: false
+  register: forgejo_ready
+  until: forgejo_ready.status == 200
+  retries: 30
+  delay: 2
+
+- name: Display forgejo status
+  ansible.builtin.debug:
+    msg: "Forgejo is running on port {{ forgejo_http_port }}"

@@ -1,0 +1,54 @@
+# =============================================================================
+# PostgreSQL Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# PostgreSQL port
+postgresql_port: "5432"
+
+# Admin password (from environment variable)
+postgresql_admin_password: "{{ lookup('env', 'POSTGRESQL_ADMIN_PASSWORD') }}"
+
+# Databases to create (from Terraform)
+postgresql_databases: []
+# Example:
+# - name: mydb
+#   owner: myuser
+#   encoding: UTF8
+
+# Users to create (from Terraform)
+postgresql_users: []
+# Example:
+# - name: myuser
+#   password: mypassword
+#   options:
+#     - CREATEDB
+
+# Allowed networks for pg_hba.conf
+postgresql_allowed_networks:
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"
+
+# Additional PostgreSQL configuration (base64 encoded)
+postgresql_config_base64: ""
+
+# Metrics configuration
+postgresql_enable_metrics: true
+postgresql_metrics_port: "9187"
+postgres_exporter_version: "0.15.0"
+
+# PostgreSQL version (Debian Trixie uses 17)
+postgresql_version: "17"
+
+# Directories
+postgresql_data_dir: "/var/lib/postgresql/{{ postgresql_version }}/main"
+postgresql_conf_dir: "/etc/postgresql/{{ postgresql_version }}/main"
+
+# Service name
+postgresql_service_name: "postgresql"
+postgresql_exporter_service_name: "postgres-exporter"
+
+# State: present or absent
+postgresql_state: present

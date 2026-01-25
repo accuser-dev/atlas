@@ -1,0 +1,14 @@
+# =============================================================================
+# Loki Role Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart loki
+  ansible.builtin.systemd:
+    name: "{{ loki_service_name }}"
+    state: restarted
+  when: loki_service_enabled

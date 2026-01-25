@@ -27,3 +27,36 @@ output "tls_enabled" {
   description = "Whether TLS is enabled for this instance"
   value       = var.enable_tls
 }
+
+output "ipv4_address" {
+  description = "IPv4 address of the Alertmanager container"
+  value       = incus_instance.alertmanager.ipv4_address
+}
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.alertmanager.name
+    ipv4_address = incus_instance.alertmanager.ipv4_address
+  }
+}
+
+output "ansible_vars" {
+  description = "Variables passed to Ansible for Alertmanager configuration"
+  sensitive   = true
+  value = {
+    alertmanager_version       = var.alertmanager_version
+    alertmanager_port          = var.alertmanager_port
+    alertmanager_config_base64 = base64encode(local.alertmanager_config)
+    alertmanager_has_config    = true
+    alertmanager_enable_tls    = var.enable_tls
+    stepca_url                 = var.stepca_url
+    stepca_fingerprint         = var.stepca_fingerprint
+    cert_duration              = var.cert_duration
+    step_version               = var.step_version
+  }
+}

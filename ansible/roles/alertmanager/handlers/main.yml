@@ -1,0 +1,28 @@
+# =============================================================================
+# Alertmanager Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart alertmanager
+  ansible.builtin.systemd:
+    name: "{{ alertmanager_service_name }}"
+    state: restarted
+
+- name: Reload alertmanager
+  ansible.builtin.uri:
+    url: "{{ 'https' if alertmanager_enable_tls else 'http' }}://127.0.0.1:{{ alertmanager_port }}/-/reload"
+    method: POST
+    status_code: 200
+    validate_certs: false
+  failed_when: false
+  register: reload_result
+
+- name: Fallback to restart if reload fails
+  ansible.builtin.systemd:
+    name: "{{ alertmanager_service_name }}"
+    state: restarted
+  when: reload_result is defined and reload_result.status != 200

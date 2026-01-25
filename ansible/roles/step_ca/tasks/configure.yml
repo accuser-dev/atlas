@@ -1,0 +1,39 @@
+# =============================================================================
+# step-ca Configuration Tasks
+# =============================================================================
+# Updates CA configuration (certificate durations, etc.).
+
+---
+- name: Read current CA configuration
+  ansible.builtin.slurp:
+    src: "{{ step_config_dir }}/ca.json"
+  register: ca_config_content
+
+- name: Parse CA configuration
+  ansible.builtin.set_fact:
+    ca_config: "{{ ca_config_content.content | b64decode | from_json }}"
+
+- name: Update certificate durations
+  ansible.builtin.copy:
+    content: "{{ ca_config | combine({'authority': ca_config.authority | combine({'claims': updated_claims})}, recursive=True) | to_nice_json }}"
+    dest: "{{ step_config_dir }}/ca.json"
+    owner: "{{ step_user }}"
+    group: "{{ step_group }}"
+    mode: "0600"
+  vars:
+    updated_claims:
+      defaultTLSCertDuration: "{{ cert_duration }}"
+      maxTLSCertDuration: "168h"
+      minTLSCertDuration: "1h"
+  notify: Restart step-ca
+
+- name: Write systemd service file
+  ansible.builtin.template:
+    src: step-ca.service.j2
+    dest: "/etc/systemd/system/{{ step_ca_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart step-ca

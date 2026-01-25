@@ -1,0 +1,34 @@
+# =============================================================================
+# step-ca Service Tasks
+# =============================================================================
+# Manages the step-ca systemd service.
+
+---
+- name: Ensure systemd is reloaded
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable step-ca service
+  ansible.builtin.systemd:
+    name: "{{ step_ca_service_name }}"
+    enabled: "{{ step_ca_service_enabled }}"
+
+- name: Start step-ca service
+  ansible.builtin.systemd:
+    name: "{{ step_ca_service_name }}"
+    state: started
+
+- name: Wait for step-ca to be ready
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ step_ca_port }}/health"
+    method: GET
+    status_code: 200
+    validate_certs: false
+  register: stepca_ready
+  until: stepca_ready.status == 200
+  retries: 30
+  delay: 2
+
+- name: Display step-ca status
+  ansible.builtin.debug:
+    msg: "step-ca is running on port {{ step_ca_port }}"

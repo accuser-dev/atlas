@@ -1,0 +1,32 @@
+# =============================================================================
+# PostgreSQL Installation Tasks
+# =============================================================================
+# Installs PostgreSQL packages and Python dependencies for Ansible modules.
+
+---
+- name: Install PostgreSQL packages
+  ansible.builtin.apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+    state: present
+    update_cache: true
+
+- name: Install psycopg2-binary via pip
+  ansible.builtin.pip:
+    name: psycopg2-binary
+    state: present
+
+- name: Ensure PostgreSQL service is started
+  ansible.builtin.systemd:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: Ensure data directory exists with correct permissions
+  ansible.builtin.file:
+    path: /var/lib/postgresql
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0755"

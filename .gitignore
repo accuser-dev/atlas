@@ -19,6 +19,9 @@ docker/**/.dockerignore
 docker/**/node_modules/
 docker/**/*.log
 
+# Ansible
+ansible/.ansible_cache/
+
 # IDE and editor files
 .idea/
 *.swp
@@ -27,8 +30,6 @@ docker/**/*.log
 
 # Claude Code local settings
 .claude/settings.local.json
-.claude/agents/
-**/.claude/
 
 # OS files
 .DS_Store

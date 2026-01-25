@@ -1,0 +1,28 @@
+#!/bin/bash
+set -eu
+
+TLS_DIR="{{ mosquitto_tls_dir }}"
+CERT_FILE="${TLS_DIR}/mosquitto.crt"
+KEY_FILE="${TLS_DIR}/mosquitto.key"
+CA_FILE="${TLS_DIR}/ca.crt"
+
+mkdir -p "${TLS_DIR}"
+
+echo "Bootstrapping CA trust..."
+{{ step_binary_path }} ca bootstrap --ca-url "{{ stepca_url }}" --fingerprint "{{ stepca_fingerprint }}" --force
+
+HOSTNAME=$(hostname)
+echo "Requesting certificate for hostname: ${HOSTNAME}"
+
+{{ step_binary_path }} ca certificate "${HOSTNAME}" "${CERT_FILE}" "${KEY_FILE}" \
+  --ca-url "{{ stepca_url }}" \
+  --provisioner acme \
+  --not-after "{{ cert_duration }}" \
+  --force
+
+cp "$({{ step_binary_path }} path)/certs/root_ca.crt" "${CA_FILE}"
+
+chown {{ mosquitto_user }}:{{ mosquitto_group }} "${CERT_FILE}" "${KEY_FILE}" "${CA_FILE}"
+chmod 640 "${CERT_FILE}" "${KEY_FILE}" "${CA_FILE}"
+
+echo "TLS certificates configured successfully"

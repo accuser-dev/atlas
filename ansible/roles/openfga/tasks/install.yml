@@ -1,0 +1,82 @@
+# =============================================================================
+# OpenFGA Role - Installation Tasks
+# =============================================================================
+
+---
+- name: Create OpenFGA group
+  ansible.builtin.group:
+    name: "{{ openfga_group }}"
+    system: true
+    state: present
+
+- name: Create OpenFGA user
+  ansible.builtin.user:
+    name: "{{ openfga_user }}"
+    group: "{{ openfga_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ openfga_data_dir }}"
+    create_home: false
+    state: present
+
+- name: Create OpenFGA data directory
+  ansible.builtin.file:
+    path: "{{ openfga_data_dir }}"
+    state: directory
+    owner: "{{ openfga_user }}"
+    group: "{{ openfga_group }}"
+    mode: "0755"
+
+- name: Check if OpenFGA is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/openfga
+  register: openfga_binary
+
+- name: Get installed OpenFGA version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/openfga version
+  register: openfga_installed_version
+  changed_when: false
+  failed_when: false
+  when: openfga_binary.stat.exists
+
+- name: Set installed version fact
+  ansible.builtin.set_fact:
+    openfga_current_version: "{{ openfga_installed_version.stdout | default('') | regex_search('v([0-9.]+)', '\\1') | first | default('0.0.0') }}"
+  when: openfga_binary.stat.exists
+
+- name: Download and install OpenFGA
+  when: not openfga_binary.stat.exists or (openfga_current_version | default('0.0.0')) != openfga_version
+  block:
+    - name: Create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: openfga
+      register: openfga_temp_dir
+
+    - name: Download OpenFGA release
+      ansible.builtin.get_url:
+        url: "https://github.com/openfga/openfga/releases/download/v{{ openfga_version }}/openfga_{{ openfga_version }}_linux_amd64.tar.gz"
+        dest: "{{ openfga_temp_dir.path }}/openfga.tar.gz"
+        mode: "0644"
+
+    - name: Extract OpenFGA archive
+      ansible.builtin.unarchive:
+        src: "{{ openfga_temp_dir.path }}/openfga.tar.gz"
+        dest: "{{ openfga_temp_dir.path }}"
+        remote_src: true
+
+    - name: Install OpenFGA binary
+      ansible.builtin.copy:
+        src: "{{ openfga_temp_dir.path }}/openfga"
+        dest: /usr/local/bin/openfga
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart openfga
+
+    - name: Clean up temporary directory
+      ansible.builtin.file:
+        path: "{{ openfga_temp_dir.path }}"
+        state: absent

@@ -12,10 +12,19 @@ INCUS_REMOTE := $(if $(filter cluster01,$(ENV)),cluster01:,)
         list-images \
         bootstrap bootstrap-init bootstrap-plan bootstrap-apply \
         init plan apply destroy import import-dynamic clean-incus clean-images \
-        deploy validate clean clean-docker clean-tofu clean-bootstrap format \
+        deploy deploy-full validate clean clean-docker clean-tofu clean-bootstrap format \
         backup-snapshot backup-export backup-list backup-dynamic \
         test test-health test-connectivity test-storage test-network \
-        configure-ovn-chassis verify-ovn-chassis
+        configure-ovn-chassis verify-ovn-chassis \
+        ansible-setup configure configure-runner configure-runner-register \
+        configure-prometheus configure-forgejo configure-forgejo-full \
+        configure-postgresql configure-postgresql-full \
+        configure-alertmanager configure-step-ca configure-step-ca-full \
+        configure-mosquitto configure-mosquitto-full \
+        configure-alloy configure-grafana configure-grafana-full \
+        configure-loki configure-coredns \
+        configure-openfga configure-openfga-full \
+        configure-dex configure-dex-full
 
 # Default target
 help:
@@ -71,7 +80,20 @@ help:
 	@echo "  make configure-ovn-chassis ENV=cluster01  - Configure OVN on all cluster nodes"
 	@echo "  make verify-ovn-chassis ENV=cluster01     - Verify OVN chassis registration"
 	@echo ""
-	@echo "Utility Commands:"
+	@echo "Ansible Commands (Hybrid Terraform + Ansible):"
+	@echo "  make ansible-setup                        - Install Ansible Galaxy requirements"
+	@echo "  make configure                            - Run full Ansible configuration"
+	@echo "  make configure-runner                     - Configure Forgejo runners only"
+	@echo "  make configure-runner-register            - Configure + register (needs FORGEJO_RUNNER_TOKEN)"
+	@echo "  make configure-alloy                      - Configure Alloy log collector"
+	@echo "  make configure-grafana[-full]             - Configure Grafana (full needs GRAFANA_ADMIN_PASSWORD)"
+	@echo "  make configure-loki                       - Configure Loki log aggregation"
+	@echo "  make configure-coredns                    - Configure CoreDNS"
+	@echo "  make configure-openfga[-full]             - Configure OpenFGA (full needs OPENFGA_PRESHARED_KEYS)"
+	@echo "  make configure-dex[-full]                 - Configure Dex (full needs DEX_GITHUB_CLIENT_*)"
+	@echo "  make deploy-full                          - Apply Terraform + run Ansible configure"
+	@echo ""
+	@echo "Utility Commands:
 	@echo "  make format            - Format OpenTofu files"
 	@echo "  make clean             - Clean all build artifacts"
 	@echo "  make clean-docker      - Clean Docker build cache"
@@ -563,3 +585,351 @@ verify-ovn-chassis:
 		echo "✗ Some chassis missing - run 'make configure-ovn-chassis ENV=cluster01'"; \
 		exit 1; \
 	fi
+
+# =============================================================================
+# Ansible Configuration (Hybrid Terraform + Ansible)
+# =============================================================================
+
+# Install Ansible Galaxy requirements (run once)
+ansible-setup:
+	@echo "Installing Ansible Galaxy requirements..."
+	cd ansible && ansible-galaxy collection install -r requirements.yml --force
+	@echo ""
+	@echo "Ansible setup complete."
+
+# Run full Ansible configuration for all services
+configure:
+	@echo "Running Ansible configuration for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/site.yml
+	@echo ""
+	@echo "Configuration complete for $(ENV)."
+
+# Configure Forgejo runners only (without registration)
+configure-runner:
+	@echo "Configuring Forgejo runners for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/forgejo-runner.yml --skip-tags register
+	@echo ""
+	@echo "Runner configuration complete (registration skipped)."
+	@echo "To register, run: FORGEJO_RUNNER_TOKEN=<token> make configure-runner-register ENV=$(ENV)"
+
+# Configure and register Forgejo runners (requires FORGEJO_RUNNER_TOKEN)
+configure-runner-register:
+	@echo "Configuring and registering Forgejo runners for $(ENV)..."
+	@if [ -z "$$FORGEJO_RUNNER_TOKEN" ]; then \
+		echo "ERROR: FORGEJO_RUNNER_TOKEN environment variable not set."; \
+		echo ""; \
+		echo "Get a registration token from Forgejo:"; \
+		echo "  1. Go to Admin > Actions > Runners"; \
+		echo "  2. Click 'Create new runner'"; \
+		echo "  3. Copy the registration token"; \
+		echo ""; \
+		echo "Then run:"; \
+		echo "  FORGEJO_RUNNER_TOKEN=<token> make configure-runner-register ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) FORGEJO_RUNNER_TOKEN="$$FORGEJO_RUNNER_TOKEN" ansible-playbook playbooks/forgejo-runner.yml
+	@echo ""
+	@echo "Runner configuration and registration complete."
+	@echo "Check Forgejo Admin > Actions > Runners to verify the runner is online."
+
+# Full deployment: Terraform apply + Ansible configure
+deploy-full: apply configure
+	@echo ""
+	@echo "Full deployment complete for $(ENV)!"
+	@echo "Terraform infrastructure deployed and Ansible configuration applied."
+
+# =============================================================================
+# Individual Service Configuration Targets
+# =============================================================================
+
+# Configure Prometheus (no secrets required)
+configure-prometheus:
+	@echo "Configuring Prometheus for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/prometheus.yml
+	@echo ""
+	@echo "Prometheus configuration complete."
+
+# Configure Forgejo (without secrets)
+configure-forgejo:
+	@echo "Configuring Forgejo for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/forgejo.yml --skip-tags secrets
+	@echo ""
+	@echo "Forgejo configuration complete (secrets skipped)."
+	@echo "To configure with secrets, run: FORGEJO_DB_PASSWORD=<pw> FORGEJO_ADMIN_PASSWORD=<pw> make configure-forgejo-full ENV=$(ENV)"
+
+# Configure Forgejo with secrets (requires FORGEJO_DB_PASSWORD and FORGEJO_ADMIN_PASSWORD)
+configure-forgejo-full:
+	@echo "Configuring Forgejo with secrets for $(ENV)..."
+	@if [ -z "$$FORGEJO_DB_PASSWORD" ] || [ -z "$$FORGEJO_ADMIN_PASSWORD" ]; then \
+		echo "ERROR: FORGEJO_DB_PASSWORD and FORGEJO_ADMIN_PASSWORD environment variables required."; \
+		echo ""; \
+		echo "Run:"; \
+		echo "  FORGEJO_DB_PASSWORD=<password> FORGEJO_ADMIN_PASSWORD=<password> make configure-forgejo-full ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) FORGEJO_DB_PASSWORD="$$FORGEJO_DB_PASSWORD" FORGEJO_ADMIN_PASSWORD="$$FORGEJO_ADMIN_PASSWORD" ansible-playbook playbooks/forgejo.yml
+	@echo ""
+	@echo "Forgejo configuration with secrets complete."
+
+# Configure PostgreSQL (without user passwords)
+configure-postgresql:
+	@echo "Configuring PostgreSQL for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/postgresql.yml --skip-tags users
+	@echo ""
+	@echo "PostgreSQL configuration complete (user creation skipped)."
+	@echo "To configure with users, run: POSTGRESQL_ADMIN_PASSWORD=<pw> make configure-postgresql-full ENV=$(ENV)"
+
+# Configure PostgreSQL with user passwords (requires POSTGRESQL_ADMIN_PASSWORD)
+configure-postgresql-full:
+	@echo "Configuring PostgreSQL with users for $(ENV)..."
+	@if [ -z "$$POSTGRESQL_ADMIN_PASSWORD" ]; then \
+		echo "ERROR: POSTGRESQL_ADMIN_PASSWORD environment variable required."; \
+		echo ""; \
+		echo "Run:"; \
+		echo "  POSTGRESQL_ADMIN_PASSWORD=<password> make configure-postgresql-full ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) POSTGRESQL_ADMIN_PASSWORD="$$POSTGRESQL_ADMIN_PASSWORD" ansible-playbook playbooks/postgresql.yml
+	@echo ""
+	@echo "PostgreSQL configuration with users complete."
+
+# Configure Alertmanager (no secrets required)
+configure-alertmanager:
+	@echo "Configuring Alertmanager for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/alertmanager.yml
+	@echo ""
+	@echo "Alertmanager configuration complete."
+
+# Configure step-ca (without CA initialization)
+configure-step-ca:
+	@echo "Configuring step-ca for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/step-ca.yml --skip-tags init
+	@echo ""
+	@echo "step-ca configuration complete (initialization skipped)."
+	@echo "To initialize CA, run: STEP_CA_PASSWORD=<pw> make configure-step-ca-full ENV=$(ENV)"
+
+# Configure step-ca with CA initialization (requires STEP_CA_PASSWORD)
+configure-step-ca-full:
+	@echo "Configuring and initializing step-ca for $(ENV)..."
+	@if [ -z "$$STEP_CA_PASSWORD" ]; then \
+		echo "ERROR: STEP_CA_PASSWORD environment variable required."; \
+		echo ""; \
+		echo "Run:"; \
+		echo "  STEP_CA_PASSWORD=<password> make configure-step-ca-full ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) STEP_CA_PASSWORD="$$STEP_CA_PASSWORD" ansible-playbook playbooks/step-ca.yml
+	@echo ""
+	@echo "step-ca configuration and initialization complete."
+
+# Configure Mosquitto (without user passwords)
+configure-mosquitto:
+	@echo "Configuring Mosquitto for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/mosquitto.yml --skip-tags users
+	@echo ""
+	@echo "Mosquitto configuration complete (user creation skipped)."
+	@echo "To configure with users, run: make configure-mosquitto-full ENV=$(ENV)"
+
+# Configure Mosquitto with users (user passwords from Terraform vars)
+configure-mosquitto-full:
+	@echo "Configuring Mosquitto with users for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/mosquitto.yml
+	@echo ""
+	@echo "Mosquitto configuration with users complete."
+
+# Configure Alloy (no secrets required)
+configure-alloy:
+	@echo "Configuring Alloy for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/alloy.yml
+	@echo ""
+	@echo "Alloy configuration complete."
+
+# Configure Grafana (without admin password)
+configure-grafana:
+	@echo "Configuring Grafana for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/grafana.yml --skip-tags secrets
+	@echo ""
+	@echo "Grafana configuration complete (admin password skipped)."
+	@echo "To configure with admin password, run: GRAFANA_ADMIN_PASSWORD=<pw> make configure-grafana-full ENV=$(ENV)"
+
+# Configure Grafana with admin password (requires GRAFANA_ADMIN_PASSWORD)
+configure-grafana-full:
+	@echo "Configuring Grafana with admin password for $(ENV)..."
+	@if [ -z "$$GRAFANA_ADMIN_PASSWORD" ]; then \
+		echo "ERROR: GRAFANA_ADMIN_PASSWORD environment variable required."; \
+		echo ""; \
+		echo "Run:"; \
+		echo "  GRAFANA_ADMIN_PASSWORD=<password> make configure-grafana-full ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) GRAFANA_ADMIN_PASSWORD="$$GRAFANA_ADMIN_PASSWORD" ansible-playbook playbooks/grafana.yml
+	@echo ""
+	@echo "Grafana configuration with admin password complete."
+
+# Configure Loki (no secrets required)
+configure-loki:
+	@echo "Configuring Loki for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/loki.yml
+	@echo ""
+	@echo "Loki configuration complete."
+
+# Configure CoreDNS (no secrets required)
+configure-coredns:
+	@echo "Configuring CoreDNS for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/coredns.yml
+	@echo ""
+	@echo "CoreDNS configuration complete."
+
+# Configure OpenFGA (without preshared keys)
+configure-openfga:
+	@echo "Configuring OpenFGA for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/openfga.yml --skip-tags secrets
+	@echo ""
+	@echo "OpenFGA configuration complete (preshared keys skipped)."
+	@echo "To configure with preshared keys, run: OPENFGA_PRESHARED_KEYS=<keys> make configure-openfga-full ENV=$(ENV)"
+
+# Configure OpenFGA with preshared keys (requires OPENFGA_PRESHARED_KEYS)
+configure-openfga-full:
+	@echo "Configuring OpenFGA with preshared keys for $(ENV)..."
+	@if [ -z "$$OPENFGA_PRESHARED_KEYS" ]; then \
+		echo "ERROR: OPENFGA_PRESHARED_KEYS environment variable required."; \
+		echo ""; \
+		echo "Run:"; \
+		echo "  OPENFGA_PRESHARED_KEYS=<key1,key2> make configure-openfga-full ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) OPENFGA_PRESHARED_KEYS="$$OPENFGA_PRESHARED_KEYS" ansible-playbook playbooks/openfga.yml
+	@echo ""
+	@echo "OpenFGA configuration with preshared keys complete."
+
+# Configure Dex (without GitHub credentials)
+configure-dex:
+	@echo "Configuring Dex for $(ENV)..."
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) ansible-playbook playbooks/dex.yml --skip-tags secrets
+	@echo ""
+	@echo "Dex configuration complete (GitHub credentials skipped)."
+	@echo "To configure with credentials, run: DEX_GITHUB_CLIENT_ID=<id> DEX_GITHUB_CLIENT_SECRET=<secret> make configure-dex-full ENV=$(ENV)"
+
+# Configure Dex with GitHub credentials (requires DEX_GITHUB_CLIENT_ID and DEX_GITHUB_CLIENT_SECRET)
+configure-dex-full:
+	@echo "Configuring Dex with GitHub credentials for $(ENV)..."
+	@if [ -z "$$DEX_GITHUB_CLIENT_ID" ] || [ -z "$$DEX_GITHUB_CLIENT_SECRET" ]; then \
+		echo "ERROR: DEX_GITHUB_CLIENT_ID and DEX_GITHUB_CLIENT_SECRET environment variables required."; \
+		echo ""; \
+		echo "Run:"; \
+		echo "  DEX_GITHUB_CLIENT_ID=<id> DEX_GITHUB_CLIENT_SECRET=<secret> make configure-dex-full ENV=$(ENV)"; \
+		exit 1; \
+	fi
+	@if ! cd $(ENV_DIR) && tofu output -json >/dev/null 2>&1; then \
+		echo "ERROR: Cannot read Terraform outputs."; \
+		echo "Ensure 'make apply ENV=$(ENV)' has been run first."; \
+		exit 1; \
+	fi
+	cd ansible && ENV=$(ENV) DEX_GITHUB_CLIENT_ID="$$DEX_GITHUB_CLIENT_ID" DEX_GITHUB_CLIENT_SECRET="$$DEX_GITHUB_CLIENT_SECRET" ansible-playbook playbooks/dex.yml
+	@echo ""
+	@echo "Dex configuration with GitHub credentials complete."

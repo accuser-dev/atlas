@@ -1,67 +1,24 @@
 #cloud-config
-# Dex OIDC Provider system container cloud-init configuration
-# Uses Debian Trixie with systemd service management
+# =============================================================================
+# Dex - Minimal Cloud-Init Configuration
+# =============================================================================
+# This cloud-init only prepares the system for Ansible.
+# All Dex configuration is handled by the dex Ansible role.
 
-write_files:
-  # Dex configuration file
-  - path: /etc/dex/config.yaml
-    permissions: '0640'
-    content: |
-      ${indent(6, dex_config)}
+package_update: true
+package_upgrade: false
 
-  # systemd service unit for Dex
-  - path: /etc/systemd/system/dex.service
-    permissions: '0644'
-    content: |
-      [Unit]
-      Description=Dex OIDC Identity Provider
-      After=network-online.target
-      Wants=network-online.target
+packages:
+  # Required for Ansible connection via community.general.incus plugin
+  - python3
+  - python3-apt
+  # Utilities for downloading
+  - curl
+  - ca-certificates
 
-      [Service]
-      Type=simple
-      User=dex
-      Group=dex
-      ExecStart=/usr/local/bin/dex serve /etc/dex/config.yaml
-      Restart=on-failure
-      RestartSec=10
-      StandardOutput=journal
-      StandardError=journal
-
-      # Security hardening
-      NoNewPrivileges=yes
-      ProtectSystem=strict
-      ProtectHome=yes
-      ReadWritePaths=/var/dex
-      PrivateTmp=yes
-
-      [Install]
-      WantedBy=multi-user.target
-
+# Ensure system is ready for Ansible
 runcmd:
-  # Install required packages (curl is needed for downloading)
-  - apt-get update -qq
-  - apt-get install -y -qq curl ca-certificates
-  # Extract Dex binary from Docker image using crane
-  # (Dex no longer publishes standalone binaries, only Docker images)
-  - |
-    DEX_VERSION="${dex_version}"
-    cd /tmp
-    # Install crane to extract binary from OCI image
-    curl -sL "https://github.com/google/go-containerregistry/releases/download/v0.20.2/go-containerregistry_Linux_x86_64.tar.gz" | tar -xzf - crane
-    # Extract dex binary from the official Docker image
-    ./crane export "ghcr.io/dexidp/dex:v$${DEX_VERSION}" - | tar -xf - usr/local/bin/dex
-    mv usr/local/bin/dex /usr/local/bin/dex
-    chmod +x /usr/local/bin/dex
-    # Cleanup
-    rm -rf crane usr
-  # Create dex user and directories
-  - groupadd --system dex 2>/dev/null || true
-  - useradd --system --gid dex --no-create-home --shell /usr/sbin/nologin dex 2>/dev/null || true
-  - mkdir -p /var/dex /etc/dex
-  - chown -R dex:dex /var/dex
-  - chown -R dex:dex /etc/dex
-  # Enable and start Dex service
-  - systemctl daemon-reload
-  - systemctl enable dex
-  - systemctl start dex
+  # Create marker file indicating cloud-init completed
+  - touch /var/lib/cloud/instance/ansible-ready
+  # Ensure Python3 is the default
+  - update-alternatives --install /usr/bin/python python /usr/bin/python3 1 || true

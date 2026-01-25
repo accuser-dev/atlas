@@ -1,0 +1,41 @@
+# =============================================================================
+# Mosquitto Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# Mosquitto ports
+mosquitto_mqtt_port: "1883"
+mosquitto_mqtts_port: "8883"
+
+# TLS configuration
+mosquitto_enable_tls: false
+stepca_url: ""
+stepca_fingerprint: ""
+cert_duration: "24h"
+step_version: "0.28.2"
+
+# MQTT users (map of username: password)
+mosquitto_users: {}
+
+# Custom configuration (base64 encoded)
+mosquitto_config_base64: ""
+
+# Directories
+mosquitto_config_dir: "/etc/mosquitto"
+mosquitto_data_dir: "/mosquitto/data"
+mosquitto_tls_dir: "/etc/mosquitto/tls"
+
+# User/group (system-installed mosquitto)
+mosquitto_user: "mosquitto"
+mosquitto_group: "mosquitto"
+
+# Service configuration
+mosquitto_service_name: "mosquitto"
+mosquitto_service_enabled: true
+
+# Binary paths
+step_binary_path: "/usr/local/bin/step"
+
+# State: present or absent
+mosquitto_state: present

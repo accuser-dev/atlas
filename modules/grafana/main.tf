@@ -5,15 +5,8 @@
 # Uses Debian Trixie system container with cloud-init and systemd for configuration
 
 locals {
-  # Cloud-init configuration
-  cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    grafana_version = var.grafana_version
-    grafana_port    = var.grafana_port
-    domain          = var.domain
-    admin_user      = var.admin_user
-    admin_password  = var.admin_password
-    datasources     = var.datasources
-  })
+  # Cloud-init configuration (minimal bootstrap only)
+  cloud_init_content = file("${path.module}/templates/cloud-init.yaml.tftpl")
 }
 
 resource "incus_storage_volume" "grafana_data" {

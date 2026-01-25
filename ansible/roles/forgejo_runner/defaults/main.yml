@@ -1,0 +1,66 @@
+# =============================================================================
+# Forgejo Runner Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# Forgejo runner version
+forgejo_runner_version: "6.2.2"
+
+# Forgejo instance URL (required - set via Terraform output)
+forgejo_url: ""
+
+# Runner name (defaults to hostname)
+forgejo_runner_name: "{{ inventory_hostname }}"
+
+# Runner labels for job matching
+# Format: "label:execution_mode" where execution_mode is "host" or "docker://image"
+forgejo_runner_labels: "debian-trixie:host,linux_amd64:host"
+
+# Registration token (passed at runtime via environment variable)
+# FORGEJO_RUNNER_TOKEN environment variable is used during registration
+forgejo_runner_token: "{{ lookup('env', 'FORGEJO_RUNNER_TOKEN') }}"
+
+# Execution mode: "host" only (no Docker support in this role)
+forgejo_runner_execution_mode: "host"
+
+# Directories
+forgejo_runner_home: "/opt/forgejo-runner"
+forgejo_runner_work_dir: "/opt/forgejo-runner/workdir"
+forgejo_runner_config_dir: "/etc/forgejo-runner"
+forgejo_runner_cache_dir: "/opt/forgejo-runner/cache"
+
+# User/group configuration
+forgejo_runner_user: "forgejo-runner"
+forgejo_runner_group: "forgejo-runner"
+forgejo_runner_uid: 1100
+forgejo_runner_gid: 1100
+
+# Service configuration
+forgejo_runner_service_name: "forgejo-runner"
+forgejo_runner_service_enabled: true
+
+# Runner capacity (concurrent jobs)
+forgejo_runner_capacity: 1
+
+# Cache configuration
+forgejo_runner_cache_enabled: true
+
+# Logging
+forgejo_runner_log_level: "info"
+
+# Fetch settings
+forgejo_runner_fetch_interval: "2s"
+forgejo_runner_fetch_timeout: "5s"
+
+# Report settings
+forgejo_runner_report_interval: "1s"
+
+# Network settings (for host mode)
+forgejo_runner_host_network: true
+
+# Insecure mode (skip TLS verification) - useful for self-signed certs
+forgejo_runner_insecure: false
+
+# State: present or absent
+forgejo_runner_state: present

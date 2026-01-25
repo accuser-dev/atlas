@@ -39,3 +39,28 @@ output "dns_records" {
     }
   ] : []
 }
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "ansible_vars" {
+  description = "Variables to pass to Ansible for Grafana configuration"
+  sensitive   = true
+  value = {
+    grafana_version    = var.grafana_version
+    grafana_port       = var.grafana_port
+    grafana_domain     = var.domain
+    grafana_admin_user = var.admin_user
+    # admin_password via env var GRAFANA_ADMIN_PASSWORD at runtime
+    grafana_datasources = var.datasources
+  }
+}
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.grafana.name
+    ipv4_address = incus_instance.grafana.ipv4_address
+  }
+}

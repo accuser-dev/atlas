@@ -1,0 +1,77 @@
+# =============================================================================
+# Forgejo Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - forgejo_domain is defined and forgejo_domain | length > 0
+    fail_msg: "forgejo_domain must be set (typically via Terraform output)"
+    success_msg: "Required variables validated"
+  tags:
+    - always
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+  when: forgejo_state == 'present'
+  tags:
+    - install
+
+- name: Include secrets generation tasks
+  ansible.builtin.include_tasks: secrets.yml
+  when: forgejo_state == 'present'
+  tags:
+    - secrets
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: forgejo_state == 'present'
+  tags:
+    - configure
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: forgejo_state == 'present'
+  tags:
+    - service
+
+- name: Include admin user tasks
+  ansible.builtin.include_tasks: admin.yml
+  when: forgejo_state == 'present'
+  tags:
+    - admin
+    - secrets
+
+- name: Remove Forgejo
+  when: forgejo_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable service
+      ansible.builtin.systemd:
+        name: "{{ forgejo_service_name }}"
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove service file
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ forgejo_service_name }}.service"
+        state: absent
+      notify: Reload systemd
+
+    - name: Remove forgejo user
+      ansible.builtin.user:
+        name: "{{ forgejo_user }}"
+        state: absent
+        remove: true
+
+    - name: Remove forgejo directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ forgejo_config_dir }}"
+        - "{{ forgejo_binary_path }}"

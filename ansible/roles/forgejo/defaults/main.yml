@@ -1,0 +1,64 @@
+# =============================================================================
+# Forgejo Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# Forgejo version (from Terraform)
+forgejo_version: "10.0.0"
+
+# Application settings
+forgejo_domain: "localhost"
+forgejo_root_url: ""
+forgejo_app_name: "Forgejo"
+
+# Ports
+forgejo_http_port: "3000"
+forgejo_ssh_port: "2222"
+forgejo_enable_ssh: true
+
+# Database configuration (from Terraform)
+forgejo_database_type: "postgres"
+forgejo_database_host: ""
+forgejo_database_port: "5432"
+forgejo_database_name: "forgejo"
+forgejo_database_user: "forgejo"
+# Password from environment variable
+forgejo_database_password: "{{ lookup('env', 'FORGEJO_DB_PASSWORD') }}"
+
+# Admin user configuration (from Terraform)
+forgejo_admin_username: "admin"
+forgejo_admin_email: "admin@example.com"
+# Password from environment variable
+forgejo_admin_password: "{{ lookup('env', 'FORGEJO_ADMIN_PASSWORD') }}"
+
+# TLS configuration
+forgejo_enable_tls: false
+forgejo_tls_cert: ""
+forgejo_tls_key: ""
+
+# Metrics
+forgejo_enable_metrics: true
+forgejo_metrics_token: ""
+
+# Directories
+forgejo_data_dir: "/var/lib/forgejo"
+forgejo_config_dir: "/etc/forgejo"
+forgejo_repositories_dir: "/var/lib/forgejo/repositories"
+forgejo_log_dir: "/var/lib/forgejo/log"
+
+# User/group configuration
+forgejo_user: "git"
+forgejo_group: "git"
+forgejo_uid: 1000
+forgejo_gid: 1000
+
+# Service configuration
+forgejo_service_name: "forgejo"
+forgejo_service_enabled: true
+
+# Binary path
+forgejo_binary_path: "/usr/local/bin/forgejo"
+
+# State: present or absent
+forgejo_state: present

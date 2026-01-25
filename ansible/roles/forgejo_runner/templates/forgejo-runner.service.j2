@@ -1,0 +1,53 @@
+# =============================================================================
+# Forgejo Runner Systemd Service
+# =============================================================================
+# Managed by Ansible - do not edit manually
+# Template: forgejo_runner/templates/forgejo-runner.service.j2
+
+[Unit]
+Description=Forgejo Actions Runner
+Documentation=https://forgejo.org/docs/latest/admin/actions/
+After=network.target
+
+[Service]
+Type=simple
+User={{ forgejo_runner_user }}
+Group={{ forgejo_runner_group }}
+
+# Working directory
+WorkingDirectory={{ forgejo_runner_config_dir }}
+
+# Command to run
+ExecStart=/usr/local/bin/forgejo-runner daemon --config {{ forgejo_runner_config_dir }}/config.yaml
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Environment
+Environment="HOME={{ forgejo_runner_home }}"
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+
+# Allow write access to required directories
+ReadWritePaths={{ forgejo_runner_home }}
+ReadWritePaths={{ forgejo_runner_config_dir }}
+ReadWritePaths={{ forgejo_runner_work_dir }}
+ReadWritePaths={{ forgejo_runner_cache_dir }}
+ReadWritePaths=/tmp
+
+# Resource limits
+LimitNOFILE=65535
+LimitNPROC=65535
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{ forgejo_runner_service_name }}
+
+[Install]
+WantedBy=multi-user.target

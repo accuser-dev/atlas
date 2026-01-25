@@ -1,0 +1,75 @@
+# =============================================================================
+# Dex Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - dex_version is defined and dex_version | length > 0
+      - dex_has_config | bool or dex_config_base64 | length > 0
+    fail_msg: "dex_version and dex_config_base64 must be set (typically via Terraform output)"
+    success_msg: "Required variables validated"
+  tags:
+    - always
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+  when: dex_state == 'present'
+  tags:
+    - install
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: dex_state == 'present'
+  tags:
+    - configure
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: dex_state == 'present'
+  tags:
+    - service
+
+- name: Remove Dex
+  when: dex_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable service
+      ansible.builtin.systemd:
+        name: "{{ dex_service_name }}"
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove service file
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ dex_service_name }}.service"
+        state: absent
+      notify: Reload systemd
+
+    - name: Remove Dex binary
+      ansible.builtin.file:
+        path: /usr/local/bin/dex
+        state: absent
+
+    - name: Remove Dex user
+      ansible.builtin.user:
+        name: "{{ dex_user }}"
+        state: absent
+        remove: true
+
+    - name: Remove Dex group
+      ansible.builtin.group:
+        name: "{{ dex_group }}"
+        state: absent
+
+    - name: Remove Dex directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ dex_data_dir }}"
+        - "{{ dex_config_dir }}"

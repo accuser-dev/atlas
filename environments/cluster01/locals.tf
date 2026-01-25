@@ -160,5 +160,9 @@ locals {
       memory = "1GB"
       port   = 3000
     }
+    forgejo_runner = {
+      cpu    = "2"
+      memory = "2GB"
+    }
   }
 }

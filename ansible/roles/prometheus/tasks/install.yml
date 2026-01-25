@@ -1,0 +1,135 @@
+# =============================================================================
+# Prometheus Installation Tasks
+# =============================================================================
+# Downloads and installs Prometheus and promtool binaries.
+
+---
+- name: Check if prometheus service exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/prometheus.service
+  register: prometheus_service_file
+
+- name: Stop prometheus service for user management
+  ansible.builtin.systemd:
+    name: prometheus
+    state: stopped
+  when: prometheus_service_file.stat.exists
+  ignore_errors: true
+
+- name: Create prometheus group
+  ansible.builtin.group:
+    name: "{{ prometheus_group }}"
+    gid: "{{ prometheus_gid }}"
+    state: present
+
+- name: Check if prometheus user exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ prometheus_user }}"
+  register: prometheus_user_check
+  failed_when: false
+
+- name: Create prometheus user
+  ansible.builtin.user:
+    name: "{{ prometheus_user }}"
+    uid: "{{ prometheus_uid }}"
+    group: "{{ prometheus_group }}"
+    home: "{{ prometheus_data_dir }}"
+    shell: /usr/sbin/nologin
+    system: true
+    create_home: false
+    state: present
+  when: prometheus_user_check.failed | default(false) or prometheus_user_check.ansible_facts.getent_passwd[prometheus_user] is none
+
+- name: Create prometheus directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: "0755"
+  loop:
+    - "{{ prometheus_config_dir }}"
+    - "{{ prometheus_data_dir }}"
+    - "{{ prometheus_tls_dir }}"
+    - "{{ prometheus_alerts_dir }}"
+
+- name: Detect system architecture
+  ansible.builtin.set_fact:
+    prometheus_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}"
+
+- name: Check if prometheus binary exists
+  ansible.builtin.stat:
+    path: "{{ prometheus_binary_path }}"
+  register: prometheus_binary
+
+- name: Get installed prometheus version
+  ansible.builtin.command:
+    cmd: "{{ prometheus_binary_path }} --version"
+  register: installed_version
+  changed_when: false
+  failed_when: false
+  when: prometheus_binary.stat.exists
+
+- name: Parse installed version
+  ansible.builtin.set_fact:
+    installed_prometheus_version: "{{ (installed_version.stdout | regex_search('prometheus, version ([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''])) | first }}"
+  when: prometheus_binary.stat.exists and installed_version.rc == 0
+
+- name: Download and install Prometheus
+  when: >
+    not prometheus_binary.stat.exists or
+    (installed_prometheus_version is defined and installed_prometheus_version != prometheus_version)
+  block:
+    - name: Create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: prometheus_
+      register: prometheus_temp_dir
+
+    - name: Download Prometheus archive
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}.tar.gz"
+        dest: "{{ prometheus_temp_dir.path }}/prometheus.tar.gz"
+        mode: "0644"
+
+    - name: Extract Prometheus archive
+      ansible.builtin.unarchive:
+        src: "{{ prometheus_temp_dir.path }}/prometheus.tar.gz"
+        dest: "{{ prometheus_temp_dir.path }}"
+        remote_src: true
+
+    - name: Install prometheus binary
+      ansible.builtin.copy:
+        src: "{{ prometheus_temp_dir.path }}/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}/prometheus"
+        dest: "{{ prometheus_binary_path }}"
+        mode: "0755"
+        owner: root
+        group: root
+        remote_src: true
+      notify: Restart prometheus
+
+    - name: Install promtool binary
+      ansible.builtin.copy:
+        src: "{{ prometheus_temp_dir.path }}/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}/promtool"
+        dest: "{{ prometheus_promtool_path }}"
+        mode: "0755"
+        owner: root
+        group: root
+        remote_src: true
+
+    - name: Clean up temporary directory
+      ansible.builtin.file:
+        path: "{{ prometheus_temp_dir.path }}"
+        state: absent
+
+- name: Verify prometheus binary
+  ansible.builtin.command:
+    cmd: "{{ prometheus_binary_path }} --version"
+  register: verify_version
+  changed_when: false
+  failed_when: verify_version.rc != 0
+
+- name: Display installed version
+  ansible.builtin.debug:
+    msg: "Prometheus installed: {{ verify_version.stdout_lines[0] }}"

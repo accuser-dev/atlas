@@ -1,0 +1,37 @@
+# =============================================================================
+# Alertmanager Configuration Tasks
+# =============================================================================
+# Templates configuration files.
+
+---
+- name: Write alertmanager configuration
+  ansible.builtin.copy:
+    content: "{{ alertmanager_config_base64 | b64decode }}"
+    dest: "{{ alertmanager_config_dir }}/alertmanager.yml"
+    owner: "{{ alertmanager_user }}"
+    group: "{{ alertmanager_group }}"
+    mode: "0644"
+  when: alertmanager_has_config | default(false)
+  notify: Reload alertmanager
+
+- name: Validate alertmanager configuration
+  ansible.builtin.command:
+    cmd: "{{ alertmanager_amtool_path }} check-config {{ alertmanager_config_dir }}/alertmanager.yml"
+  register: config_check
+  changed_when: false
+  failed_when: config_check.rc != 0
+
+- name: Display configuration validation result
+  ansible.builtin.debug:
+    msg: "Configuration validated successfully"
+
+- name: Write systemd service file
+  ansible.builtin.template:
+    src: alertmanager.service.j2
+    dest: "/etc/systemd/system/{{ alertmanager_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart alertmanager

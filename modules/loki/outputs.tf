@@ -47,3 +47,26 @@ output "external_port" {
   description = "Host port for external Loki access (when proxy device is enabled)"
   value       = var.enable_external_access ? var.external_port : null
 }
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "ansible_vars" {
+  description = "Variables to pass to Ansible for Loki configuration"
+  sensitive   = true
+  value = {
+    loki_version       = var.loki_version
+    loki_port          = var.loki_port
+    loki_config_base64 = base64encode(local.loki_config)
+    loki_has_config    = true
+  }
+}
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.loki.name
+    ipv4_address = incus_instance.loki.ipv4_address
+  }
+}

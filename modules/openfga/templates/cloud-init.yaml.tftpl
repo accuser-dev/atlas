@@ -1,84 +1,23 @@
 #cloud-config
-# OpenFGA Authorization Server system container configuration
-# Uses Debian Trixie with systemd service management
+# =============================================================================
+# OpenFGA - Minimal Cloud-Init Configuration
+# =============================================================================
+# This cloud-init only prepares the system for Ansible.
+# All OpenFGA configuration is handled by the openfga Ansible role.
 
 package_update: true
 package_upgrade: false
 
 packages:
+  # Required for Ansible connection via community.general.incus plugin
+  - python3
+  - python3-apt
+  # Utilities for downloading
   - curl
 
-write_files:
-  # systemd service unit for OpenFGA
-  - path: /etc/systemd/system/openfga.service
-    permissions: '0644'
-    content: |
-      [Unit]
-      Description=OpenFGA Fine-Grained Authorization Server
-      After=network-online.target
-      Wants=network-online.target
-
-      [Service]
-      Type=simple
-      User=openfga
-      Group=openfga
-      ExecStart=/usr/local/bin/openfga run \
-        --datastore-engine sqlite \
-        --datastore-uri 'file:/var/lib/openfga/openfga.db' \
-        --http-addr 0.0.0.0:${http_port} \
-        --grpc-addr 0.0.0.0:${grpc_port} \
-%{ if playground_port != "" ~}
-        --playground-enabled \
-        --playground-port ${playground_port} \
-%{ else ~}
-        --playground-enabled=false \
-%{ endif ~}
-        --profiler-enabled \
-        --profiler-addr 0.0.0.0:${metrics_port} \
-        --authn-method preshared \
-        --authn-preshared-keys '${join(",", preshared_keys)}'
-      Restart=on-failure
-      RestartSec=10
-      StandardOutput=journal
-      StandardError=journal
-
-      # Security hardening
-      NoNewPrivileges=yes
-      ProtectSystem=strict
-      ProtectHome=yes
-      ReadWritePaths=/var/lib/openfga
-      PrivateTmp=yes
-
-      [Install]
-      WantedBy=multi-user.target
-
+# Ensure system is ready for Ansible
 runcmd:
-  # Create openfga user and group
-  - groupadd --system openfga 2>/dev/null || true
-  - useradd --system --gid openfga --home-dir /var/lib/openfga --shell /usr/sbin/nologin openfga 2>/dev/null || true
-
-  # Create necessary directories
-  - mkdir -p /var/lib/openfga
-  - chown -R openfga:openfga /var/lib/openfga
-
-  # Download and install OpenFGA binary
-  - |
-    OPENFGA_VERSION="${openfga_version}"
-    cd /tmp
-    curl -sLO "https://github.com/openfga/openfga/releases/download/v$${OPENFGA_VERSION}/openfga_$${OPENFGA_VERSION}_linux_amd64.tar.gz"
-    tar -xzf "openfga_$${OPENFGA_VERSION}_linux_amd64.tar.gz"
-    mv openfga /usr/local/bin/openfga
-    chmod +x /usr/local/bin/openfga
-    rm -rf "openfga_$${OPENFGA_VERSION}_linux_amd64.tar.gz"
-
-  # Run database migration
-  - |
-    /usr/local/bin/openfga migrate \
-      --datastore-engine sqlite \
-      --datastore-uri 'file:/var/lib/openfga/openfga.db'
-    chown openfga:openfga /var/lib/openfga/openfga.db 2>/dev/null || true
-
-  # Enable and start OpenFGA service
-  - systemctl daemon-reload
-  - systemctl enable openfga
-  - systemctl start openfga
+  # Create marker file indicating cloud-init completed
+  - touch /var/lib/cloud/instance/ansible-ready
+  # Ensure Python3 is the default
+  - update-alternatives --install /usr/bin/python python /usr/bin/python3 1 || true

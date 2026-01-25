@@ -1,0 +1,13 @@
+# =============================================================================
+# Loki Role - Configuration Tasks
+# =============================================================================
+
+---
+- name: Decode and write Loki configuration
+  ansible.builtin.copy:
+    content: "{{ loki_config_base64 | b64decode }}"
+    dest: "{{ loki_config_dir }}/config.yaml"
+    owner: "{{ loki_user }}"
+    group: "{{ loki_group }}"
+    mode: "0644"
+  notify: Restart loki

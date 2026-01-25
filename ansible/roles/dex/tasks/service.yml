@@ -1,0 +1,25 @@
+# =============================================================================
+# Dex Role - Service Tasks
+# =============================================================================
+
+---
+- name: Create Dex systemd service
+  ansible.builtin.template:
+    src: dex.service.j2
+    dest: "/etc/systemd/system/{{ dex_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart dex
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start Dex service
+  ansible.builtin.systemd:
+    name: "{{ dex_service_name }}"
+    state: started
+    enabled: "{{ dex_service_enabled }}"
+    daemon_reload: true

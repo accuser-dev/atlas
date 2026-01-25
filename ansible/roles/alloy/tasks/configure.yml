@@ -1,0 +1,24 @@
+# =============================================================================
+# Alloy Role - Configuration Tasks
+# =============================================================================
+
+---
+- name: Decode and write Alloy configuration
+  ansible.builtin.copy:
+    content: "{{ alloy_config_base64 | b64decode }}"
+    dest: "{{ alloy_config_dir }}/config.alloy"
+    owner: "{{ alloy_user }}"
+    group: "{{ alloy_group }}"
+    mode: "0644"
+  notify: Restart alloy
+
+- name: Allow Alloy to read system logs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0644"
+  loop:
+    - /var/log/syslog
+    - /var/log/auth.log
+    - /var/log/kern.log
+  ignore_errors: true
+  when: true

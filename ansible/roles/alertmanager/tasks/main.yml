@@ -1,0 +1,76 @@
+# =============================================================================
+# Alertmanager Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - alertmanager_config_base64 is defined and alertmanager_config_base64 | length > 0
+    fail_msg: "alertmanager_config_base64 must be set (typically via Terraform output)"
+    success_msg: "Required variables validated"
+  tags:
+    - always
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+  when: alertmanager_state == 'present'
+  tags:
+    - install
+
+- name: Include TLS tasks
+  ansible.builtin.include_tasks: tls.yml
+  when: alertmanager_state == 'present' and alertmanager_enable_tls
+  tags:
+    - tls
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: alertmanager_state == 'present'
+  tags:
+    - configure
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: alertmanager_state == 'present'
+  tags:
+    - service
+
+- name: Remove Alertmanager
+  when: alertmanager_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable service
+      ansible.builtin.systemd:
+        name: "{{ alertmanager_service_name }}"
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove service file
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ alertmanager_service_name }}.service"
+        state: absent
+      notify: Reload systemd
+
+    - name: Remove alertmanager user
+      ansible.builtin.user:
+        name: "{{ alertmanager_user }}"
+        state: absent
+        remove: true
+
+    - name: Remove alertmanager group
+      ansible.builtin.group:
+        name: "{{ alertmanager_group }}"
+        state: absent
+
+    - name: Remove alertmanager directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ alertmanager_config_dir }}"
+        - "{{ alertmanager_binary_path }}"
+        - "{{ alertmanager_amtool_path }}"

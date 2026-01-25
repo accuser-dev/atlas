@@ -1,0 +1,74 @@
+# =============================================================================
+# CoreDNS Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - coredns_version is defined and coredns_version | length > 0
+      - coredns_has_config | bool or (corefile_base64 | length > 0 and zone_file_base64 | length > 0)
+    fail_msg: "coredns_version and configuration must be set (typically via Terraform output)"
+    success_msg: "Required variables validated"
+  tags:
+    - always
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+  when: coredns_state == 'present'
+  tags:
+    - install
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: coredns_state == 'present'
+  tags:
+    - configure
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: coredns_state == 'present'
+  tags:
+    - service
+
+- name: Remove CoreDNS
+  when: coredns_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable service
+      ansible.builtin.systemd:
+        name: "{{ coredns_service_name }}"
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove service file
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ coredns_service_name }}.service"
+        state: absent
+      notify: Reload systemd
+
+    - name: Remove CoreDNS binary
+      ansible.builtin.file:
+        path: /usr/local/bin/coredns
+        state: absent
+
+    - name: Remove CoreDNS user
+      ansible.builtin.user:
+        name: "{{ coredns_user }}"
+        state: absent
+        remove: true
+
+    - name: Remove CoreDNS group
+      ansible.builtin.group:
+        name: "{{ coredns_group }}"
+        state: absent
+
+    - name: Remove CoreDNS directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ coredns_config_dir }}"

@@ -1,0 +1,27 @@
+# {{ ansible_managed }}
+# Grafana visualization platform
+
+[Unit]
+Description=Grafana visualization platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ grafana_user }}
+Group={{ grafana_group }}
+ExecStart={{ grafana_install_dir }}/bin/grafana server --config={{ grafana_config_dir }}/grafana.ini --homepath={{ grafana_install_dir }}
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ grafana_data_dir }} {{ grafana_log_dir }} {{ grafana_config_dir }}
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

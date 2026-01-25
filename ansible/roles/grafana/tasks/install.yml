@@ -1,0 +1,93 @@
+# =============================================================================
+# Grafana Role - Installation Tasks
+# =============================================================================
+
+---
+- name: Create Grafana group
+  ansible.builtin.group:
+    name: "{{ grafana_group }}"
+    gid: "{{ grafana_gid }}"
+    system: true
+    state: present
+
+- name: Create Grafana user
+  ansible.builtin.user:
+    name: "{{ grafana_user }}"
+    uid: "{{ grafana_uid }}"
+    group: "{{ grafana_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ grafana_data_dir }}"
+    create_home: false
+    state: present
+
+- name: Create Grafana directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: "0755"
+  loop:
+    - "{{ grafana_data_dir }}"
+    - "{{ grafana_data_dir }}/plugins"
+    - "{{ grafana_log_dir }}"
+    - "{{ grafana_config_dir }}"
+    - "{{ grafana_provisioning_dir }}"
+    - "{{ grafana_provisioning_dir }}/datasources"
+    - "{{ grafana_provisioning_dir }}/dashboards"
+    - "{{ grafana_install_dir }}"
+
+- name: Check if Grafana is already installed
+  ansible.builtin.stat:
+    path: "{{ grafana_install_dir }}/bin/grafana"
+  register: grafana_binary
+
+- name: Get installed Grafana version
+  ansible.builtin.command:
+    cmd: "{{ grafana_install_dir }}/bin/grafana --version"
+  register: grafana_installed_version
+  changed_when: false
+  failed_when: false
+  when: grafana_binary.stat.exists
+
+- name: Set installed version fact
+  ansible.builtin.set_fact:
+    grafana_current_version: "{{ grafana_installed_version.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | first | default('0.0.0') }}"
+  when: grafana_binary.stat.exists
+
+- name: Download and install Grafana
+  when: not grafana_binary.stat.exists or (grafana_current_version | default('0.0.0')) != grafana_version
+  block:
+    - name: Create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: grafana
+      register: grafana_temp_dir
+
+    - name: Download Grafana release
+      ansible.builtin.get_url:
+        url: "https://dl.grafana.com/oss/release/grafana-{{ grafana_version }}.linux-amd64.tar.gz"
+        dest: "{{ grafana_temp_dir.path }}/grafana.tar.gz"
+        mode: "0644"
+
+    - name: Extract Grafana archive
+      ansible.builtin.unarchive:
+        src: "{{ grafana_temp_dir.path }}/grafana.tar.gz"
+        dest: "{{ grafana_temp_dir.path }}"
+        remote_src: true
+
+    - name: Install Grafana files
+      ansible.builtin.copy:
+        src: "{{ grafana_temp_dir.path }}/grafana-v{{ grafana_version }}/"
+        dest: "{{ grafana_install_dir }}/"
+        remote_src: true
+        owner: "{{ grafana_user }}"
+        group: "{{ grafana_group }}"
+        mode: preserve
+      notify: Restart grafana
+
+    - name: Clean up temporary directory
+      ansible.builtin.file:
+        path: "{{ grafana_temp_dir.path }}"
+        state: absent

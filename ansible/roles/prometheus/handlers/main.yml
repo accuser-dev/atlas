@@ -1,0 +1,27 @@
+# =============================================================================
+# Prometheus Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart prometheus
+  ansible.builtin.systemd:
+    name: "{{ prometheus_service_name }}"
+    state: restarted
+
+- name: Reload prometheus
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ prometheus_port }}/-/reload"
+    method: POST
+    status_code: 200
+  failed_when: false
+  register: reload_result
+
+- name: Fallback to restart if reload fails
+  ansible.builtin.systemd:
+    name: "{{ prometheus_service_name }}"
+    state: restarted
+  when: reload_result is defined and reload_result.status != 200

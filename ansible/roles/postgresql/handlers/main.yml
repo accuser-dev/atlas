@@ -1,0 +1,23 @@
+# =============================================================================
+# PostgreSQL Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Reload postgresql
+  ansible.builtin.systemd:
+    name: "{{ postgresql_service_name }}"
+    state: reloaded
+
+- name: Restart postgresql
+  ansible.builtin.systemd:
+    name: "{{ postgresql_service_name }}"
+    state: restarted
+
+- name: Restart postgres-exporter
+  ansible.builtin.systemd:
+    name: "{{ postgresql_exporter_service_name }}"
+    state: restarted

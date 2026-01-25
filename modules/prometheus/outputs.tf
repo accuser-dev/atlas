@@ -32,3 +32,32 @@ output "tls_enabled" {
   description = "Whether TLS is enabled for this instance (always false for system containers)"
   value       = false
 }
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.prometheus.name
+    ipv4_address = incus_instance.prometheus.ipv4_address
+  }
+}
+
+output "ansible_vars" {
+  description = "Variables passed to Ansible for Prometheus configuration"
+  sensitive   = true
+  value = {
+    prometheus_version            = var.prometheus_version
+    prometheus_port               = var.prometheus_port
+    prometheus_retention_time     = var.retention_time
+    prometheus_retention_size     = var.retention_size
+    prometheus_config_base64      = base64encode(var.prometheus_config)
+    prometheus_alert_rules_base64 = base64encode(var.alert_rules)
+    prometheus_has_alert_rules    = var.alert_rules != ""
+    incus_metrics_cert            = var.incus_metrics_certificate
+    incus_metrics_key             = var.incus_metrics_private_key
+    incus_has_metrics_cert        = var.incus_metrics_certificate != ""
+  }
+}

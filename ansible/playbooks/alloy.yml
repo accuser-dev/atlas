@@ -1,0 +1,49 @@
+# =============================================================================
+# Alloy Playbook
+# =============================================================================
+# Configures Grafana Alloy log collector on target containers.
+#
+# Usage:
+#   ENV=iapetus ansible-playbook playbooks/alloy.yml
+
+---
+- name: Configure Alloy
+  hosts: alloy
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring Alloy: {{ inventory_hostname }}
+          Version: {{ alloy_version | default('NOT SET') }}
+          HTTP Port: {{ alloy_http_port | default('12345') }}
+          Syslog Receiver: {{ enable_syslog_receiver | default(false) }}
+          Syslog Port: {{ syslog_port | default('1514') }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: alloy
+
+  post_tasks:
+    - name: Verify Alloy status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ alloy_service_name | default('alloy') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          Alloy configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}

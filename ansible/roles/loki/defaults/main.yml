@@ -1,0 +1,32 @@
+# =============================================================================
+# Loki Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# Loki version
+loki_version: "3.3.2"
+
+# Network port
+loki_port: 3100
+
+# Configuration (base64 encoded, from Terraform)
+loki_config_base64: ""
+loki_has_config: false
+
+# Directories
+loki_data_dir: "/loki"
+loki_config_dir: "/etc/loki"
+
+# User/group configuration
+loki_user: "loki"
+loki_group: "loki"
+loki_uid: 10001
+loki_gid: 10001
+
+# Service configuration
+loki_service_name: "loki"
+loki_service_enabled: true
+
+# State: present or absent
+loki_state: present

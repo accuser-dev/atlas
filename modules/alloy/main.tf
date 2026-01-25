@@ -6,10 +6,11 @@
 # Uses Debian Trixie system container with cloud-init and systemd for configuration
 
 locals {
-  # Cloud-init configuration
-  cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    alloy_version          = var.alloy_version
-    http_port              = var.http_port
+  # Cloud-init configuration (minimal bootstrap only)
+  cloud_init_content = file("${path.module}/templates/cloud-init.yaml.tftpl")
+
+  # Alloy River configuration for Ansible
+  alloy_config = templatefile("${path.module}/templates/config.alloy.tftpl", {
     loki_push_url          = var.loki_push_url
     hostname               = var.instance_name
     extra_labels           = var.extra_labels

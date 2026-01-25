@@ -1,0 +1,18 @@
+# =============================================================================
+# PostgreSQL Database Creation Tasks
+# =============================================================================
+# Creates databases.
+
+---
+- name: Create PostgreSQL databases
+  community.postgresql.postgresql_db:
+    name: "{{ item.name }}"
+    owner: "{{ item.owner | default(omit) }}"
+    encoding: "{{ item.encoding | default('UTF8') }}"
+    state: present
+  become: true
+  become_user: postgres
+  loop: "{{ postgresql_databases }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: postgresql_databases | length > 0

@@ -1,0 +1,19 @@
+# =============================================================================
+# PostgreSQL User Creation Tasks
+# =============================================================================
+# Creates database users.
+
+---
+- name: Create PostgreSQL users
+  community.postgresql.postgresql_user:
+    name: "{{ item.name }}"
+    password: "{{ item.password }}"
+    role_attr_flags: "{{ item.options | default([]) | join(',') }}"
+    state: present
+  become: true
+  become_user: postgres
+  loop: "{{ postgresql_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+  when: postgresql_users | length > 0

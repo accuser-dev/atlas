@@ -1,0 +1,58 @@
+# =============================================================================
+# Dex Playbook
+# =============================================================================
+# Configures Dex OIDC identity provider on target containers.
+#
+# Usage:
+#   # Configure without GitHub credentials (will fail at config step)
+#   ENV=iapetus ansible-playbook playbooks/dex.yml --skip-tags secrets
+#
+#   # Configure with GitHub credentials
+#   DEX_GITHUB_CLIENT_ID=<id> DEX_GITHUB_CLIENT_SECRET=<secret> ENV=iapetus ansible-playbook playbooks/dex.yml
+
+---
+- name: Configure Dex
+  hosts: dex
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring Dex: {{ inventory_hostname }}
+          Version: {{ dex_version | default('NOT SET') }}
+          HTTP Port: {{ dex_http_port | default('5556') }}
+          gRPC Port: {{ dex_grpc_port | default('5557') }}
+          Metrics Port: {{ dex_metrics_port | default('5558') }}
+          Issuer URL: {{ dex_issuer_url | default('NOT SET') }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: dex
+
+  post_tasks:
+    - name: Verify Dex status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ dex_service_name | default('dex') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          Dex configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}
+          {% if service_status.rc != 0 %}
+          NOTE: Service not running - GitHub credentials may be required.
+          Run: DEX_GITHUB_CLIENT_ID=<id> DEX_GITHUB_CLIENT_SECRET=<secret> make configure-dex-full ENV={{ lookup('env', 'ENV') | default('iapetus') }}
+          {% endif %}

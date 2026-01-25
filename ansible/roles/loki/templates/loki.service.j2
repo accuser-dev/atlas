@@ -1,0 +1,27 @@
+# {{ ansible_managed }}
+# Loki log aggregation system
+
+[Unit]
+Description=Loki log aggregation system
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ loki_user }}
+Group={{ loki_group }}
+ExecStart=/usr/local/bin/loki -config.file={{ loki_config_dir }}/config.yaml
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ loki_data_dir }}
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

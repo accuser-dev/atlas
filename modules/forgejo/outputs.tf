@@ -87,3 +87,43 @@ output "metrics_endpoint" {
   description = "Prometheus metrics endpoint (if enabled)"
   value       = var.enable_metrics ? "${local.default_scheme}://${incus_instance.forgejo.name}.incus:${var.http_port}/metrics" : null
 }
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.forgejo.name
+    ipv4_address = incus_instance.forgejo.ipv4_address
+  }
+}
+
+output "ansible_vars" {
+  description = "Variables passed to Ansible for Forgejo configuration"
+  sensitive   = true
+  value = {
+    forgejo_version       = var.forgejo_version
+    forgejo_domain        = var.domain
+    forgejo_root_url      = local.root_url
+    forgejo_app_name      = var.app_name
+    forgejo_http_port     = var.http_port
+    forgejo_ssh_port      = var.ssh_port
+    forgejo_enable_ssh    = var.enable_ssh_access
+    forgejo_database_type = var.database_type
+    forgejo_database_host = var.database_host
+    forgejo_database_port = var.database_port
+    forgejo_database_name = var.database_name
+    forgejo_database_user = var.database_user
+    # Note: database_password passed via environment variable at runtime
+    forgejo_admin_username = var.admin_username
+    forgejo_admin_email    = var.admin_email
+    # Note: admin_password passed via environment variable at runtime
+    forgejo_enable_tls     = var.enable_tls
+    forgejo_tls_cert       = var.tls_certificate
+    forgejo_tls_key        = var.tls_private_key
+    forgejo_enable_metrics = var.enable_metrics
+    forgejo_metrics_token  = var.metrics_token
+  }
+}

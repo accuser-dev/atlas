@@ -1,0 +1,54 @@
+# =============================================================================
+# Forgejo Playbook
+# =============================================================================
+# Configures Forgejo on target containers.
+#
+# Usage:
+#   # Configure without secrets (will fail at admin creation)
+#   ENV=cluster01 ansible-playbook playbooks/forgejo.yml --skip-tags secrets
+#
+#   # Configure with secrets
+#   FORGEJO_DB_PASSWORD=<pw> FORGEJO_ADMIN_PASSWORD=<pw> ENV=cluster01 ansible-playbook playbooks/forgejo.yml
+
+---
+- name: Configure Forgejo
+  hosts: forgejo
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring Forgejo: {{ inventory_hostname }}
+          Version: {{ forgejo_version | default('NOT SET') }}
+          Domain: {{ forgejo_domain | default('NOT SET') }}
+          HTTP Port: {{ forgejo_http_port | default('3000') }}
+          Database: {{ forgejo_database_type | default('postgres') }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: forgejo
+
+  post_tasks:
+    - name: Verify forgejo status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ forgejo_service_name | default('forgejo') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          Forgejo configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}
+          Endpoint: {{ 'https' if forgejo_enable_tls | default(false) else 'http' }}://{{ ipv4_address | default(inventory_hostname) }}:{{ forgejo_http_port | default('3000') }}

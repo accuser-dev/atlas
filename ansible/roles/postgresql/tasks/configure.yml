@@ -1,0 +1,49 @@
+# =============================================================================
+# PostgreSQL Configuration Tasks
+# =============================================================================
+# Configures pg_hba.conf and postgresql.conf.
+
+---
+- name: Check if PostgreSQL cluster exists
+  ansible.builtin.stat:
+    path: "{{ postgresql_data_dir }}"
+  register: pg_data_dir
+
+- name: Initialize PostgreSQL cluster if needed
+  ansible.builtin.command:
+    cmd: pg_createcluster {{ postgresql_version }} main --start
+  when: not pg_data_dir.stat.exists
+  become: true
+
+- name: Template pg_hba.conf
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: "{{ postgresql_conf_dir }}/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: "0640"
+  notify: Reload postgresql
+
+- name: Template custom PostgreSQL configuration
+  ansible.builtin.template:
+    src: postgresql.custom.conf.j2
+    dest: "{{ postgresql_conf_dir }}/conf.d/custom.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  notify: Reload postgresql
+
+- name: Ensure conf.d is included in postgresql.conf
+  ansible.builtin.lineinfile:
+    path: "{{ postgresql_conf_dir }}/postgresql.conf"
+    line: "include_dir = 'conf.d'"
+    state: present
+  notify: Reload postgresql
+
+- name: Create conf.d directory
+  ansible.builtin.file:
+    path: "{{ postgresql_conf_dir }}/conf.d"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0755"

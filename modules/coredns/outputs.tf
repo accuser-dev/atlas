@@ -52,3 +52,29 @@ output "domain" {
   description = "The domain this CoreDNS instance is authoritative for"
   value       = var.domain
 }
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "ansible_vars" {
+  description = "Variables to pass to Ansible for CoreDNS configuration"
+  sensitive   = true
+  value = {
+    coredns_version     = var.coredns_version
+    coredns_port        = var.dns_port
+    coredns_health_port = var.health_port
+    coredns_domain      = var.domain
+    corefile_base64     = base64encode(local.corefile_content)
+    zone_file_base64    = base64encode(local.zone_file_content)
+    coredns_has_config  = true
+  }
+}
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.coredns.name
+    ipv4_address = incus_instance.coredns.ipv4_address
+  }
+}

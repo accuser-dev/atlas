@@ -1,0 +1,14 @@
+# =============================================================================
+# Dex Role Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart dex
+  ansible.builtin.systemd:
+    name: "{{ dex_service_name }}"
+    state: restarted
+  when: dex_service_enabled

@@ -144,6 +144,93 @@ output "forgejo_metrics_endpoint" {
 }
 
 # =============================================================================
+# Ansible Integration Outputs (Hybrid Terraform + Ansible)
+# =============================================================================
+
+# Forgejo Runner
+output "forgejo_runner_instances" {
+  description = "Forgejo runner instances for Ansible inventory"
+  value = var.enable_forgejo_runner ? {
+    "forgejo-runner01" = module.forgejo_runner01[0].instance_info
+  } : {}
+}
+
+output "forgejo_runner_ansible_vars" {
+  description = "Variables passed to Ansible for runner configuration"
+  value       = var.enable_forgejo_runner ? module.forgejo_runner01[0].ansible_vars : null
+}
+
+# Prometheus
+output "prometheus_instances" {
+  description = "Prometheus instances for Ansible inventory"
+  value = {
+    "prometheus01" = module.prometheus01.instance_info
+  }
+}
+
+output "prometheus_ansible_vars" {
+  description = "Variables passed to Ansible for Prometheus configuration"
+  sensitive   = true
+  value       = module.prometheus01.ansible_vars
+}
+
+# Alertmanager
+output "alertmanager_instances" {
+  description = "Alertmanager instances for Ansible inventory"
+  value = {
+    "alertmanager01" = module.alertmanager01.instance_info
+  }
+}
+
+output "alertmanager_ansible_vars" {
+  description = "Variables passed to Ansible for Alertmanager configuration"
+  sensitive   = true
+  value       = module.alertmanager01.ansible_vars
+}
+
+# Mosquitto
+output "mosquitto_instances" {
+  description = "Mosquitto instances for Ansible inventory"
+  value = {
+    "mosquitto01" = module.mosquitto01.instance_info
+  }
+}
+
+output "mosquitto_ansible_vars" {
+  description = "Variables passed to Ansible for Mosquitto configuration"
+  sensitive   = true
+  value       = module.mosquitto01.ansible_vars
+}
+
+# PostgreSQL
+output "postgresql_instances" {
+  description = "PostgreSQL instances for Ansible inventory"
+  value = var.enable_postgresql ? {
+    "postgresql01" = module.postgresql01[0].instance_info
+  } : {}
+}
+
+output "postgresql_ansible_vars" {
+  description = "Variables passed to Ansible for PostgreSQL configuration"
+  sensitive   = true
+  value       = var.enable_postgresql ? module.postgresql01[0].ansible_vars : null
+}
+
+# Forgejo
+output "forgejo_instances" {
+  description = "Forgejo instances for Ansible inventory"
+  value = var.enable_forgejo ? {
+    "forgejo01" = module.forgejo01[0].instance_info
+  } : {}
+}
+
+output "forgejo_ansible_vars" {
+  description = "Variables passed to Ansible for Forgejo configuration"
+  sensitive   = true
+  value       = var.enable_forgejo ? module.forgejo01[0].ansible_vars : null
+}
+
+# =============================================================================
 # OVN Configuration
 # =============================================================================
 
@@ -264,6 +351,7 @@ output "managed_resources" {
       var.network_backend == "ovn" ? { "ovn-central" = "module.ovn_central[0].incus_profile.ovn_central" } : {},
       var.enable_postgresql ? { "postgresql" = "module.postgresql01[0].incus_profile.postgresql" } : {},
       var.enable_forgejo ? { "forgejo" = "module.forgejo01[0].incus_profile.forgejo" } : {},
+      var.enable_forgejo_runner ? { "forgejo-runner" = "module.forgejo_runner01[0].incus_profile.forgejo_runner" } : {},
     )
 
     # Instances: Map Incus instance name -> Terraform import path
@@ -276,6 +364,7 @@ output "managed_resources" {
       var.network_backend == "ovn" ? { "ovn-central01" = "module.ovn_central[0].incus_instance.ovn_central" } : {},
       var.enable_postgresql ? { "postgresql01" = "module.postgresql01[0].incus_instance.postgresql" } : {},
       var.enable_forgejo ? { "forgejo01" = "module.forgejo01[0].incus_instance.forgejo" } : {},
+      var.enable_forgejo_runner ? { "forgejo-runner01" = "module.forgejo_runner01[0].incus_instance.forgejo_runner" } : {},
     )
 
     # Volumes: Map Incus volume name -> Terraform import path
@@ -286,6 +375,7 @@ output "managed_resources" {
       var.network_backend == "ovn" ? { "ovn-central01-data" = "module.ovn_central[0].incus_storage_volume.ovn_central_data[0]" } : {},
       var.enable_postgresql ? { "postgresql01-data" = "module.postgresql01[0].incus_storage_volume.postgresql_data[0]" } : {},
       var.enable_forgejo ? { "forgejo01-data" = "module.forgejo01[0].incus_storage_volume.forgejo_data[0]" } : {},
+      var.enable_forgejo_runner ? { "forgejo-runner01-data" = "module.forgejo_runner01[0].incus_storage_volume.forgejo_runner_data[0]" } : {},
     )
 
     # Networks: Map network name -> Terraform import path

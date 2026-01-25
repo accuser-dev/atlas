@@ -1,0 +1,14 @@
+# =============================================================================
+# OpenFGA Role Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart openfga
+  ansible.builtin.systemd:
+    name: "{{ openfga_service_name }}"
+    state: restarted
+  when: openfga_service_enabled

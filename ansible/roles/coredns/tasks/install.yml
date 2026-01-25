@@ -1,0 +1,107 @@
+# =============================================================================
+# CoreDNS Role - Installation Tasks
+# =============================================================================
+
+---
+- name: Stop and disable systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: stopped
+    enabled: false
+  ignore_errors: true
+
+- name: Remove resolv.conf symlink
+  ansible.builtin.file:
+    path: /etc/resolv.conf
+    state: absent
+  ignore_errors: true
+
+- name: Create static resolv.conf
+  ansible.builtin.copy:
+    dest: /etc/resolv.conf
+    content: |
+      # Managed by Ansible - CoreDNS role
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+    mode: "0644"
+
+- name: Create CoreDNS group
+  ansible.builtin.group:
+    name: "{{ coredns_group }}"
+    system: true
+    state: present
+
+- name: Create CoreDNS user
+  ansible.builtin.user:
+    name: "{{ coredns_user }}"
+    group: "{{ coredns_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ coredns_config_dir }}"
+    create_home: false
+    state: present
+
+- name: Create CoreDNS directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ coredns_user }}"
+    group: "{{ coredns_group }}"
+    mode: "0755"
+  loop:
+    - "{{ coredns_config_dir }}"
+    - "{{ coredns_zones_dir }}"
+
+- name: Check if CoreDNS is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/coredns
+  register: coredns_binary
+
+- name: Get installed CoreDNS version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/coredns -version
+  register: coredns_installed_version
+  changed_when: false
+  failed_when: false
+  when: coredns_binary.stat.exists
+
+- name: Set installed version fact
+  ansible.builtin.set_fact:
+    coredns_current_version: "{{ coredns_installed_version.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | first | default('0.0.0') }}"
+  when: coredns_binary.stat.exists
+
+- name: Download and install CoreDNS
+  when: not coredns_binary.stat.exists or (coredns_current_version | default('0.0.0')) != coredns_version
+  block:
+    - name: Create temporary directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: coredns
+      register: coredns_temp_dir
+
+    - name: Download CoreDNS release
+      ansible.builtin.get_url:
+        url: "https://github.com/coredns/coredns/releases/download/v{{ coredns_version }}/coredns_{{ coredns_version }}_linux_amd64.tgz"
+        dest: "{{ coredns_temp_dir.path }}/coredns.tgz"
+        mode: "0644"
+
+    - name: Extract CoreDNS archive
+      ansible.builtin.unarchive:
+        src: "{{ coredns_temp_dir.path }}/coredns.tgz"
+        dest: "{{ coredns_temp_dir.path }}"
+        remote_src: true
+
+    - name: Install CoreDNS binary
+      ansible.builtin.copy:
+        src: "{{ coredns_temp_dir.path }}/coredns"
+        dest: /usr/local/bin/coredns
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart coredns
+
+    - name: Clean up temporary directory
+      ansible.builtin.file:
+        path: "{{ coredns_temp_dir.path }}"
+        state: absent

@@ -1,0 +1,58 @@
+# =============================================================================
+# OpenFGA Playbook
+# =============================================================================
+# Configures OpenFGA authorization server on target containers.
+#
+# Usage:
+#   # Configure without preshared keys (will fail at service start)
+#   ENV=iapetus ansible-playbook playbooks/openfga.yml --skip-tags secrets
+#
+#   # Configure with preshared keys
+#   OPENFGA_PRESHARED_KEYS=<key1,key2> ENV=iapetus ansible-playbook playbooks/openfga.yml
+
+---
+- name: Configure OpenFGA
+  hosts: openfga
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring OpenFGA: {{ inventory_hostname }}
+          Version: {{ openfga_version | default('NOT SET') }}
+          HTTP Port: {{ openfga_http_port | default('8080') }}
+          gRPC Port: {{ openfga_grpc_port | default('8081') }}
+          Metrics Port: {{ openfga_metrics_port | default('3002') }}
+          Playground: {{ openfga_enable_playground | default(false) }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: openfga
+
+  post_tasks:
+    - name: Verify OpenFGA status
+      ansible.builtin.command:
+        cmd: systemctl is-active {{ openfga_service_name | default('openfga') }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          OpenFGA configuration complete: {{ inventory_hostname }}
+          Service status: {{ service_status.stdout | default('not running') }}
+          {% if service_status.rc != 0 %}
+          NOTE: Service not running - preshared keys may be required.
+          Run: OPENFGA_PRESHARED_KEYS=<keys> make configure-openfga-full ENV={{ lookup('env', 'ENV') | default('iapetus') }}
+          {% endif %}

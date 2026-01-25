@@ -1,0 +1,25 @@
+# =============================================================================
+# Grafana Role - Service Tasks
+# =============================================================================
+
+---
+- name: Create Grafana systemd service
+  ansible.builtin.template:
+    src: grafana.service.j2
+    dest: "/etc/systemd/system/{{ grafana_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart grafana
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start Grafana service
+  ansible.builtin.systemd:
+    name: "{{ grafana_service_name }}"
+    state: started
+    enabled: "{{ grafana_service_enabled }}"
+    daemon_reload: true

@@ -1,0 +1,54 @@
+# =============================================================================
+# PostgreSQL Playbook
+# =============================================================================
+# Configures PostgreSQL on target containers.
+#
+# Usage:
+#   # Configure without user creation
+#   ENV=cluster01 ansible-playbook playbooks/postgresql.yml --skip-tags users
+#
+#   # Configure with users
+#   POSTGRESQL_ADMIN_PASSWORD=<pw> ENV=cluster01 ansible-playbook playbooks/postgresql.yml
+
+---
+- name: Configure PostgreSQL
+  hosts: postgresql
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Configuring PostgreSQL: {{ inventory_hostname }}
+          Port: {{ postgresql_port | default('5432') }}
+          Databases: {{ postgresql_databases | default([]) | length }}
+          Users: {{ postgresql_users | default([]) | length }}
+          Metrics: {{ postgresql_enable_metrics | default(true) }}
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: cloud_init_status
+      changed_when: false
+      failed_when: false
+      async: 300
+      poll: 10
+
+  roles:
+    - role: postgresql
+
+  post_tasks:
+    - name: Verify PostgreSQL status
+      ansible.builtin.command:
+        cmd: pg_isready -h /var/run/postgresql
+      register: pg_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          PostgreSQL configuration complete: {{ inventory_hostname }}
+          Service status: {{ 'ready' if pg_status.rc == 0 else 'not ready' }}
+          Endpoint: postgresql://{{ ipv4_address | default(inventory_hostname) }}:{{ postgresql_port | default('5432') }}

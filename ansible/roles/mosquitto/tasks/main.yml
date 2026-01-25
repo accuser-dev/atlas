@@ -1,0 +1,60 @@
+# =============================================================================
+# Mosquitto Role - Main Tasks
+# =============================================================================
+# Entry point for the role. Includes task files in order.
+
+---
+- name: Display role configuration
+  ansible.builtin.debug:
+    msg: |
+      Mosquitto Configuration:
+        MQTT Port: {{ mosquitto_mqtt_port }}
+        MQTTS Port: {{ mosquitto_mqtts_port }}
+        TLS: {{ mosquitto_enable_tls }}
+        Users: {{ mosquitto_users | length }}
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: mosquitto_state == 'present'
+  tags:
+    - configure
+
+- name: Include user management tasks
+  ansible.builtin.include_tasks: users.yml
+  when: mosquitto_state == 'present'
+  tags:
+    - users
+
+- name: Include TLS tasks
+  ansible.builtin.include_tasks: tls.yml
+  when: mosquitto_state == 'present' and mosquitto_enable_tls
+  tags:
+    - tls
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  when: mosquitto_state == 'present'
+  tags:
+    - service
+
+- name: Remove Mosquitto customizations
+  when: mosquitto_state == 'absent'
+  tags:
+    - remove
+  block:
+    - name: Stop and disable service
+      ansible.builtin.systemd:
+        name: "{{ mosquitto_service_name }}"
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove custom configuration
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ mosquitto_config_dir }}/passwd"
+        - "{{ mosquitto_tls_dir }}"
+        - "/etc/systemd/system/mosquitto.service.d/override.conf"
+      notify: Reload systemd

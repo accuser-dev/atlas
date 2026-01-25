@@ -42,3 +42,29 @@ output "playground_endpoint" {
   description = "Playground web interface URL (if enabled)"
   value       = var.playground_port != "" ? "http://${incus_instance.openfga.name}.incus:${var.playground_port}" : null
 }
+
+# =============================================================================
+# Ansible Integration Outputs
+# =============================================================================
+
+output "ansible_vars" {
+  description = "Variables to pass to Ansible for OpenFGA configuration"
+  sensitive   = true
+  value = {
+    openfga_version           = var.openfga_version
+    openfga_http_port         = var.http_port
+    openfga_grpc_port         = var.grpc_port
+    openfga_metrics_port      = var.metrics_port
+    openfga_playground_port   = var.playground_port
+    openfga_enable_playground = var.playground_port != ""
+    # preshared_keys via env var OPENFGA_PRESHARED_KEYS at runtime
+  }
+}
+
+output "instance_info" {
+  description = "Instance information for Ansible inventory"
+  value = {
+    name         = incus_instance.openfga.name
+    ipv4_address = incus_instance.openfga.ipv4_address
+  }
+}

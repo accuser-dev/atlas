@@ -1,0 +1,40 @@
+# =============================================================================
+# step-ca Role Defaults
+# =============================================================================
+# These defaults can be overridden by group_vars, host_vars, or playbook vars.
+# Terraform outputs are passed via the dynamic inventory.
+
+# step-ca version (from Terraform)
+step_version: "0.29.0"
+
+# CA configuration
+step_ca_name: "Atlas Internal CA"
+step_ca_dns: ""  # Comma-separated DNS names
+step_ca_port: "9000"
+cert_duration: "24h"
+
+# CA password (from environment variable or auto-generated)
+step_ca_password: "{{ lookup('env', 'STEP_CA_PASSWORD') }}"
+
+# Directories
+step_home: "/home/step"
+step_config_dir: "/home/step/.step/config"
+step_certs_dir: "/home/step/.step/certs"
+step_secrets_dir: "/home/step/.step/secrets"
+
+# User/group configuration
+step_user: "step"
+step_group: "step"
+step_uid: 1100
+step_gid: 1100
+
+# Service configuration
+step_ca_service_name: "step-ca"
+step_ca_service_enabled: true
+
+# Binary paths
+step_binary_path: "/usr/local/bin/step"
+step_ca_binary_path: "/usr/local/bin/step-ca"
+
+# State: present or absent
+step_ca_state: present
