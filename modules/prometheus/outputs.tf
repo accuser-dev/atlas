@@ -53,7 +53,7 @@ output "ansible_vars" {
     prometheus_port               = var.prometheus_port
     prometheus_retention_time     = var.retention_time
     prometheus_retention_size     = var.retention_size
-    prometheus_config             = var.prometheus_config
+    prometheus_config_base64      = base64encode(var.prometheus_config)
     prometheus_alert_rules_base64 = base64encode(var.alert_rules)
     prometheus_has_alert_rules    = var.alert_rules != ""
     incus_metrics_cert            = var.incus_metrics_certificate
