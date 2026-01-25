@@ -69,14 +69,14 @@ output "ansible_vars" {
   description = "Variables passed to Ansible for Mosquitto configuration"
   sensitive   = true
   value = {
-    mosquitto_mqtt_port  = var.mqtt_port
-    mosquitto_mqtts_port = var.mqtts_port
-    mosquitto_enable_tls = var.enable_tls
-    mosquitto_users      = var.mqtt_users
+    mosquitto_mqtt_port     = var.mqtt_port
+    mosquitto_mqtts_port    = var.mqtts_port
+    mosquitto_enable_tls    = var.enable_tls
+    mosquitto_users         = var.mqtt_users
     mosquitto_config_base64 = base64encode(var.mosquitto_config)
-    stepca_url           = var.stepca_url
-    stepca_fingerprint   = var.stepca_fingerprint
-    cert_duration        = var.cert_duration
-    step_version         = var.step_version
+    stepca_url              = var.stepca_url
+    stepca_fingerprint      = var.stepca_fingerprint
+    cert_duration           = var.cert_duration
+    step_version            = var.step_version
   }
 }
