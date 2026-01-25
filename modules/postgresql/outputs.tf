@@ -90,7 +90,7 @@ output "ansible_vars" {
     postgresql_databases        = var.databases
     postgresql_users            = var.users
     postgresql_allowed_networks = var.allowed_networks
-    postgresql_config           = var.postgresql_config
+    postgresql_config_base64    = base64encode(var.postgresql_config)
     postgresql_enable_metrics   = var.enable_metrics
     postgresql_metrics_port     = var.metrics_port
     postgres_exporter_version   = var.postgres_exporter_version
