@@ -37,7 +37,7 @@ cafile {{ mosquitto_tls_dir }}/ca.crt
 tls_version tlsv1.2
 {% endif %}
 
-{% if mosquitto_config | length > 0 %}
+{% if mosquitto_config_base64 | default('') | length > 0 %}
 # Custom configuration
-{{ mosquitto_config }}
+{{ mosquitto_config_base64 | b64decode }}
 {% endif %}

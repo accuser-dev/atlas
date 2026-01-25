@@ -18,8 +18,8 @@ step_version: "0.28.2"
 # MQTT users (map of username: password)
 mosquitto_users: {}
 
-# Custom configuration
-mosquitto_config: ""
+# Custom configuration (base64 encoded)
+mosquitto_config_base64: ""
 
 # Directories
 mosquitto_config_dir: "/etc/mosquitto"
