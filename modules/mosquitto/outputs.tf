@@ -73,7 +73,7 @@ output "ansible_vars" {
     mosquitto_mqtts_port = var.mqtts_port
     mosquitto_enable_tls = var.enable_tls
     mosquitto_users      = var.mqtt_users
-    mosquitto_config     = var.mosquitto_config
+    mosquitto_config_base64 = base64encode(var.mosquitto_config)
     stepca_url           = var.stepca_url
     stepca_fingerprint   = var.stepca_fingerprint
     cert_duration        = var.cert_duration
