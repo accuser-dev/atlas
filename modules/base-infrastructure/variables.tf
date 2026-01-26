@@ -169,6 +169,47 @@ variable "gitops_network_ipv6_nat" {
   default     = true
 }
 
+# Development Network Configuration
+variable "enable_development" {
+  description = "Enable development infrastructure (development network and profile)"
+  type        = bool
+  default     = false
+}
+
+variable "development_network_ipv4" {
+  description = "IPv4 address for development network"
+  type        = string
+  default     = "10.40.0.1/24"
+
+  validation {
+    condition     = can(cidrhost(var.development_network_ipv4, 0))
+    error_message = "Must be valid CIDR notation (e.g., 10.40.0.1/24)"
+  }
+}
+
+variable "development_network_nat" {
+  description = "Enable NAT for development network IPv4"
+  type        = bool
+  default     = true
+}
+
+variable "development_network_ipv6" {
+  description = "IPv6 address for development network (e.g., fd00:10:40::1/64). Set to empty string to disable IPv6."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.development_network_ipv6 == "" || can(cidrhost(var.development_network_ipv6, 0))
+    error_message = "Must be empty or valid IPv6 CIDR notation (e.g., fd00:10:40::1/64)"
+  }
+}
+
+variable "development_network_ipv6_nat" {
+  description = "Enable NAT for development network IPv6"
+  type        = bool
+  default     = true
+}
+
 # External Network Configuration
 variable "external_network" {
   description = "Name of the external network (typically incusbr0)"
@@ -227,6 +268,12 @@ variable "production_network_acls" {
 
 variable "gitops_network_acls" {
   description = "List of ACL names to apply to the gitops network (OVN only)"
+  type        = list(string)
+  default     = []
+}
+
+variable "development_network_acls" {
+  description = "List of ACL names to apply to the development network (OVN only)"
   type        = list(string)
   default     = []
 }

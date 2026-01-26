@@ -95,6 +95,28 @@ variable "management_network_ipv6_nat" {
 }
 
 # =============================================================================
+# Development Network Configuration
+# =============================================================================
+
+variable "enable_development" {
+  description = "Enable development network for development containers"
+  type        = bool
+  default     = false
+}
+
+variable "development_network_ipv4" {
+  description = "IPv4 CIDR for development network"
+  type        = string
+  default     = "10.40.0.1/24"
+}
+
+variable "development_network_nat" {
+  description = "Enable NAT on development network"
+  type        = bool
+  default     = true
+}
+
+# =============================================================================
 # Cross-Environment Integration
 # =============================================================================
 

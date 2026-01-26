@@ -28,6 +28,11 @@ output "gitops_network" {
   value       = var.enable_gitops && var.network_backend != "ovn" ? incus_network.gitops[0] : null
 }
 
+output "development_network" {
+  description = "Development network resource (null if enable_development is false or using OVN)"
+  value       = var.enable_development && var.network_backend != "ovn" ? incus_network.development[0] : null
+}
+
 # =============================================================================
 # OVN Network Outputs
 # =============================================================================
@@ -53,6 +58,11 @@ output "ovn_gitops_network" {
   value       = var.network_backend == "ovn" && var.enable_gitops ? incus_network.ovn_gitops[0] : null
 }
 
+output "ovn_development_network" {
+  description = "OVN development network resource (null if not using OVN or development disabled)"
+  value       = var.network_backend == "ovn" && var.enable_development ? incus_network.ovn_development[0] : null
+}
+
 # =============================================================================
 # Network Name Outputs (Backend-Agnostic)
 # =============================================================================
@@ -71,6 +81,11 @@ output "management_network_name" {
 output "gitops_network_name" {
   description = "GitOps network name (null if gitops disabled)"
   value       = local.gitops_network_name
+}
+
+output "development_network_name" {
+  description = "Development network name (null if development disabled)"
+  value       = local.development_network_name
 }
 
 output "network_backend" {
@@ -107,6 +122,11 @@ output "management_network_profile" {
 output "gitops_network_profile" {
   description = "GitOps network profile resource (null if enable_gitops is false)"
   value       = var.enable_gitops ? incus_profile.gitops_network[0] : null
+}
+
+output "development_network_profile" {
+  description = "Development network profile resource (null if enable_development is false)"
+  value       = var.enable_development ? incus_profile.development_network[0] : null
 }
 
 # =============================================================================

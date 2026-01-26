@@ -131,6 +131,11 @@ module "base" {
   # No GitOps on cluster - managed from iapetus
   enable_gitops = false
 
+  # Development network for development containers
+  enable_development       = var.enable_development
+  development_network_ipv4 = var.development_network_ipv4
+  development_network_nat  = var.development_network_nat
+
   # Link management network to Incus DNS zone for automatic container DNS
   # Note: Only works when OVN is enabled (creates ovn-management network)
   # For bridge mode with external incusbr0, configure dns.zone.forward manually
