@@ -301,6 +301,12 @@ variable "forgejo_lb_address" {
   default     = ""
 }
 
+variable "prefect_lb_address" {
+  description = "OVN load balancer VIP for Prefect (e.g., '192.168.68.15'). Must be in the uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
 # Note: OVN northbound connection is provided by the ovn-central container module
 # when network_backend = "ovn". No manual configuration required.
 
@@ -471,4 +477,21 @@ variable "forgejo_runner_insecure" {
   description = "Skip TLS verification for Forgejo runner connection (useful for self-signed certs)"
   type        = bool
   default     = false
+}
+
+# =============================================================================
+# Prefect Configuration
+# =============================================================================
+
+variable "enable_prefect" {
+  description = "Enable Prefect workflow orchestration server"
+  type        = bool
+  default     = false
+}
+
+variable "prefect_db_password" {
+  description = "Password for Prefect database user"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

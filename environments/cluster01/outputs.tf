@@ -144,6 +144,20 @@ output "forgejo_metrics_endpoint" {
 }
 
 # =============================================================================
+# Prefect Workflow Orchestration
+# =============================================================================
+
+output "prefect_endpoint" {
+  description = "Prefect server UI/API endpoint"
+  value       = var.enable_prefect ? module.prefect01[0].prefect_endpoint : null
+}
+
+output "prefect_api_url" {
+  description = "Prefect API URL for worker configuration"
+  value       = var.enable_prefect ? module.prefect01[0].prefect_api_url : null
+}
+
+# =============================================================================
 # Ansible Integration Outputs (Hybrid Terraform + Ansible)
 # =============================================================================
 
@@ -230,6 +244,20 @@ output "forgejo_ansible_vars" {
   value       = var.enable_forgejo ? module.forgejo01[0].ansible_vars : null
 }
 
+# Prefect
+output "prefect_instances" {
+  description = "Prefect instances for Ansible inventory"
+  value = var.enable_prefect ? {
+    "prefect01" = module.prefect01[0].instance_info
+  } : {}
+}
+
+output "prefect_ansible_vars" {
+  description = "Variables passed to Ansible for Prefect configuration"
+  sensitive   = true
+  value       = var.enable_prefect ? module.prefect01[0].ansible_vars : null
+}
+
 # =============================================================================
 # OVN Configuration
 # =============================================================================
@@ -298,6 +326,11 @@ output "forgejo_lb_ssh_endpoint" {
   value       = var.network_backend == "ovn" && var.enable_forgejo && var.forgejo_lb_address != "" ? "ssh://git@${var.forgejo_lb_address}:22" : null
 }
 
+output "prefect_lb_address" {
+  description = "OVN load balancer VIP for Prefect (LAN-routable)"
+  value       = var.network_backend == "ovn" && var.enable_prefect && var.prefect_lb_address != "" ? var.prefect_lb_address : null
+}
+
 output "ceph_rgw_lb_address" {
   description = "OVN load balancer VIP for Ceph RGW S3 API (LAN-routable)"
   value       = var.network_backend == "ovn" && var.enable_ceph && var.ceph_rgw_lb_address != "" ? var.ceph_rgw_lb_address : null
@@ -352,6 +385,7 @@ output "managed_resources" {
       var.enable_postgresql ? { "postgresql" = "module.postgresql01[0].incus_profile.postgresql" } : {},
       var.enable_forgejo ? { "forgejo" = "module.forgejo01[0].incus_profile.forgejo" } : {},
       var.enable_forgejo_runner ? { "forgejo-runner" = "module.forgejo_runner01[0].incus_profile.forgejo_runner" } : {},
+      var.enable_prefect ? { "prefect" = "module.prefect01[0].incus_profile.prefect" } : {},
     )
 
     # Instances: Map Incus instance name -> Terraform import path
@@ -365,6 +399,7 @@ output "managed_resources" {
       var.enable_postgresql ? { "postgresql01" = "module.postgresql01[0].incus_instance.postgresql" } : {},
       var.enable_forgejo ? { "forgejo01" = "module.forgejo01[0].incus_instance.forgejo" } : {},
       var.enable_forgejo_runner ? { "forgejo-runner01" = "module.forgejo_runner01[0].incus_instance.forgejo_runner" } : {},
+      var.enable_prefect ? { "prefect01" = "module.prefect01[0].incus_instance.prefect" } : {},
     )
 
     # Volumes: Map Incus volume name -> Terraform import path
@@ -376,6 +411,7 @@ output "managed_resources" {
       var.enable_postgresql ? { "postgresql01-data" = "module.postgresql01[0].incus_storage_volume.postgresql_data[0]" } : {},
       var.enable_forgejo ? { "forgejo01-data" = "module.forgejo01[0].incus_storage_volume.forgejo_data[0]" } : {},
       var.enable_forgejo_runner ? { "forgejo-runner01-data" = "module.forgejo_runner01[0].incus_storage_volume.forgejo_runner_data[0]" } : {},
+      var.enable_prefect ? { "prefect01-data" = "module.prefect01[0].incus_storage_volume.prefect_data[0]" } : {},
     )
 
     # Networks: Map network name -> Terraform import path

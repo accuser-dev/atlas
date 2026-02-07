@@ -99,6 +99,22 @@ locals {
       health_check = { enabled = true }
     }
 
+    prefect = {
+      enabled        = var.enable_prefect && var.prefect_lb_address != ""
+      network        = "production"
+      listen_address = var.prefect_lb_address
+      description    = "OVN load balancer for Prefect server"
+      backends = var.enable_prefect ? [{
+        name           = "prefect01"
+        target_address = module.prefect01[0].ipv4_address
+        target_port    = 4200
+      }] : []
+      ports = [
+        { description = "Prefect UI/API", protocol = "tcp", listen_port = 4200, target_backends = null },
+      ]
+      health_check = { enabled = true }
+    }
+
     # Forgejo LB is managed separately in main.tf due to multiple backends requirement
     # (HTTP on port 3000, SSH on port 22 -> 2222)
   }
@@ -163,6 +179,11 @@ locals {
     forgejo_runner = {
       cpu    = "2"
       memory = "2GB"
+    }
+    prefect = {
+      cpu    = "2"
+      memory = "1GB"
+      port   = 4200
     }
   }
 }

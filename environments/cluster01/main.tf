@@ -506,9 +506,15 @@ module "postgresql01" {
   # PostgreSQL admin password
   admin_password = var.postgresql_admin_password
 
-  # Create database and user for Forgejo
-  databases = var.enable_forgejo ? [{ name = "forgejo", owner = "forgejo" }] : []
-  users     = var.enable_forgejo ? [{ name = "forgejo", password = var.forgejo_db_password }] : []
+  # Create databases and users for applications
+  databases = concat(
+    var.enable_forgejo ? [{ name = "forgejo", owner = "forgejo" }] : [],
+    var.enable_prefect ? [{ name = "prefect", owner = "prefect" }] : [],
+  )
+  users = concat(
+    var.enable_forgejo ? [{ name = "forgejo", password = var.forgejo_db_password }] : [],
+    var.enable_prefect ? [{ name = "prefect", password = var.prefect_db_password }] : [],
+  )
 
   enable_data_persistence = true
   data_volume_name        = "postgresql01-data"
@@ -769,6 +775,41 @@ module "forgejo_runner01" {
   memory_limit = local.services.forgejo_runner.memory
 
   depends_on = [module.forgejo01]
+}
+
+# =============================================================================
+# Prefect Workflow Orchestration
+# =============================================================================
+# Self-hosted Prefect server with PostgreSQL backend.
+# Provides web UI and API for workflow orchestration.
+
+module "prefect01" {
+  source = "../../modules/prefect"
+
+  count = var.enable_prefect ? 1 : 0
+
+  instance_name = "prefect01"
+  profile_name  = "prefect"
+  profiles      = local.production_profiles
+
+  prefect_port      = "4200"
+  database_host     = module.postgresql01[0].ipv4_address
+  database_port     = "5432"
+  database_name     = "prefect"
+  database_user     = "prefect"
+  database_password = var.prefect_db_password
+
+  enable_data_persistence = true
+  data_volume_name        = "prefect01-data"
+  data_volume_size        = "5GB"
+
+  # Pin to specific cluster node for storage volume co-location
+  target_node = "node01"
+
+  cpu_limit    = local.services.prefect.cpu
+  memory_limit = local.services.prefect.memory
+
+  depends_on = [module.postgresql01]
 }
 
 # =============================================================================
