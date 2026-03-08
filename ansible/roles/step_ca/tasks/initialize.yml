@@ -59,11 +59,11 @@
           --provisioner-password-file="{{ step_secrets_dir }}/password"
           --acme
           --deployment-type=standalone
+        creates: "{{ step_config_dir }}/ca.json"
       become: true
       become_user: "{{ step_user }}"
       environment:
         STEPPATH: "{{ step_home }}"
-      creates: "{{ step_config_dir }}/ca.json"
 
     - name: Display generated password warning
       ansible.builtin.debug:

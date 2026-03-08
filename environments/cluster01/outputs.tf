@@ -202,6 +202,20 @@ output "alertmanager_ansible_vars" {
   value       = module.alertmanager01.ansible_vars
 }
 
+# CoreDNS
+output "coredns_instances" {
+  description = "CoreDNS instances for Ansible inventory"
+  value = {
+    "coredns01" = module.coredns01.instance_info
+  }
+}
+
+output "coredns_ansible_vars" {
+  description = "Variables passed to Ansible for CoreDNS configuration"
+  sensitive   = true
+  value       = module.coredns01.ansible_vars
+}
+
 # Mosquitto
 output "mosquitto_instances" {
   description = "Mosquitto instances for Ansible inventory"

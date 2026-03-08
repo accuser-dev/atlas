@@ -472,11 +472,19 @@ module "coredns01" {
     }
   ] : []
 
-  # Forward iapetus.accuser.dev queries to iapetus CoreDNS for cross-environment DNS
-  forward_zones = var.iapetus_coredns_address != "" ? [{
-    zone    = var.iapetus_dns_zone_name
-    servers = [var.iapetus_coredns_address]
-  }] : []
+  # Forward iapetus zones to iapetus CoreDNS for cross-environment DNS
+  # - accuser.dev: service resolution (e.g., grafana.accuser.dev)
+  # - iapetus.incus: container name resolution (e.g., loki01.iapetus.incus)
+  forward_zones = var.iapetus_coredns_address != "" ? [
+    {
+      zone    = var.iapetus_service_zone_name
+      servers = [var.iapetus_coredns_address]
+    },
+    {
+      zone    = var.iapetus_dns_zone_name
+      servers = [var.iapetus_coredns_address]
+    },
+  ] : []
 
   # External access via proxy devices (bridge mode only)
   # With OVN, we use OVN load balancers instead

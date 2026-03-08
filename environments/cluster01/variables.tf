@@ -143,9 +143,9 @@ variable "step_ca_fingerprint" {
 # =============================================================================
 
 variable "dns_domain" {
-  description = "Internal DNS domain for services"
+  description = "DNS domain for cluster01 services (e.g., 'cluster01.accuser.dev'). CoreDNS will be authoritative for this zone."
   type        = string
-  default     = "cluster.local"
+  default     = "cluster01.accuser.dev"
 }
 
 variable "dns_upstream_servers" {
@@ -172,15 +172,21 @@ variable "dns_additional_records" {
 }
 
 variable "iapetus_coredns_address" {
-  description = "IP address of iapetus CoreDNS for cross-environment DNS resolution (e.g., iapetus.incus zone). Use the OVN LB VIP or direct container IP."
+  description = "IP address of iapetus CoreDNS for cross-environment DNS resolution. Use the OVN LB VIP or direct container IP."
   type        = string
   default     = ""
 }
 
 variable "iapetus_dns_zone_name" {
-  description = "Incus DNS zone name for iapetus (e.g., 'iapetus.incus'). Used for cross-environment forwarding."
+  description = "Incus DNS zone name for iapetus containers (e.g., 'iapetus.incus'). Used for cross-environment container name resolution."
   type        = string
   default     = "iapetus.incus"
+}
+
+variable "iapetus_service_zone_name" {
+  description = "Service DNS zone for iapetus (e.g., 'accuser.dev'). Used for cross-environment service resolution so cluster01 containers can resolve iapetus services by name."
+  type        = string
+  default     = "accuser.dev"
 }
 
 # =============================================================================

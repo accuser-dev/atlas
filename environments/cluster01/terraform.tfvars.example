@@ -57,7 +57,7 @@ loki_push_url = "http://<iapetus-loki-ip>:3100/loki/api/v1/push"
 # DNS Configuration
 # =============================================================================
 
-dns_domain           = "cluster.local"
+dns_domain           = "cluster01.accuser.dev"
 dns_upstream_servers = ["1.1.1.1", "8.8.8.8"]
 
 # For physical mode, set the external IP for the NS record

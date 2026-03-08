@@ -19,12 +19,6 @@ module "base" {
 
   storage_pool = "local"
 
-  # OVN configuration
-  network_backend         = var.network_backend
-  ovn_uplink_network      = var.ovn_uplink_network
-  ovn_integration         = var.ovn_integration
-  ovn_production_external = var.ovn_production_external
-
   # Network configuration - simplified to production + management
   # Production network supports physical mode for IncusOS direct LAN attachment
   production_network_name   = var.production_network_name
@@ -51,60 +45,6 @@ module "base" {
 
   # Link management network to Incus DNS zone for automatic container DNS
   dns_zone_forward = var.enable_incus_dns_zone ? var.incus_dns_zone_name : ""
-}
-
-# =============================================================================
-# OVN Central (Local OVN Control Plane)
-# =============================================================================
-# Provides local OVN northbound/southbound databases for this environment.
-# Runs on incusbr0 (non-OVN network) to avoid chicken-and-egg dependency.
-# Note: Can be deployed before switching to OVN mode (set ovn_central_host_address
-# while still in bridge mode to prepare the OVN control plane).
-
-module "ovn_central" {
-  source = "../../modules/ovn-central"
-
-  # Deploy when host_address is set, regardless of network_backend
-  # This allows deploying OVN central before switching to OVN networking
-  count = var.ovn_central_host_address != "" ? 1 : 0
-
-  instance_name = "ovn-central01"
-  profile_name  = "ovn-central"
-
-  profiles = [
-    module.base.container_base_profile.name,
-  ]
-
-  # Must run on non-OVN network
-  network_name = "incusbr0"
-  host_address = var.ovn_central_host_address
-
-  # Persistent storage for OVN databases
-  enable_data_persistence = true
-  data_volume_name        = "ovn-central01-data"
-  data_volume_size        = "1GB"
-
-  # Resource limits
-  cpu_limit    = local.services.ovn_central.cpu
-  memory_limit = local.services.ovn_central.memory
-
-  # Enable Prometheus metrics
-  enable_metrics = true
-}
-
-# =============================================================================
-# OVN Configuration (Incus Daemon Settings)
-# =============================================================================
-# Configures Incus to use the local OVN central for network operations.
-
-module "ovn_config" {
-  source = "../../modules/ovn-config"
-
-  count = var.network_backend == "ovn" && var.ovn_central_host_address != "" && !var.skip_ovn_config ? 1 : 0
-
-  northbound_connection = module.ovn_central[0].northbound_connection
-
-  depends_on = [module.ovn_central]
 }
 
 # =============================================================================
@@ -200,8 +140,7 @@ module "loki01" {
   data_volume_size        = "50GB"
 
   # External access via proxy device (for cross-environment log shipping from cluster01)
-  # Disabled when using OVN mode - use OVN LB instead
-  enable_external_access = !local.use_ovn_lb
+  enable_external_access = true
   external_port          = "3100"
 
   # Resource limits (from centralized service config)
@@ -287,10 +226,9 @@ module "coredns01" {
   profiles = local.production_profiles
 
   # Static IP configuration for DNS server (required for clients to find it)
-  # In physical/bridge mode: dns_nameserver_ip and gateway must be set in tfvars
-  # In OVN mode: container gets dynamic IP from OVN network, LB VIP provides LAN access
-  ipv4_address = var.network_backend == "ovn" ? "" : var.dns_nameserver_ip
-  ipv4_gateway = var.network_backend == "ovn" ? "" : var.dns_gateway_ip
+  # In physical mode: dns_nameserver_ip and gateway must be set in tfvars
+  ipv4_address = var.dns_nameserver_ip
+  ipv4_gateway = var.dns_gateway_ip
 
   # Zone configuration - split-horizon for accuser.dev
   domain = var.dns_domain
@@ -301,13 +239,11 @@ module "coredns01" {
   dns_records = []
 
   # Additional static DNS records (hosts, cluster nodes, manually configured services)
-  # In OVN mode, auto-generated LB VIP records are merged with manual records
-  additional_records = local.use_ovn_lb ? local.merged_dns_records : var.dns_additional_records
+  additional_records = var.dns_additional_records
 
   # Nameserver IP - the LAN-routable address where clients reach the DNS server
-  # In OVN mode: use the OVN LB VIP for LAN access
-  # Otherwise: use the static IP (physical mode) or production network gateway (bridge mode)
-  nameserver_ip = local.use_ovn_lb && var.coredns_lb_address != "" ? var.coredns_lb_address : (var.dns_nameserver_ip != "" ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0])
+  # Physical mode: use the static IP. Bridge mode: use the production network gateway.
+  nameserver_ip = var.dns_nameserver_ip != "" ? var.dns_nameserver_ip : split("/", var.production_network_ipv4)[0]
 
   # Forwarding configuration
   incus_dns_server     = split("/", var.management_network_ipv4)[0] # Management network gateway
@@ -321,17 +257,23 @@ module "coredns01" {
     }
   ] : []
 
-  # Forward cluster01.accuser.dev queries to cluster01 CoreDNS for cross-environment DNS
-  forward_zones = var.cluster01_coredns_address != "" ? [{
-    zone    = var.cluster01_dns_zone_name
-    servers = [var.cluster01_coredns_address]
-  }] : []
+  # Forward cluster01 zones to cluster01 CoreDNS for cross-environment DNS
+  # - cluster01.accuser.dev: service resolution (e.g., mosquitto.cluster01.accuser.dev)
+  # - cluster01.incus: container name resolution (e.g., prometheus01.cluster01.incus)
+  forward_zones = var.cluster01_coredns_address != "" ? [
+    {
+      zone    = var.cluster01_dns_zone_name
+      servers = [var.cluster01_coredns_address]
+    },
+    {
+      zone    = var.cluster01_incus_zone_name
+      servers = [var.cluster01_coredns_address]
+    },
+  ] : []
 
-  # External access via Incus proxy devices (bridge mode only)
   # In physical mode, containers get LAN IPs directly - no proxy needed
-  # With OVN, we use OVN load balancers instead
-  enable_external_access = local.bridge_external_access
-  use_ovn_lb             = local.use_ovn_lb
+  enable_external_access = false
+  use_ovn_lb             = false
   external_dns_port      = "53"
 
   # Resource limits (from centralized service config)
@@ -557,32 +499,4 @@ module "haproxy01" {
   memory_limit = local.services.haproxy.memory
 }
 
-# =============================================================================
-# OVN Load Balancers
-# =============================================================================
-module "ovn_lb" {
-  source = "../../modules/ovn-load-balancer"
-
-  for_each = local.use_ovn_lb ? {
-    for k, v in local.ovn_load_balancers : k => v if v.enabled
-  } : {}
-
-  network_name = (each.value.network == "production" ? module.base.production_network_name :
-    each.value.network == "gitops" ? module.base.gitops_network_name :
-  module.base.management_network_name)
-  listen_address = each.value.listen_address
-  description    = each.value.description
-  backends       = each.value.backends
-  ports          = each.value.ports
-  health_check   = try(each.value.health_check, {})
-
-  depends_on = [
-    module.grafana01,
-    module.prometheus01,
-    module.loki01,
-    module.step_ca01,
-    module.coredns01,
-    module.atlantis01,
-  ]
-}
 

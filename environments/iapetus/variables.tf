@@ -385,88 +385,6 @@ variable "incus_cluster_nodes" {
 }
 
 # =============================================================================
-# OVN Configuration
-# =============================================================================
-
-variable "network_backend" {
-  description = "Network backend: 'bridge' (default) or 'ovn' for overlay networking with cross-environment connectivity"
-  type        = string
-  default     = "bridge"
-
-  validation {
-    condition     = contains(["bridge", "ovn"], var.network_backend)
-    error_message = "network_backend must be 'bridge' or 'ovn'."
-  }
-}
-
-variable "ovn_uplink_network" {
-  description = "Uplink network name for OVN external connectivity. Must be created manually before enabling OVN."
-  type        = string
-  default     = "ovn-uplink"
-}
-
-variable "ovn_integration" {
-  description = "Network integration name for cross-server OVN connectivity. Leave empty for local-only OVN."
-  type        = string
-  default     = ""
-}
-
-variable "ovn_production_external" {
-  description = "Use an existing OVN production network instead of creating one. Set to true when sharing ovn-production with another environment (e.g., cluster01)."
-  type        = bool
-  default     = false
-}
-
-variable "skip_ovn_config" {
-  description = "Skip OVN daemon configuration (set to true if OVN is already configured via CLI)"
-  type        = bool
-  default     = false
-}
-
-variable "ovn_central_host_address" {
-  description = "Physical network IP for OVN central proxy devices. This is where other chassis connect to OVN databases."
-  type        = string
-  default     = ""
-}
-
-# OVN Load Balancer VIP Addresses
-variable "grafana_lb_address" {
-  description = "OVN load balancer VIP for Grafana. Must be in uplink's ipv4.ovn.ranges."
-  type        = string
-  default     = ""
-}
-
-variable "prometheus_lb_address" {
-  description = "OVN load balancer VIP for Prometheus. Must be in uplink's ipv4.ovn.ranges."
-  type        = string
-  default     = ""
-}
-
-variable "loki_lb_address" {
-  description = "OVN load balancer VIP for Loki. Must be in uplink's ipv4.ovn.ranges."
-  type        = string
-  default     = ""
-}
-
-variable "step_ca_lb_address" {
-  description = "OVN load balancer VIP for step-ca. Must be in uplink's ipv4.ovn.ranges."
-  type        = string
-  default     = ""
-}
-
-variable "coredns_lb_address" {
-  description = "OVN load balancer VIP for CoreDNS. Must be in uplink's ipv4.ovn.ranges."
-  type        = string
-  default     = ""
-}
-
-variable "atlantis_lb_address" {
-  description = "OVN load balancer VIP for Atlantis. Must be in uplink's ipv4.ovn.ranges."
-  type        = string
-  default     = ""
-}
-
-# =============================================================================
 # Cross-Environment Integration
 # =============================================================================
 
@@ -483,13 +401,19 @@ variable "cluster01_alertmanager_url" {
 }
 
 variable "cluster01_coredns_address" {
-  description = "IP address of cluster01 CoreDNS for cross-environment DNS resolution (e.g., cluster01.incus zone). Use the OVN LB VIP or direct container IP."
+  description = "IP address of cluster01 CoreDNS for cross-environment DNS resolution. Use the OVN LB VIP or direct container IP."
   type        = string
   default     = ""
 }
 
 variable "cluster01_dns_zone_name" {
-  description = "Incus DNS zone name for cluster01 (e.g., 'cluster01.incus'). Used for cross-environment forwarding."
+  description = "Service DNS zone for cluster01 (e.g., 'cluster01.accuser.dev'). Used for cross-environment service resolution."
+  type        = string
+  default     = "cluster01.accuser.dev"
+}
+
+variable "cluster01_incus_zone_name" {
+  description = "Incus DNS zone name for cluster01 containers (e.g., 'cluster01.incus'). Used for cross-environment container name resolution."
   type        = string
   default     = "cluster01.incus"
 }
