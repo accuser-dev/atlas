@@ -95,6 +95,28 @@ variable "management_network_ipv6_nat" {
 }
 
 # =============================================================================
+# Development Network Configuration
+# =============================================================================
+
+variable "enable_development" {
+  description = "Enable development network for development containers"
+  type        = bool
+  default     = false
+}
+
+variable "development_network_ipv4" {
+  description = "IPv4 CIDR for development network"
+  type        = string
+  default     = "10.40.0.1/24"
+}
+
+variable "development_network_nat" {
+  description = "Enable NAT on development network"
+  type        = bool
+  default     = true
+}
+
+# =============================================================================
 # Cross-Environment Integration
 # =============================================================================
 
@@ -121,9 +143,9 @@ variable "step_ca_fingerprint" {
 # =============================================================================
 
 variable "dns_domain" {
-  description = "Internal DNS domain for services"
+  description = "DNS domain for cluster01 services (e.g., 'cluster01.accuser.dev'). CoreDNS will be authoritative for this zone."
   type        = string
-  default     = "cluster.local"
+  default     = "cluster01.accuser.dev"
 }
 
 variable "dns_upstream_servers" {
@@ -150,15 +172,21 @@ variable "dns_additional_records" {
 }
 
 variable "iapetus_coredns_address" {
-  description = "IP address of iapetus CoreDNS for cross-environment DNS resolution (e.g., iapetus.incus zone). Use the OVN LB VIP or direct container IP."
+  description = "IP address of iapetus CoreDNS for cross-environment DNS resolution. Use the OVN LB VIP or direct container IP."
   type        = string
   default     = ""
 }
 
 variable "iapetus_dns_zone_name" {
-  description = "Incus DNS zone name for iapetus (e.g., 'iapetus.incus'). Used for cross-environment forwarding."
+  description = "Incus DNS zone name for iapetus containers (e.g., 'iapetus.incus'). Used for cross-environment container name resolution."
   type        = string
   default     = "iapetus.incus"
+}
+
+variable "iapetus_service_zone_name" {
+  description = "Service DNS zone for iapetus (e.g., 'accuser.dev'). Used for cross-environment service resolution so cluster01 containers can resolve iapetus services by name."
+  type        = string
+  default     = "accuser.dev"
 }
 
 # =============================================================================
@@ -275,6 +303,12 @@ variable "prometheus_lb_address" {
 
 variable "forgejo_lb_address" {
   description = "OVN load balancer VIP for Forgejo (e.g., '192.168.68.14'). Must be in the uplink's ipv4.ovn.ranges."
+  type        = string
+  default     = ""
+}
+
+variable "prefect_lb_address" {
+  description = "OVN load balancer VIP for Prefect (e.g., '192.168.68.15'). Must be in the uplink's ipv4.ovn.ranges."
   type        = string
   default     = ""
 }
@@ -449,4 +483,21 @@ variable "forgejo_runner_insecure" {
   description = "Skip TLS verification for Forgejo runner connection (useful for self-signed certs)"
   type        = bool
   default     = false
+}
+
+# =============================================================================
+# Prefect Configuration
+# =============================================================================
+
+variable "enable_prefect" {
+  description = "Enable Prefect workflow orchestration server"
+  type        = bool
+  default     = false
+}
+
+variable "prefect_db_password" {
+  description = "Password for Prefect database user"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

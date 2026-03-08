@@ -106,6 +106,27 @@ resource "incus_network" "gitops" {
   )
 }
 
+resource "incus_network" "development" {
+  count = var.network_backend != "ovn" && var.enable_development ? 1 : 0
+
+  name        = "development"
+  description = "Development network for development containers"
+  type        = "bridge"
+
+  config = merge(
+    {
+      "ipv4.address" = var.development_network_ipv4
+      "ipv4.nat"     = tostring(var.development_network_nat)
+    },
+    var.development_network_ipv6 != "" ? {
+      "ipv6.address" = var.development_network_ipv6
+      "ipv6.nat"     = tostring(var.development_network_ipv6_nat)
+      } : {
+      "ipv6.address" = "none"
+    }
+  )
+}
+
 # =============================================================================
 # OVN Networks (when network_backend == "ovn")
 # =============================================================================
@@ -198,6 +219,31 @@ resource "incus_network" "ovn_gitops" {
   )
 }
 
+# OVN Development Network - overlay network for development containers
+resource "incus_network" "ovn_development" {
+  count = var.network_backend == "ovn" && var.enable_development ? 1 : 0
+
+  name        = "ovn-development"
+  description = "OVN development network for development containers"
+  type        = "ovn"
+
+  config = merge(
+    {
+      "network"      = var.ovn_uplink_network
+      "bridge.mtu"   = "1442"
+      "ipv4.address" = var.development_network_ipv4
+      "ipv4.nat"     = tostring(var.development_network_nat)
+      "ipv4.dhcp"    = "true"
+    },
+    # Network ACLs for microsegmentation
+    length(var.development_network_acls) > 0 ? {
+      "security.acls"                        = join(",", var.development_network_acls)
+      "security.acls.default.ingress.action" = var.acl_default_ingress_action
+      "security.acls.default.egress.action"  = var.acl_default_egress_action
+    } : {}
+  )
+}
+
 # =============================================================================
 # Network Selection Locals
 # =============================================================================
@@ -228,6 +274,15 @@ locals {
     ? (var.network_backend == "ovn"
       ? incus_network.ovn_gitops[0].name
     : incus_network.gitops[0].name)
+    : null
+  )
+
+  # Development network - use OVN or bridge (null if not enabled)
+  development_network_name = (
+    var.enable_development
+    ? (var.network_backend == "ovn"
+      ? incus_network.ovn_development[0].name
+    : incus_network.development[0].name)
     : null
   )
 }
@@ -288,6 +343,21 @@ resource "incus_profile" "gitops_network" {
     type = "nic"
     properties = {
       network = local.gitops_network_name
+    }
+  }
+}
+
+# Profile for containers on the Development network
+resource "incus_profile" "development_network" {
+  count = var.enable_development ? 1 : 0
+
+  name = "development-network"
+
+  device {
+    name = "dev"
+    type = "nic"
+    properties = {
+      network = local.development_network_name
     }
   }
 }

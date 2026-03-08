@@ -7,8 +7,8 @@
 - name: Validate required variables
   ansible.builtin.assert:
     that:
-      - prometheus_config is defined and prometheus_config | length > 0
-    fail_msg: "prometheus_config must be set (typically via Terraform output)"
+      - prometheus_config_base64 is defined and prometheus_config_base64 | length > 0
+    fail_msg: "prometheus_config_base64 must be set (typically via Terraform output)"
     success_msg: "Required variables validated"
   tags:
     - always

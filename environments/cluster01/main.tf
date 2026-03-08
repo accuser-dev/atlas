@@ -131,6 +131,11 @@ module "base" {
   # No GitOps on cluster - managed from iapetus
   enable_gitops = false
 
+  # Development network for development containers
+  enable_development       = var.enable_development
+  development_network_ipv4 = var.development_network_ipv4
+  development_network_nat  = var.development_network_nat
+
   # Link management network to Incus DNS zone for automatic container DNS
   # Note: Only works when OVN is enabled (creates ovn-management network)
   # For bridge mode with external incusbr0, configure dns.zone.forward manually
@@ -467,11 +472,19 @@ module "coredns01" {
     }
   ] : []
 
-  # Forward iapetus.accuser.dev queries to iapetus CoreDNS for cross-environment DNS
-  forward_zones = var.iapetus_coredns_address != "" ? [{
-    zone    = var.iapetus_dns_zone_name
-    servers = [var.iapetus_coredns_address]
-  }] : []
+  # Forward iapetus zones to iapetus CoreDNS for cross-environment DNS
+  # - accuser.dev: service resolution (e.g., grafana.accuser.dev)
+  # - iapetus.incus: container name resolution (e.g., loki01.iapetus.incus)
+  forward_zones = var.iapetus_coredns_address != "" ? [
+    {
+      zone    = var.iapetus_service_zone_name
+      servers = [var.iapetus_coredns_address]
+    },
+    {
+      zone    = var.iapetus_dns_zone_name
+      servers = [var.iapetus_coredns_address]
+    },
+  ] : []
 
   # External access via proxy devices (bridge mode only)
   # With OVN, we use OVN load balancers instead
@@ -501,9 +514,15 @@ module "postgresql01" {
   # PostgreSQL admin password
   admin_password = var.postgresql_admin_password
 
-  # Create database and user for Forgejo
-  databases = var.enable_forgejo ? [{ name = "forgejo", owner = "forgejo" }] : []
-  users     = var.enable_forgejo ? [{ name = "forgejo", password = var.forgejo_db_password }] : []
+  # Create databases and users for applications
+  databases = concat(
+    var.enable_forgejo ? [{ name = "forgejo", owner = "forgejo" }] : [],
+    var.enable_prefect ? [{ name = "prefect", owner = "prefect" }] : [],
+  )
+  users = concat(
+    var.enable_forgejo ? [{ name = "forgejo", password = var.forgejo_db_password }] : [],
+    var.enable_prefect ? [{ name = "prefect", password = var.prefect_db_password }] : [],
+  )
 
   enable_data_persistence = true
   data_volume_name        = "postgresql01-data"
@@ -764,6 +783,41 @@ module "forgejo_runner01" {
   memory_limit = local.services.forgejo_runner.memory
 
   depends_on = [module.forgejo01]
+}
+
+# =============================================================================
+# Prefect Workflow Orchestration
+# =============================================================================
+# Self-hosted Prefect server with PostgreSQL backend.
+# Provides web UI and API for workflow orchestration.
+
+module "prefect01" {
+  source = "../../modules/prefect"
+
+  count = var.enable_prefect ? 1 : 0
+
+  instance_name = "prefect01"
+  profile_name  = "prefect"
+  profiles      = local.production_profiles
+
+  prefect_port      = "4200"
+  database_host     = module.postgresql01[0].ipv4_address
+  database_port     = "5432"
+  database_name     = "prefect"
+  database_user     = "prefect"
+  database_password = var.prefect_db_password
+
+  enable_data_persistence = true
+  data_volume_name        = "prefect01-data"
+  data_volume_size        = "5GB"
+
+  # Pin to specific cluster node for storage volume co-location
+  target_node = "node01"
+
+  cpu_limit    = local.services.prefect.cpu
+  memory_limit = local.services.prefect.memory
+
+  depends_on = [module.postgresql01]
 }
 
 # =============================================================================
