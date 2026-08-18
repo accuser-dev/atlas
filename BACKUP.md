@@ -24,7 +24,7 @@ This document describes backup procedures and disaster recovery playbooks for th
 ### Persistent Storage Volumes
 
 | Service | Volume | Size | Data | Criticality |
-|---------|--------|------|------|-------------|
+| --------- | -------- | ------ | ------ | ------------- |
 | Grafana | grafana01-data | 10GB | Dashboards, users, preferences | Medium |
 | Prometheus | prometheus01-data | 100GB | Metrics time-series data | Low (regenerable) |
 | Loki | loki01-data | 50GB | Log data | Low (regenerable) |
@@ -36,7 +36,7 @@ This document describes backup procedures and disaster recovery playbooks for th
 ### Recovery Objectives
 
 | Scenario | RTO (Recovery Time) | RPO (Recovery Point) |
-|----------|---------------------|----------------------|
+| -------- | ------------------- | -------------------- |
 | Single service failure | 15 minutes | Last backup |
 | Full infrastructure rebuild | 1 hour | Last backup |
 | step-ca key compromise | 2 hours | N/A (regenerate) |
@@ -176,6 +176,7 @@ gpg --symmetric --cipher-algo AES256 step-ca01-backup-$(date +%Y%m%d).tar.gz
 ```
 
 **Security Considerations:**
+
 - Never store CA private key backups unencrypted
 - Store in a separate location from infrastructure backups
 - Consider using a hardware security module (HSM) for production CAs
@@ -211,6 +212,7 @@ incus storage bucket export terraform-state atlas-terraform-state ./terraform-st
 If the entire infrastructure needs to be rebuilt from scratch:
 
 #### Prerequisites
+
 - Fresh Incus installation (`incus admin init`)
 - Access to backup files
 - `terraform.tfvars` with credentials (store securely outside infrastructure)
@@ -219,23 +221,27 @@ If the entire infrastructure needs to be rebuilt from scratch:
 #### Procedure
 
 1. **Bootstrap Terraform state storage:**
+
    ```bash
    make bootstrap
    ```
 
 2. **Restore Terraform state (if available):**
+
    ```bash
    # Import state bucket backup
    incus storage bucket import terraform-state ./terraform-state-backup.tar.gz atlas-terraform-state
    ```
 
 3. **Initialize and apply Terraform:**
+
    ```bash
    make init
    make apply
    ```
 
 4. **Restore data volumes:**
+
    ```bash
    # Stop services
    for svc in grafana01 prometheus01 loki01 step-ca01 alertmanager01 mosquitto01 atlantis01; do
@@ -255,6 +261,7 @@ If the entire infrastructure needs to be rebuilt from scratch:
    ```
 
 5. **Verify services:**
+
    ```bash
    incus list
    # Check each service's health endpoint
@@ -328,21 +335,25 @@ incus exec grafana01 -- sh -c '
 If the CA private key is compromised, you must regenerate (not restore):
 
 1. **Stop step-ca:**
+
    ```bash
    incus stop step-ca01
    ```
 
 2. **Delete the compromised data:**
+
    ```bash
    incus storage volume delete local step-ca01-data
    ```
 
 3. **Recreate step-ca:**
+
    ```bash
    cd environments/iapetus && tofu apply
    ```
 
 4. **Retrieve new CA fingerprint:**
+
    ```bash
    incus exec step-ca01 -- cat /home/step/fingerprint
    ```
@@ -354,7 +365,7 @@ If the CA private key is compromised, you must regenerate (not restore):
 ## Backup Schedule Recommendations
 
 | Data | Frequency | Retention | Method |
-|------|-----------|-----------|--------|
+| ------ | ----------- | ----------- | -------- |
 | step-ca | Weekly | 4 weeks | Encrypted export, off-site |
 | Grafana | Daily | 7 days | Snapshot |
 | Grafana dashboards | On change | Git history | JSON export to repo |
@@ -392,7 +403,7 @@ module "grafana01" {
 #### Default Schedules by Service
 
 | Service | Default Schedule | Default Retention | Rationale |
-|---------|-----------------|-------------------|-----------|
+| --------- | ----------------- | ------------------- | ----------- |
 | Grafana | @daily | 7d | Dashboards and user preferences |
 | Alertmanager | @daily | 7d | Silences and notification state |
 | Mosquitto | @daily | 7d | Retained messages |
@@ -468,6 +479,7 @@ echo "Backup completed: $BACKUP_DIR"
 ```
 
 Add to crontab:
+
 ```bash
 # Run daily at 2 AM
 0 2 * * * /usr/local/bin/atlas-backup.sh >> /var/log/atlas-backup.log 2>&1
@@ -490,12 +502,14 @@ gpg --decrypt step-ca01-backup.tar.gz.gpg | tar -tz > /dev/null
 Perform quarterly DR drills:
 
 1. **Document current state:**
+
    ```bash
    incus list > pre-drill-state.txt
    cd environments/iapetus && tofu output > pre-drill-outputs.txt
    ```
 
 2. **Simulate failure** (in a test environment):
+
    ```bash
    incus delete grafana01 --force
    incus storage volume delete local grafana01-data
@@ -512,7 +526,7 @@ Perform quarterly DR drills:
 Track recovery times to validate RTO targets:
 
 | Scenario | Target RTO | Last Tested | Actual Time |
-|----------|------------|-------------|-------------|
+| ---------- | ------------ | ------------- | ------------- |
 | Single service (snapshot) | 15 min | | |
 | Single service (tarball) | 30 min | | |
 | Full rebuild (no data) | 30 min | | |

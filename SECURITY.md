@@ -37,7 +37,7 @@ Atlas implements a defense-in-depth security strategy with multiple layers:
 ### What This Architecture Protects Against
 
 | Threat | Mitigation |
-|--------|------------|
+| ------ | ---------- |
 | Unauthorized external access | IP allowlist, rate limiting, no direct service exposure |
 | Brute force attacks | Rate limiting on login endpoints (10 req/min default) |
 | Network sniffing | TLS encryption via internal CA |
@@ -49,7 +49,7 @@ Atlas implements a defense-in-depth security strategy with multiple layers:
 ### What This Architecture Does NOT Protect Against
 
 | Threat | Limitation | Recommendation |
-|--------|------------|----------------|
+| ------ | ---------- | -------------- |
 | Compromised host | Containers share kernel | Use VM-based isolation for high-security workloads |
 | Supply chain attacks | Images from ghcr.io | Enable image signing, vulnerability scanning |
 | Insider threats | Admin access to all services | Implement audit logging, RBAC |
@@ -65,30 +65,32 @@ Atlas implements a defense-in-depth security strategy with multiple layers:
 Atlas uses isolated networks to segment workloads. Two network backends are supported:
 
 **Bridge Networks (default):**
-```
+
+```plaintext
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         External Access                              │
-│                              │                                       │
+│                         External Access                             │
+│                              │                                      │
 │              ┌───────────────┼───────────────┐                      │
-│              │               │               │                       │
+│              │               │               │                      │
 │        Cloudflared     HAProxy (opt)    Atlantis                    │
 │        (Tunnel)        (LB)             (GitOps)                    │
-│              │               │               │                       │
-│ ┌────────────┴───┐  ┌───────┴────┐  ┌───────┴────────┐             │
-│ │  Production    │  │ Management │  │    GitOps      │             │
-│ │  10.10.0.0/24  │  │ 10.20.0.0  │  │  10.30.0.0     │             │
-│ └────────────────┘  └────────────┘  └────────────────┘             │
-│        │                  │                │                         │
+│              │               │               │                      │
+│ ┌────────────┴───┐  ┌───────┴────┐  ┌───────┴────────┐              │
+│ │  Production    │  │ Management │  │    GitOps      │              │
+│ │  10.10.0.0/24  │  │ 10.20.0.0  │  │  10.30.0.0     │              │
+│ └────────────────┘  └────────────┘  └────────────────┘              │
+│        │                  │                │                        │
 │   Mosquitto          Grafana          Atlantis                      │
 │   CoreDNS           Prometheus        (optional)                    │
-│                        Loki                                          │
-│                      step-ca                                         │
-│                   Alertmanager                                       │
-│                   Node Exporter                                      │
+│                        Loki                                         │
+│                      step-ca                                        │
+│                   Alertmanager                                      │
+│                   Node Exporter                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 **OVN Networks (optional):**
+
 - Provides native load balancers with LAN-routable VIPs
 - External access without proxy devices
 - Configured via `network_backend = "ovn"` in terraform.tfvars
@@ -96,7 +98,7 @@ Atlas uses isolated networks to segment workloads. Two network backends are supp
 ### Network Purposes
 
 | Network | CIDR | Purpose | External Access |
-|---------|------|---------|-----------------|
+| --------- | ------ | --------- | ----------------- |
 | production | 10.10.0.0/24 | Public-facing services | Via Cloudflare Tunnel, HAProxy, or OVN LB |
 | management | 10.20.0.0/24 | Internal services | Via Cloudflare Tunnel (restricted) |
 | gitops | 10.30.0.0/24 | GitOps automation (optional) | GitHub webhooks via Atlantis |
@@ -114,7 +116,7 @@ Atlas uses isolated networks to segment workloads. Two network backends are supp
 Each network profile uses a **semantic NIC name** to prevent conflicts during profile composition:
 
 | Profile | NIC Name | Network |
-|---------|----------|---------|
+| --------- | ---------- | --------- |
 | production-network | `prod` | production |
 | management-network | `mgmt` | management |
 | gitops-network | `gitops` | gitops |
@@ -135,7 +137,7 @@ This allows containers to have multiple network interfaces without naming collis
 ### Secret Types and Handling
 
 | Secret | Handling | File Mode | Notes |
-|--------|----------|-----------|-------|
+| -------- | ---------- | ----------- | ------- |
 | Cloudflare tunnel token | Environment variable | N/A | Required by cloudflared |
 | Grafana admin password | Environment variable | N/A | Required by Grafana |
 | step-ca provisioner password | Environment variable | N/A | Generated at init |
@@ -159,6 +161,7 @@ config = {
 The token is injected at container creation time via cloud-init configuration.
 
 **Security considerations:**
+
 - Token visible in Incus container config during creation
 - Use Terraform sensitive variables to prevent logging
 - Rotate via Cloudflare Zero Trust dashboard if compromised
@@ -176,6 +179,7 @@ allowed_ip_range         = "192.168.1.0/24"     # Restrict access
 ```
 
 **Best Practices:**
+
 - Store in a password manager or secrets vault
 - Use environment variables in CI/CD: `TF_VAR_cloudflare_api_token`
 - Rotate credentials periodically
@@ -190,7 +194,7 @@ This section documents procedures for rotating each secret type in the infrastru
 ### Rotation Schedule Recommendations
 
 | Secret Type | Recommended Frequency | Risk Level |
-|-------------|----------------------|------------|
+| ------------- | ---------------------- | ------------ |
 | Cloudflare API Token | 90 days | High |
 | Grafana Admin Password | 90 days | Medium |
 | Cloudflared Tunnel Token | On compromise only | High |
@@ -228,6 +232,7 @@ incus exec caddy01 -- caddy reload --config /etc/caddy/Caddyfile
 ```
 
 **Verification:**
+
 ```bash
 # Check Caddy logs for certificate operations
 incus exec caddy01 -- docker logs caddy 2>&1 | grep -i "certificate\|acme"
@@ -259,6 +264,7 @@ cd terraform && tofu apply
 ```
 
 **Verification:**
+
 ```bash
 # Test login with new password
 curl -u admin:new-password https://grafana.yourdomain.com/api/health
@@ -291,6 +297,7 @@ incus exec cloudflared01 -- docker logs cloudflared 2>&1 | tail -20
 ```
 
 **Verification:**
+
 ```bash
 # Check tunnel status in Cloudflare dashboard or:
 incus exec cloudflared01 -- docker logs cloudflared 2>&1 | grep -i "connected\|registered"
@@ -336,6 +343,7 @@ done
 ```
 
 **Verification:**
+
 ```bash
 # Check CA health
 incus exec step-ca01 -- step ca health --ca-url https://localhost:9000 --root /home/step/certs/root_ca.crt
@@ -366,6 +374,7 @@ incus exec prometheus01 -- wget -q -O- http://localhost:9090/api/v1/targets | jq
 ```
 
 **Verification:**
+
 ```bash
 # Check Prometheus targets page for incus job status
 curl -s http://prometheus01.incus:9090/api/v1/targets | jq '.data.activeTargets[] | select(.labels.job=="incus") | {health: .health, lastError: .lastError}'
@@ -398,6 +407,7 @@ incus exec atlantis01 -- docker logs atlantis 2>&1 | tail -20
 ```
 
 **Verification:**
+
 ```bash
 # Test GitHub API access
 incus exec atlantis01 -- wget -q -O- \
@@ -432,6 +442,7 @@ cd terraform && tofu apply
 ```
 
 **Verification:**
+
 ```bash
 # Check Atlantis logs for webhook validation
 incus exec atlantis01 -- docker logs atlantis 2>&1 | grep -i "webhook\|signature"
@@ -505,19 +516,19 @@ incus exec atlantis01 -- docker logs atlantis 2>&1 | grep -i "webhook\|unauthori
 
 Atlas includes an internal ACME Certificate Authority (step-ca) for automated TLS:
 
-```
+```plaintext
 ┌─────────────────────────────────────────────────────────────────┐
-│                        step-ca (CA)                              │
-│                             │                                    │
+│                        step-ca (CA)                             │
+│                             │                                   │
 │           ┌─────────────────┼─────────────────┐                 │
-│           │                 │                 │                  │
-│           ▼                 ▼                 ▼                  │
-│      ┌─────────┐      ┌──────────┐     ┌───────────┐           │
-│      │ Grafana │      │Prometheus│     │   Loki    │           │
-│      │  (TLS)  │      │  (TLS)   │     │   (TLS)   │           │
-│      └─────────┘      └──────────┘     └───────────┘           │
-│                                                                  │
-│      Certificate Lifecycle:                                      │
+│           │                 │                 │                 │
+│           ▼                 ▼                 ▼                 │
+│      ┌─────────┐      ┌──────────┐     ┌───────────┐            │
+│      │ Grafana │      │Prometheus│     │   Loki    │            │
+│      │  (TLS)  │      │  (TLS)   │     │   (TLS)   │            │
+│      └─────────┘      └──────────┘     └───────────┘            │
+│                                                                 │
+│      Certificate Lifecycle:                                     │
 │      • Duration: 24 hours (default)                             │
 │      • Renewal: Automatic on container restart                  │
 │      • Algorithm: ECDSA P-256                                   │
@@ -527,7 +538,7 @@ Atlas includes an internal ACME Certificate Authority (step-ca) for automated TL
 ### Certificate Lifecycle
 
 | Parameter | Value | Rationale |
-|-----------|-------|-----------|
+| ----------- | ------- | ----------- |
 | Duration | 24 hours | Limits exposure if compromised |
 | Renewal | Automatic | Via entrypoint scripts |
 | Key algorithm | ECDSA P-256 | Modern, efficient |
@@ -566,6 +577,7 @@ reverse_proxy https://grafana01.incus:3000 {
 ```
 
 For Grafana datasources connecting to Prometheus/Loki with self-signed certs:
+
 - `tls_skip_verify` is set based on `tls_enabled` state
 - This is acceptable for internal services where you control both endpoints
 
@@ -583,6 +595,7 @@ allowed_ip_range = "192.168.68.0/22"  # Your network CIDR
 ```
 
 Access control is implemented via:
+
 - **Cloudflare Zero Trust** - Application-level access policies for tunnel-exposed services
 - **OVN Load Balancers** - Network-level access via LAN-routable VIPs (when using OVN backend)
 - **Incus Proxy Devices** - Host-port mapping with optional source filtering (bridge backend)
@@ -590,7 +603,7 @@ Access control is implemented via:
 ### Service Access Patterns
 
 | Service | Network | External Access | Authentication |
-|---------|---------|-----------------|----------------|
+| --------- | --------- | ----------------- | ---------------- |
 | Grafana | Management | Cloudflare Tunnel or OVN LB | Username/password, OIDC (optional) |
 | Prometheus | Management | None (internal) or OVN LB | None |
 | Loki | Management | None (internal) or OVN LB | None |
@@ -613,7 +626,7 @@ Access control is implemented via:
 All containers run as non-root users where possible:
 
 | Service | User | UID | Notes |
-|---------|------|-----|-------|
+| --------- | ------ | ----- | ------- |
 | Grafana | grafana | 472 | Official Grafana UID |
 | Prometheus | nobody | 65534 | Standard unprivileged |
 | Loki | loki | 10001 | Official Loki UID |
@@ -663,7 +676,7 @@ Snapshots are disabled by default (`enable_snapshots = false`). See [BACKUP.md](
 All containers enforce hard resource limits:
 
 | Service | CPU | Memory | Memory Enforce |
-|---------|-----|--------|----------------|
+| --------- | ----- | -------- | ---------------- |
 | Grafana | 2 | 1GB | hard |
 | Prometheus | 2 | 2GB | hard |
 | Loki | 2 | 2GB | hard |
@@ -716,6 +729,7 @@ Security headers are managed at multiple layers:
 ### Cloudflare (Zero Trust Access)
 
 When using Cloudflare Tunnel, security headers can be configured in the Cloudflare dashboard:
+
 - Automatic HTTPS redirection
 - HSTS headers
 - Security headers via Transform Rules
@@ -734,7 +748,7 @@ x_xss_protection = true
 ### Recommended Headers
 
 | Header | Value | Purpose |
-|--------|-------|---------|
+| -------- | ------- | --------- |
 | Strict-Transport-Security | 1 year + preload | Prevent SSL stripping attacks |
 | X-Frame-Options | SAMEORIGIN | Prevent clickjacking |
 | X-Content-Type-Options | nosniff | Prevent MIME confusion attacks |
@@ -789,6 +803,7 @@ resource "incus_config" "loki_logging" {
 ```
 
 Events captured:
+
 - Container start/stop
 - Container creation/deletion
 - Configuration changes
@@ -824,6 +839,7 @@ Events captured:
 ### High Priority
 
 1. **Enable storage pool encryption**
+
    ```bash
    incus storage set local volume.zfs.encryption keylocation=prompt
    ```
@@ -833,6 +849,7 @@ Events captured:
    - Configure bot management
 
 3. **Implement backup encryption**
+
    ```bash
    incus storage volume export local grafana01-data - | \
      gpg --symmetric --cipher-algo AES256 > backup.tar.gz.gpg
@@ -840,22 +857,23 @@ Events captured:
 
 ### Medium Priority
 
-4. **Enable container image signing** with Cosign
+1. **Enable container image signing** with Cosign
+
    ```bash
    cosign sign ghcr.io/accuser-dev/atlas/grafana:latest
    ```
 
-5. **Add host-based intrusion detection** (AIDE, OSSEC)
+2. **Add host-based intrusion detection** (AIDE, OSSEC)
 
-6. **Implement log-based alerting** for security events
+3. **Implement log-based alerting** for security events
 
 ### Lower Priority
 
-7. **Add network policies** using nftables rules
+1. **Add network policies** using nftables rules
 
-8. **Implement secrets rotation** via external vault
+2. **Implement secrets rotation** via external vault
 
-9. **Enable SELinux/AppArmor** profiles for containers
+3. **Enable SELinux/AppArmor** profiles for containers
 
 ---
 
@@ -872,6 +890,7 @@ If you discover a security vulnerability in Atlas:
    - Suggested fix (if any)
 
 Response timeline:
+
 - Acknowledgment: 48 hours
 - Initial assessment: 7 days
 - Fix timeline: Dependent on severity

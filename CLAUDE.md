@@ -5,6 +5,7 @@ Guidance for Claude Code when working with this repository.
 ## Project Overview
 
 Multi-environment Terraform infrastructure managing Incus containers across multiple hosts:
+
 - **iapetus**: Control plane with GitOps, monitoring aggregation, and central CA
 - **cluster01**: 3-node production cluster with distributed workloads
 
@@ -13,19 +14,19 @@ Multi-environment Terraform infrastructure managing Incus containers across mult
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ iapetus (Control Plane)                                     │
-│ Atlantis, Grafana, Prometheus, Loki, Cloudflared, step-ca  │
+│ Atlantis, Grafana, Prometheus, Loki, Cloudflared, step-ca   │
 └────────────────────┬────────────────────────────────────────┘
                      │ remote Incus + federation
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ cluster01 (Production - 3 nodes)                            │
-│ Prometheus, Alloy, Mosquitto, CoreDNS, Alertmanager        │
+│ Prometheus, Alloy, Mosquitto, CoreDNS, Alertmanager         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Project Structure
 
-```
+```plaintext
 atlas/
 ├── modules/              # Reusable Terraform modules (each has README.md)
 ├── environments/
@@ -50,6 +51,7 @@ atlas/
 **Storage**: Modules manage their own volumes when `enable_data_persistence = true`
 
 **Networks**:
+
 - `production` (10.10.0.0/24) - public services
 - `management` (10.20.0.0/24) - internal monitoring
 - `gitops` (10.30.0.0/24) - automation
