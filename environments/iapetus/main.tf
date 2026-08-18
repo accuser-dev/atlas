@@ -499,4 +499,25 @@ module "haproxy01" {
   memory_limit = local.services.haproxy.memory
 }
 
+module "operations_center01" {
+  source = "../../modules/operations-center"
+
+  count = var.enable_operations_center ? 1 : 0
+
+  instance_name = "operations-center01"
+  profile_name  = "operations-center"
+
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
+  profiles = local.management_profiles
+
+  # IncusOS install media - see modules/operations-center/README.md for the
+  # install procedure this attach/detach toggle drives
+  boot_media_volume = var.operations_center_iso_volume
+  attach_boot_media = var.operations_center_boot_media
+
+  # Resource limits (from centralized service config)
+  cpu_limit    = local.services.operations_center.cpu
+  memory_limit = local.services.operations_center.memory
+}
+
 

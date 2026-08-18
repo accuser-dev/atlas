@@ -16,6 +16,7 @@ INCUS_REMOTE := $(if $(filter cluster01,$(ENV)),cluster01:,)
         backup-snapshot backup-export backup-list backup-dynamic \
         test test-health test-connectivity test-storage test-network \
         configure-ovn-chassis verify-ovn-chassis \
+        operations-center-iso \
         ansible-setup configure configure-runner configure-runner-register \
         configure-prometheus configure-forgejo configure-forgejo-full \
         configure-postgresql configure-postgresql-full \
@@ -79,6 +80,10 @@ help:
 	@echo "OVN Commands (cluster01 only):"
 	@echo "  make configure-ovn-chassis ENV=cluster01  - Configure OVN on all cluster nodes"
 	@echo "  make verify-ovn-chassis ENV=cluster01     - Verify OVN chassis registration"
+	@echo ""
+	@echo "Operations Center Commands (iapetus only):"
+	@echo "  make operations-center-iso ENV=iapetus    - Build + import seeded IncusOS installer ISO"
+	@echo "                                               (FORCE=1 to overwrite an existing volume)"
 	@echo ""
 	@echo "Ansible Commands (Hybrid Terraform + Ansible):"
 	@echo "  make ansible-setup                        - Install Ansible Galaxy requirements"
@@ -585,6 +590,62 @@ verify-ovn-chassis:
 		echo "✗ Some chassis missing - run 'make configure-ovn-chassis ENV=cluster01'"; \
 		exit 1; \
 	fi
+
+# =============================================================================
+# Operations Center (iapetus only)
+# =============================================================================
+
+# Build a seeded IncusOS installer ISO for the Operations Center VM and
+# import it into the iapetus storage pool. Terraform does not own this
+# volume - see modules/operations-center/README.md for why.
+# Set FORCE=1 to overwrite an existing volume of the same name.
+operations-center-iso:
+	@if [ "$(ENV)" != "iapetus" ]; then \
+		echo "ERROR: Operations Center is only applicable to iapetus"; \
+		echo "Usage: make operations-center-iso ENV=iapetus"; \
+		exit 1; \
+	fi
+	@VOLUME_NAME="$${OC_ISO_VOLUME:-operations-center01-iso}"; \
+	if incus storage volume show iapetus:local "$$VOLUME_NAME" >/dev/null 2>&1 && [ "$(FORCE)" != "1" ]; then \
+		echo "ERROR: Storage volume 'iapetus:local/$$VOLUME_NAME' already exists."; \
+		echo "Re-run with FORCE=1 to delete and rebuild it."; \
+		exit 1; \
+	fi; \
+	echo "Fetching Incus client certificate..."; \
+	CERT=$$(incus remote get-client-certificate) || exit 1; \
+	echo "Requesting seeded IncusOS ISO from incusos-customizer..."; \
+	SEED=$$(jq -n --arg cert "$$CERT" '{ \
+		seeds: { \
+			install: { version: "1", force_install: false, force_reboot: false }, \
+			applications: { version: "1", applications: [{ name: "operations-center" }] }, \
+			"operations-center": { version: "1", trusted_client_certificates: [$$cert] } \
+		}, \
+		type: "iso", \
+		architecture: "x86_64" \
+	}'); \
+	IMAGES_RESP=$$(curl -sf -X POST -d "$$SEED" "https://incusos-customizer.linuxcontainers.org/1.0/images") || { \
+		echo "ERROR: Failed to request customized image"; exit 1; \
+	}; \
+	DOWNLOAD_PATH=$$(echo "$$IMAGES_RESP" | jq -r '.metadata.image'); \
+	if [ -z "$$DOWNLOAD_PATH" ] || [ "$$DOWNLOAD_PATH" = "null" ]; then \
+		echo "ERROR: No image path in response: $$IMAGES_RESP"; exit 1; \
+	fi; \
+	ISO_PATH=$$(mktemp -t operations-center-XXXXXX.iso); \
+	echo "Downloading ISO to $$ISO_PATH..."; \
+	curl -sf -o "$$ISO_PATH" --compressed "https://incusos-customizer.linuxcontainers.org$$DOWNLOAD_PATH" || { \
+		echo "ERROR: Failed to download ISO"; rm -f "$$ISO_PATH"; exit 1; \
+	}; \
+	if incus storage volume show iapetus:local "$$VOLUME_NAME" >/dev/null 2>&1; then \
+		echo "Removing existing volume $$VOLUME_NAME (FORCE=1)..."; \
+		incus storage volume delete iapetus:local "$$VOLUME_NAME"; \
+	fi; \
+	echo "Importing $$VOLUME_NAME into iapetus:local..."; \
+	incus storage volume import iapetus:local "$$ISO_PATH" "$$VOLUME_NAME" --type=iso; \
+	rm -f "$$ISO_PATH"; \
+	echo ""; \
+	echo "Done. Set enable_operations_center = true (and operations_center_iso_volume"; \
+	echo "= \"$$VOLUME_NAME\" if you overrode OC_ISO_VOLUME) in terraform.tfvars, then"; \
+	echo "'make apply' and follow modules/operations-center/README.md to install."
 
 # =============================================================================
 # Ansible Configuration (Hybrid Terraform + Ansible)

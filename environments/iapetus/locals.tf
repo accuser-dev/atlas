@@ -89,6 +89,11 @@ locals {
       memory = "256MB"
       port   = 8443
     }
+    operations_center = {
+      cpu    = "2"
+      memory = "4GB"
+      port   = 8443
+    }
   }
 
   # NOTE: Network dependencies for depends_on cannot be centralized in locals
