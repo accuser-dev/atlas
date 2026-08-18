@@ -6,11 +6,12 @@ This document describes the GitOps workflow for managing Atlas infrastructure us
 
 Atlantis provides PR-based infrastructure management:
 
-```
+```plaintext
 Developer → GitHub PR → Webhook → Caddy → Atlantis → Plan/Apply → Infrastructure
 ```
 
 **Key Features:**
+
 - Automatic `terraform plan` on PR creation/update
 - Plan output posted as PR comment
 - `atlantis apply` via PR comment after approval
@@ -23,7 +24,7 @@ Developer → GitHub PR → Webhook → Caddy → Atlantis → Plan/Apply → In
 Atlantis runs on a dedicated `gitops` network (10.30.0.0/24) isolated from other workloads:
 
 | Network | CIDR | Purpose |
-|---------|------|---------|
+| ------- | ---- | ------- |
 | gitops | 10.30.0.0/24 | Atlantis and CI/CD automation |
 
 A dedicated Caddy instance (`caddy-gitops01`) handles webhook traffic for the gitops network, separate from the main Caddy instance (`caddy01`) that serves production and management traffic. This follows the pattern of one Caddy instance per network for better isolation.
@@ -31,13 +32,15 @@ A dedicated Caddy instance (`caddy-gitops01`) handles webhook traffic for the gi
 ### Security
 
 **Webhook Protection:**
+
 - IP allowlisting: Only GitHub webhook IPs can access Atlantis
 - Rate limiting: 100 requests/minute per IP
 - HTTPS only via Caddy reverse proxy
 - Webhook secret validation
 
 **GitHub IP Ranges:**
-```
+
+```plaintext
 192.30.252.0/22
 185.199.108.0/22
 140.82.112.0/20
@@ -62,7 +65,7 @@ These IPs are configured in `var.atlantis_allowed_ip_range`.
    - A domain pointing to your Caddy instance (e.g., `atlantis.example.com`)
    - DNS record must be configured before enabling
 
-### Configuration
+### System Configuration
 
 Add to `terraform.tfvars`:
 
@@ -114,6 +117,7 @@ After deployment, configure the GitHub webhook:
 ### Making Infrastructure Changes
 
 1. **Create Feature Branch**
+
    ```bash
    git checkout -b feature/add-new-service
    ```
@@ -144,7 +148,7 @@ After deployment, configure the GitHub webhook:
 Comment these on PRs to control Atlantis:
 
 | Command | Description |
-|---------|-------------|
+| ------- | ----------- |
 | `atlantis plan` | Re-run plan |
 | `atlantis plan -d terraform` | Plan specific directory |
 | `atlantis apply` | Apply changes (after approval) |
@@ -189,11 +193,13 @@ projects:
 ```
 
 **Autoplan Triggers:**
+
 - `*.tf` - Any Terraform file in the environment directory
 - `templates/*.tftpl` - Template files
 - `../../modules/**/*.tf` - Shared module files
 
 **Apply Requirements:**
+
 - `mergeable` - PR must be mergeable (no conflicts)
 - `approved` - PR must have at least one approval
 
@@ -219,11 +225,13 @@ workflows:
 ### Atlantis Not Receiving Webhooks
 
 1. **Check Caddy GitOps logs:**
+
    ```bash
    incus exec caddy-gitops01 -- docker logs caddy
    ```
 
 2. **Check Atlantis logs:**
+
    ```bash
    incus exec atlantis01 -- docker logs atlantis
    ```
@@ -255,12 +263,13 @@ workflows:
 ## Resource Limits
 
 | Resource | Value |
-|----------|-------|
+| ---------- | ------- |
 | CPU | 2 cores |
 | Memory | 1GB |
 | Storage | 10GB |
 
 Storage is used for:
+
 - Terraform plans cache
 - Working directories
 - Lock state

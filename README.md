@@ -12,6 +12,7 @@ This project manages two Incus environments with separate Terraform state:
 ### Services by Environment
 
 **iapetus (Control Plane):**
+
 - **Grafana** - Central dashboards and visualization
 - **Prometheus** - Federated metrics (pulls from cluster01)
 - **Loki** - Aggregated log storage
@@ -22,30 +23,42 @@ This project manages two Incus environments with separate Terraform state:
 - **Dex** - OIDC identity provider (optional)
 - **OpenFGA** - Fine-grained authorization (optional)
 - **Atlantis** - GitOps controller (optional)
-- **Node Exporter** - Host metrics
+
+Host metrics come from the native Incus metrics API (`incus-metrics` module), not a separate node-exporter container.
 
 **cluster01 (Production):**
+
 - **Prometheus** - Local metrics scraping
 - **Alloy** - Ships logs to iapetus Loki
 - **Alertmanager** - Alert routing and notifications
-- **Node Exporter × 3** - Host metrics (pinned to each cluster node)
 - **Mosquitto** - MQTT broker for IoT messaging
 - **CoreDNS** - Split-horizon DNS
+- **PostgreSQL** - Database backend for Forgejo and Prefect (optional, `enable_postgresql`)
+- **Forgejo** - Self-hosted Git forge (optional, `enable_forgejo`)
+- **Forgejo Runner** - Forgejo Actions CI runner (optional, `enable_forgejo_runner`)
+- **Prefect** - Workflow orchestration server (optional, `enable_prefect`)
+- **Ceph** - Distributed storage cluster (optional, `enable_ceph`)
+- **OVN networking** - Software-defined networking with load balancers (optional, `network_backend = "ovn"`)
 
-All services run in Incus system containers (Alpine Linux + cloud-init) with persistent storage, network isolation, and automatic configuration management.
+Host metrics likewise come from the native Incus metrics API - each cluster member exposes its own metrics endpoint, no separate node-exporter containers.
+
+All services run in Incus system containers (Debian Trixie + cloud-init) with persistent storage, network isolation, and automatic configuration management.
 
 ## Project Structure
 
-```
+```plaintext
 atlas/
 ├── modules/                   # Shared Terraform modules (used by all environments)
 │   ├── alertmanager/          # Alert routing and notifications
 │   ├── alloy/                 # Log collection and shipping (replaces Promtail)
 │   ├── atlantis/              # GitOps controller
 │   ├── base-infrastructure/   # Networks and base profiles
+│   ├── ceph/                  # Distributed storage cluster
 │   ├── cloudflared/           # Cloudflare Tunnel client
 │   ├── coredns/               # Split-horizon DNS
 │   ├── dex/                   # OIDC identity provider
+│   ├── forgejo/               # Self-hosted Git forge
+│   ├── forgejo-runner/        # Forgejo Actions CI runner
 │   ├── grafana/               # Visualization platform
 │   ├── haproxy/               # TCP/HTTP load balancer
 │   ├── incus-loki/            # Native Incus → Loki logging
@@ -54,11 +67,14 @@ atlas/
 │   ├── incus-vm/              # Virtual machine support
 │   ├── loki/                  # Log aggregation
 │   ├── mosquitto/             # MQTT broker
-│   ├── node-exporter/         # Host metrics
+│   ├── network-acl/           # Incus network ACLs
+│   ├── node-exporter/         # Host metrics (unused - see incus-metrics)
 │   ├── openfga/               # Fine-grained authorization
 │   ├── ovn-central/           # OVN databases
 │   ├── ovn-config/            # Incus OVN settings
 │   ├── ovn-load-balancer/     # OVN load balancers
+│   ├── postgresql/            # Database backend
+│   ├── prefect/               # Workflow orchestration server
 │   ├── prometheus/            # Metrics collection
 │   └── step-ca/               # Internal CA
 │
@@ -108,17 +124,20 @@ atlas/
 ### Initial Setup (iapetus)
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/accuser-dev/atlas.git
    cd atlas
    ```
 
 2. **Bootstrap remote state** (first time only):
+
    ```bash
    make bootstrap
    ```
 
 3. **Create terraform.tfvars**:
+
    ```bash
    cd environments/iapetus
    cp terraform.tfvars.example terraform.tfvars
@@ -126,6 +145,7 @@ atlas/
    ```
 
 4. **Deploy iapetus**:
+
    ```bash
    make init
    make plan
@@ -133,6 +153,7 @@ atlas/
    ```
 
 5. **View outputs**:
+
    ```bash
    cd environments/iapetus
    tofu output
@@ -141,17 +162,20 @@ atlas/
 ### Deploying the Cluster Environment
 
 1. **Configure Incus remote** (from iapetus or management host):
+
    ```bash
    incus remote add cluster01 https://<cluster-ip>:8443
    export INCUS_REMOTE=cluster01
    ```
 
 2. **Bootstrap cluster state**:
+
    ```bash
    ENV=cluster01 make bootstrap
    ```
 
 3. **Create terraform.tfvars**:
+
    ```bash
    cd environments/cluster01
    cp terraform.tfvars.example terraform.tfvars
@@ -159,6 +183,7 @@ atlas/
    ```
 
 4. **Deploy cluster01**:
+
    ```bash
    ENV=cluster01 make init
    ENV=cluster01 make plan
@@ -167,19 +192,26 @@ atlas/
 
 ## Container Images
 
-### System Containers (Alpine + cloud-init)
+### System Containers (Debian Trixie + cloud-init)
 
-Most services use Alpine Linux system containers with cloud-init:
+Every deployed service except Atlantis uses Debian Trixie (`images:debian/trixie/cloud`) system containers with cloud-init and systemd - no custom images needed. Most modules follow a hybrid Terraform + Ansible pattern: cloud-init only bootstraps the container (Python3, so Ansible can connect), and an Ansible role in `ansible/roles/` installs and configures the service:
+
 - Grafana, Prometheus, Loki, Alertmanager
-- step-ca, Cloudflared, Node Exporter
-- Mosquitto, CoreDNS, Alloy
-- Dex, HAProxy, OpenFGA
+- step-ca, Alloy, Mosquitto, CoreDNS, Dex, OpenFGA
+- PostgreSQL, Forgejo, Forgejo Runner
 
-These download and configure binaries at first boot - no custom images needed.
+A few services still configure themselves entirely via cloud-init at first boot, with no Ansible role:
+
+- Cloudflared, HAProxy, Ceph (all daemon types)
+
+Prefect's cloud-init also targets the Ansible pattern, but the `ansible/roles/prefect` role and playbook haven't landed yet - see [ansible/playbooks/site.yml](ansible/playbooks/site.yml) for the services currently covered.
+
+See [.claude/architecture.md](.claude/architecture.md) for details on the hybrid provisioning pattern.
 
 ### OCI Container Images (Docker)
 
 Only Atlantis uses a custom Docker image:
+
 - **Atlantis**: `ghcr.io/accuser-dev/atlas/atlantis:latest`
 
 Built on every push to `main` and published to GitHub Container Registry.
@@ -187,6 +219,7 @@ Built on every push to `main` and published to GitHub Container Registry.
 ### Local Development
 
 Build Atlantis image locally for testing:
+
 ```bash
 make build-atlantis
 ```
@@ -228,11 +261,13 @@ ENV=cluster01 make deploy
 Each environment supports multiple network modes:
 
 **Bridge Networks (default):**
+
 - **production** (10.10.0.0/24) - For external services (Mosquitto, CoreDNS)
 - **management** (10.20.0.0/24) - For internal services (monitoring stack, PKI)
 - **gitops** (10.30.0.0/24) - For GitOps automation (optional, iapetus only)
 
 **OVN Networks (optional):**
+
 - Provides native load balancers with LAN-routable VIPs
 - Supports external access without proxy devices
 - Configured via `network_backend = "ovn"` in terraform.tfvars
@@ -242,6 +277,7 @@ Configure IP addresses in `environments/*/terraform.tfvars`.
 ### Cross-Environment Integration
 
 The cluster01 environment connects to iapetus for:
+
 - **Log shipping**: Alloy → iapetus Loki (`loki_push_url` variable)
 - **Prometheus federation**: iapetus pulls metrics from cluster01
 - **TLS certificates**: step-ca on iapetus issues certs for cluster services
@@ -258,7 +294,7 @@ See [CLAUDE.md](CLAUDE.md) for detailed instructions on adding new services.
 - **Multi-Environment** - Separate state for iapetus (control plane) and cluster01 (production)
 - **Declarative Infrastructure** - Everything defined in OpenTofu
 - **Modular Design** - Shared modules across environments
-- **System Containers** - Alpine Linux with cloud-init (no custom images for most services)
+- **System Containers** - Debian Trixie with cloud-init/systemd (no custom images for most services)
 - **Persistent Storage** - Data survives container restarts with optional automated snapshots
 - **Zero Trust Access** - Cloudflare Tunnel for external access
 - **Network Isolation** - Separate networks for different service types
@@ -267,7 +303,7 @@ See [CLAUDE.md](CLAUDE.md) for detailed instructions on adding new services.
 
 ### Multi-Environment Architecture
 
-```
+```plaintext
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         iapetus (IncusOS)                           │
 │                    Control Plane / Aggregation                      │
@@ -288,37 +324,50 @@ See [CLAUDE.md](CLAUDE.md) for detailed instructions on adding new services.
 ├─────────────────────────────────────────────────────────────────────┤
 │  - Prometheus (local scraping, federated by iapetus)                │
 │  - Alloy → ships logs to iapetus Loki                               │
-│  - node-exporter × 3 (pinned to each cluster node)                  │
 │  - Mosquitto, CoreDNS, Alertmanager                                 │
+│  - PostgreSQL, Forgejo, Forgejo Runner, Prefect (optional)          │
+│  - Ceph, OVN networking (optional)                                  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 **iapetus Services** (control plane):
+
 - Grafana: `https://grafana.yourdomain.com` (via Cloudflare Tunnel)
 - Prometheus: `http://prometheus01.incus:9090`
 - Loki: `http://loki01.incus:3100`
 - step-ca: `https://step-ca01.incus:9000`
 
 **cluster01 Services** (production):
+
 - Prometheus: `http://prometheus01.incus:9090`
 - Alertmanager: `http://alertmanager01.incus:9093`
 - Mosquitto: Host ports 1883 (MQTT), 8883 (MQTTS)
 - CoreDNS: Host port 53 (DNS)
-- Node Exporter × 3: Pinned to each cluster node
+- PostgreSQL: `postgresql01.incus:5432` (optional)
+- Forgejo: `http://forgejo01.incus:3000` (optional)
+- Prefect: `http://prefect01.incus:4200` (optional)
 
 ### Storage Volumes
 
 **iapetus:**
+
 - `grafana01-data` (10GB) - Dashboards and settings
 - `loki01-data` (50GB) - Log storage
 - `prometheus01-data` (100GB) - Metrics storage
 - `step-ca01-data` (1GB) - CA keys and database
 - `atlantis01-data` (10GB) - GitOps state (optional)
+- `dex01-data` (1GB) - OIDC state (optional)
+- `openfga01-data` (1GB) - Authorization store (optional)
 
 **cluster01:**
+
 - `prometheus01-data` (100GB) - Metrics storage
 - `alertmanager01-data` (1GB) - Silences and state
 - `mosquitto01-data` (5GB) - MQTT retained messages
+- `postgresql01-data` (20GB) - Database storage (optional, `enable_postgresql`)
+- `forgejo01-data` (50GB) - Git repositories and forge data (optional, `enable_forgejo`)
+- `forgejo-runner01-data` (20GB) - CI job workspace (optional, `enable_forgejo_runner`)
+- `prefect01-data` (5GB) - Workflow orchestration state (optional, `enable_prefect`)
 
 All volumes support optional automated snapshot scheduling. See [BACKUP.md](BACKUP.md) for details.
 
@@ -331,6 +380,7 @@ The project uses separate workflows for validation and releases:
 **Triggers:** Pull requests and pushes to feature branches
 
 **What it does:**
+
 1. OpenTofu format and validation for both environments
 2. Atlantis Docker image build (without publish)
 3. Security scanning
@@ -340,6 +390,7 @@ The project uses separate workflows for validation and releases:
 **Triggers:** Push to `main` branch
 
 **What it does:**
+
 1. Builds Atlantis Docker image
 2. Publishes to GitHub Container Registry
 3. Tags with `latest` and commit SHA
@@ -397,20 +448,22 @@ make backup-list       # List all volume snapshots
 ### Container not starting
 
 Check container logs:
+
 ```bash
 incus info <container-name>
 incus console <container-name>
 ```
 
-### Service status (Alpine containers)
+### Service status
 
 ```bash
-incus exec <container-name> -- rc-service <service-name> status
+incus exec <container-name> -- systemctl status <service-name>
 ```
 
 ### OpenTofu state issues
 
 View current state:
+
 ```bash
 cd environments/iapetus  # or environments/cluster01
 tofu show
@@ -419,6 +472,7 @@ tofu show
 ### Network connectivity
 
 Test internal DNS:
+
 ```bash
 incus exec grafana01 -- ping prometheus01.incus
 ```
@@ -426,6 +480,7 @@ incus exec grafana01 -- ping prometheus01.incus
 ### Cross-environment connectivity
 
 Ensure the cluster is accessible from iapetus:
+
 ```bash
 # On iapetus or management host
 incus remote list
@@ -439,6 +494,7 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for comprehensive troubleshooting g
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 
 Quick start:
+
 1. Create a feature branch from `main`
 2. Make changes and test with `make plan`
 3. Format code: `make format`
@@ -452,6 +508,7 @@ Quick start:
 ## Additional Documentation
 
 For detailed architecture, design patterns, and development guidance, see:
+
 - [CLAUDE.md](CLAUDE.md) - Complete architecture documentation
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines and GitHub Flow
 - [BACKUP.md](BACKUP.md) - Backup and disaster recovery procedures

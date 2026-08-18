@@ -29,6 +29,7 @@ git checkout -b fix/issue-4-shell-script-security
 ```
 
 **Branch Naming Convention:**
+
 - `feature/issue-X-short-description` - For new features
 - `fix/issue-X-short-description` - For bug fixes
 - `docs/issue-X-short-description` - For documentation updates
@@ -44,7 +45,8 @@ git checkout -b fix/issue-4-shell-script-security
 - Format your code: `make format`
 
 **Commit Message Format:**
-```
+
+```plaintext
 <type>: <subject>
 
 <body>
@@ -53,7 +55,8 @@ Fixes #<issue-number>
 ```
 
 Example:
-```
+
+```plaintext
 fix: remove hardcoded Grafana admin password
 
 Move Grafana admin password from hardcoded value to Terraform variable.
@@ -79,6 +82,7 @@ gh pr create --base main --title "Fix: Remove hardcoded Grafana admin password" 
 Or use the GitHub web interface.
 
 **Pull Request Guidelines:**
+
 - Target `main` branch
 - Reference the issue number in the PR description (e.g., "Fixes #1")
 - Provide a clear description of what changed and why
@@ -100,6 +104,7 @@ git push
 #### 6. Merge to `main`
 
 Once approved and CI passes:
+
 - Squash and merge or create a merge commit (project preference)
 - Delete the feature branch after merging
 - CI will automatically build and push Docker images with `:latest` tag
@@ -115,6 +120,7 @@ Once approved and CI passes:
 ### Code Standards
 
 **Terraform:**
+
 - Run `tofu fmt` before committing
 - Run `tofu validate` to ensure valid configuration
 - Use meaningful variable names and descriptions
@@ -123,12 +129,14 @@ Once approved and CI passes:
 - For new modules with persistent storage, include snapshot scheduling variables (see existing modules for pattern)
 
 **Docker:**
+
 - Pin base image versions (no `:latest`)
 - Use multi-stage builds where appropriate
 - Document any custom build arguments
 - Keep images minimal and secure
 
 **Shell Scripts:**
+
 - Use `#!/usr/bin/env bash` shebang
 - Add `set -euo pipefail` for safety
 - Use meaningful variable names
@@ -200,15 +208,18 @@ When creating a PR, please include:
 Dependabot automatically creates PRs for Docker base image updates. When reviewing these:
 
 **1. Check the changelog:**
+
 - Review the upstream release notes for the new version
 - Look for breaking changes or security fixes
 - Verify compatibility with our configuration
 
 **2. Verify CI passes:**
+
 - Ensure all CI checks pass (build, tofu validate)
 - Review any test failures carefully
 
 **3. Test locally (for major updates):**
+
 ```bash
 # Pull the PR branch
 gh pr checkout <pr-number>
@@ -221,11 +232,13 @@ make plan
 ```
 
 **4. Merge strategy:**
+
 - **Patch updates (x.x.N)**: Usually safe to merge after CI passes
 - **Minor updates (x.N.x)**: Review changelog, merge if no breaking changes
 - **Major updates (N.x.x)**: Test thoroughly, may require configuration changes
 
 **5. Post-merge:**
+
 - Monitor deployed services for issues
 - Roll back if problems are detected
 - Update documentation if configuration changed
@@ -233,11 +246,13 @@ make plan
 ## Release Process
 
 Releases happen automatically when PRs are merged to `main`:
+
 1. CI builds and tests the code
 2. Docker images are built and pushed with `:latest` tag
 3. Tag releases manually for significant milestones
 
 Example tagging workflow:
+
 ```bash
 # After significant changes are merged to main
 git checkout main
@@ -256,6 +271,7 @@ git push origin v1.2.0
 ## Questions?
 
 If you have questions about contributing, please:
+
 - Open an issue with the `question` label
 - Refer to project documentation
 - Contact maintainers
