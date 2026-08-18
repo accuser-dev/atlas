@@ -75,9 +75,44 @@ incus config set iapetus:operations-center01 boot.autorestart=false
 incus stop iapetus:operations-center01 --force
 ```
 
+**If the VM loses network connectivity after moving it between networks:** IncusOS binds its network config to the NIC's MAC address at install time (there's no explicit network seed here, so this happens implicitly on first boot). Detaching/reattaching the NIC - e.g. moving the instance between networks - makes Incus generate a *new* `volatile.<device>.hwaddr` for the device, which no longer matches what IncusOS persisted. The guest boots with the interface administratively down and the console log shows:
+
+```
+ERROR timed out waiting for configured network interfaces, missing interface(s): enp5s0 (<original-mac>)
+```
+
+The device name in that error is the NIC device name from the Atlas profile (`mgmt` here), and the MAC in parentheses is the one to restore. Find the NIC device's original MAC from the *first successful* "System is ready" boot (`incus info` on the instance, or check `tofu state show` history / your own notes - Terraform doesn't track this, it's runtime-only Incus state), then:
+
+```bash
+incus config set iapetus:operations-center01 boot.autorestart=false
+incus stop iapetus:operations-center01 --force
+incus config set iapetus:operations-center01 volatile.<device-name>.hwaddr=<original-mac>
+incus start iapetus:operations-center01
+```
+
+`incus info iapetus:operations-center01` should show the interface `UP` with an IP within ~30s; the console log should show `System is ready` with no `ERROR` line. Since this is Incus-level runtime state (not something Terraform declares), a `tofu plan` afterwards should show no drift - if it does, something else changed too.
+
+**`operations-center01.incus` doesn't resolve, even from another instance on the same network:** every other Atlas service resolves via `<name>.incus` because cloud-init sets each container's hostname to match its Incus instance name, and Incus's per-network dnsmasq registers `<name>.incus` from whatever hostname the DHCP client actually sends - not from the Incus instance name itself. IncusOS has no cloud-init, so it DHCPs under its own machine-id instead. Confirm with:
+
+```bash
+incus network list-leases iapetus:management
+```
+
+`operations-center01`'s row will show a UUID-looking hostname (its IncusOS machine-id) rather than `operations-center01` - that UUID name *does* resolve (`<uuid>.incus`), just not the instance name. Note this has nothing to do with CoreDNS/the `iapetus.incus` zone (`enable_incus_dns_zone`) - the bare `.incus` domain is resolved directly by the bridge's own dnsmasq (`incus network list-leases`), which containers query directly (check `resolvectl status` / `/etc/resolv.conf` inside the instance) unless something has been explicitly reconfigured to use CoreDNS instead.
+
+The correct fix is setting IncusOS's own hostname so its DHCP client advertises `operations-center01`:
+
+```
+config:
+  dns:
+    hostname: operations-center01
+```
+
+via `incus admin os system network edit --force-local`, run *locally* on the instance (console/SSH) - this isn't reachable remotely once Operations Center owns port 8443 as the primary application. Until that's done, use the machine-id hostname from the lease table, or the IP, as a workaround.
+
 ## Known limitations
 
-- **OIDC / OpenFGA are not wired up.** The seed supports both (`security.oidc`, `security.openfga`), and iapetus already reserves a Dex redirect URI for this (`environments/iapetus/main.tf`), but the initial deployment seeds only a trusted client certificate to minimize the chance of a lockout requiring reinstall. Wire OIDC/OpenFGA post-install via the Operations Center API once the VM is confirmed reachable.
+- **OIDC is wired up post-install; OpenFGA is not.** The seed only trusts a client certificate at first boot (see above), to minimize lockout risk. OIDC login via Dex was configured afterwards, live, via `PUT /1.0/system/security` on the Operations Center API (reusing the existing public `incus` Dex client - the OIDC config struct has no client-secret field, so it's PKCE-only) - `oidc.claim` is set to `sub`, not `preferred_username`, since the latter is documented to bounce some providers back to the login screen. This isn't Terraform-managed - it's runtime application config, same category as the IncusOS network/hostname settings above. `dex01`'s redirect URIs (`environments/iapetus/main.tf`) include both a `:8443` (direct, management network) and a no-port (via Cloudflare Tunnel) callback for this reason - whichever way you reach Operations Center needs a matching entry. OpenFGA authorization is still unconfigured.
 - **Network reachability for managing cluster01.** This module places the VM on the management network (10.20.0.0/24, NAT'd, iapetus-local). cluster01's nodes will not be able to reach it there without additional routing, an OVN LB VIP, or a proxy device — resolve this before using Operations Center to provision the cluster01 rebuild.
 
 ## Requirements
