@@ -290,6 +290,20 @@ output "haproxy_stats_endpoint" {
 }
 
 # =============================================================================
+# Operations Center
+# =============================================================================
+
+output "operations_center_ipv4_address" {
+  description = "Operations Center VM IPv4 address (null until the VM has booted IncusOS and acquired an address)"
+  value       = var.enable_operations_center ? module.operations_center01[0].ipv4_address : null
+}
+
+output "operations_center_web_endpoint" {
+  description = "Operations Center web UI / API endpoint (TLS client cert auth required)"
+  value       = var.enable_operations_center ? module.operations_center01[0].web_endpoint : null
+}
+
+# =============================================================================
 # Managed Resources (for Makefile dynamic discovery)
 # =============================================================================
 # Maps Incus resource names to their Terraform state paths
@@ -311,6 +325,7 @@ output "managed_resources" {
       var.enable_oidc ? { "dex" = "module.dex01[0].incus_profile.dex" } : {},
       var.enable_oidc ? { "openfga" = "module.openfga01[0].incus_profile.openfga" } : {},
       var.enable_haproxy ? { "haproxy" = "module.haproxy01[0].incus_profile.haproxy" } : {},
+      var.enable_operations_center ? { "operations-center" = "module.operations_center01[0].incus_profile.operations_center" } : {},
     )
 
     # Instances: Map Incus instance name -> Terraform import path
@@ -325,6 +340,7 @@ output "managed_resources" {
       var.enable_oidc ? { "dex01" = "module.dex01[0].incus_instance.dex" } : {},
       var.enable_oidc ? { "openfga01" = "module.openfga01[0].incus_instance.openfga" } : {},
       var.enable_haproxy ? { "haproxy01" = "module.haproxy01[0].incus_instance.haproxy" } : {},
+      var.enable_operations_center ? { "operations-center01" = "module.operations_center01[0].incus_instance.operations_center" } : {},
     )
 
     # Volumes: Map Incus volume name -> Terraform import path

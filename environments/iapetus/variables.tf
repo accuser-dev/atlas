@@ -385,6 +385,31 @@ variable "incus_cluster_nodes" {
 }
 
 # =============================================================================
+# Operations Center
+# =============================================================================
+# IncusOS Operations Center - registration, update tracking, and inventory for
+# IncusOS servers. Runs as a dedicated IncusOS VM (not a container) since it
+# cannot share iapetus's existing IncusOS install - see modules/operations-center.
+
+variable "enable_operations_center" {
+  description = "Deploy the Operations Center IncusOS VM"
+  type        = bool
+  default     = false
+}
+
+variable "operations_center_boot_media" {
+  description = "Attach the seeded installer ISO to the Operations Center VM. Set true to (re)install, then false once IncusOS reports the install complete."
+  type        = bool
+  default     = true
+}
+
+variable "operations_center_iso_volume" {
+  description = "Name of the pre-imported ISO storage volume (content_type=iso), built by `make operations-center-iso`"
+  type        = string
+  default     = "operations-center01-iso"
+}
+
+# =============================================================================
 # Cross-Environment Integration
 # =============================================================================
 

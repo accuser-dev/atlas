@@ -128,6 +128,30 @@ allowed_ip_range = "192.168.1.0/24"
 # atlantis_repo_allowlist = ["github.com/your-org/your-repo"]
 
 # ============================================================================
+# OPTIONAL: OPERATIONS CENTER
+# ============================================================================
+# Deploys an IncusOS Operations Center VM under iapetus - the registration
+# point, update tracker, and inventory for IncusOS servers (e.g. a rebuilt
+# cluster01). Runs as a dedicated IncusOS VM, not a container - see
+# modules/operations-center/README.md for why and for the install procedure.
+#
+# Prerequisites:
+#   1. Build and import the seeded installer ISO: make operations-center-iso
+#   2. Apply with enable_operations_center = true (VM created, stopped, ISO attached)
+#   3. Follow the install procedure in modules/operations-center/README.md
+#   4. Set operations_center_boot_media = false once installed, and re-apply
+
+# Enable the Operations Center VM (default: false)
+# enable_operations_center = true
+
+# Attach the installer ISO (default: true). Set false once IncusOS reports
+# the install complete, so the VM boots from its own disk instead of the ISO.
+# operations_center_boot_media = true
+
+# Name of the ISO volume built by `make operations-center-iso` (default shown)
+# operations_center_iso_volume = "operations-center01-iso"
+
+# ============================================================================
 # OPTIONAL: OVN NETWORKING
 # ============================================================================
 # OVN provides overlay networking with load balancer VIPs for LAN access.
