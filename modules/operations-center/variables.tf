@@ -70,7 +70,7 @@ variable "root_disk_size" {
 
   validation {
     condition = (
-      can(regex("TiB$", var.root_disk_size)) ||
+      (can(regex("TiB$", var.root_disk_size)) && tonumber(regex("^[0-9]+", var.root_disk_size)) >= 1) ||
       (can(regex("GiB$", var.root_disk_size)) && tonumber(regex("^[0-9]+", var.root_disk_size)) >= 50)
     )
     error_message = "Root disk size must be at least 50GiB - IncusOS's installer refuses to run below that."

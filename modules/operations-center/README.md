@@ -132,7 +132,7 @@ via `incus admin os system network edit --force-local`, run *locally* on the ins
 | `target_node`       | Target cluster node (clustered deployments)               | `string`      | `null`                      | no       |
 | `cpu_limit`         | Number of CPU cores                                       | `string`      | `"2"`                        | no       |
 | `memory_limit`      | Memory limit                                               | `string`      | `"4GB"`                      | no       |
-| `root_disk_size`    | Root disk size (minimum 10GB)                              | `string`      | `"50GB"`                     | no       |
+| `root_disk_size`    | Root disk size, binary units (minimum 50GiB)               | `string`      | `"55GiB"`                    | no       |
 | `attach_boot_media` | Attach the installer ISO (true to install, false after)   | `bool`        | `true`                       | no       |
 | `boot_media_volume` | Name of the pre-imported ISO volume                        | `string`      | `"operations-center01-iso"` | no       |
 
