@@ -397,7 +397,8 @@ module "dex01" {
         "urn:ietf:wg:oauth:2.0:oob",                                # Device authorization grant (CLI)
         "/device/callback",                                         # Dex internal device flow callback
         "https://iapetus.accuser.dev:8443/oidc/callback",           # Incus OIDC callback (iapetus)
-        "https://operations-center.accuser.dev:8443/oidc/callback", # Incus OIDC callback (operations-center)
+        "https://operations-center.accuser.dev:8443/oidc/callback", # Operations Center OIDC callback (direct, management network)
+        "https://operations-center.accuser.dev/oidc/callback",      # Operations Center OIDC callback (via Cloudflare Tunnel, no port)
         "https://atlas.accuser.dev:8443/oidc/callback",             # Incus OIDC callback (menotius)
         "https://cluster01.accuser.dev:8443/oidc/callback",         # Incus OIDC callback (cluster01)
       ]

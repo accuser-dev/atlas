@@ -59,21 +59,21 @@ variable "memory_limit" {
 }
 
 variable "root_disk_size" {
-  description = "Root disk size for the VM (e.g., '50GB')"
+  description = "Root disk size for the VM. Use GiB/TiB (binary), not GB/TB (decimal) - IncusOS's installer checks the disk in GiB and refuses to run below its minimum, so a decimal size a few percent short (e.g. '50GB' = 46.57GiB) fails the install's system check."
   type        = string
-  default     = "50GB"
+  default     = "55GiB"
 
   validation {
-    condition     = can(regex("^[0-9]+(GB|TB)$", var.root_disk_size))
-    error_message = "Root disk size must be in format like '50GB' or '1TB'."
+    condition     = can(regex("^[0-9]+(GiB|TiB)$", var.root_disk_size))
+    error_message = "Root disk size must be in format like '55GiB' or '1TiB' (binary units - see description)."
   }
 
   validation {
     condition = (
-      can(regex("TB$", var.root_disk_size)) ||
-      (can(regex("GB$", var.root_disk_size)) && tonumber(regex("^[0-9]+", var.root_disk_size)) >= 10)
+      can(regex("TiB$", var.root_disk_size)) ||
+      (can(regex("GiB$", var.root_disk_size)) && tonumber(regex("^[0-9]+", var.root_disk_size)) >= 50)
     )
-    error_message = "Root disk size must be at least 10GB for a VM."
+    error_message = "Root disk size must be at least 50GiB - IncusOS's installer refuses to run below that."
   }
 }
 
