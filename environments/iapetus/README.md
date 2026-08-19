@@ -21,17 +21,20 @@ make apply    # Apply changes
 ### Correct Ways to Initialize
 
 1. **Use the Makefile (recommended)**:
+
    ```bash
    make init
    ```
 
 2. **Use the init wrapper script**:
+
    ```bash
    cd terraform
    ./init.sh
    ```
 
 3. **Manual initialization with backend config**:
+
    ```bash
    cd terraform
    tofu init -backend-config=backend.hcl
@@ -42,7 +45,8 @@ make apply    # Apply changes
 The project uses an S3-compatible backend (Incus storage buckets) for remote state storage. The backend credentials are stored in `backend.hcl` (gitignored) and must be provided during initialization.
 
 If you see this error:
-```
+
+```plaintext
 Error: Error asking for input to configure backend "s3": bucket: EOF
 ```
 
@@ -53,16 +57,19 @@ It means you're running `tofu init` without the required backend configuration.
 For a fresh installation:
 
 1. **Bootstrap the infrastructure** (creates storage bucket for state):
+
    ```bash
    make bootstrap
    ```
 
 2. **Initialize OpenTofu**:
+
    ```bash
    make init
    ```
 
 3. **Deploy**:
+
    ```bash
    make deploy
    ```
@@ -71,7 +78,7 @@ See [BACKEND_SETUP.md](BACKEND_SETUP.md) for detailed backend configuration inst
 
 ## Directory Structure
 
-```
+```plaintext
 terraform/
 ├── init.sh              # Initialization wrapper script
 ├── main.tf              # Module instantiations
@@ -126,6 +133,7 @@ tofu state list
 ### terraform.tfvars (gitignored)
 
 Contains sensitive variables:
+
 ```hcl
 cloudflare_api_token = "your-token"
 # Network configuration, etc.
@@ -134,6 +142,7 @@ cloudflare_api_token = "your-token"
 ### backend.hcl (gitignored)
 
 Contains S3 backend credentials (OpenTofu 1.6+ syntax):
+
 ```hcl
 bucket     = "atlas-terraform-state"
 access_key = "your-access-key"

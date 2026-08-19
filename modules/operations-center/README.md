@@ -77,7 +77,7 @@ incus stop iapetus:operations-center01 --force
 
 **If the VM loses network connectivity after moving it between networks:** IncusOS binds its network config to the NIC's MAC address at install time (there's no explicit network seed here, so this happens implicitly on first boot). Detaching/reattaching the NIC - e.g. moving the instance between networks - makes Incus generate a *new* `volatile.<device>.hwaddr` for the device, which no longer matches what IncusOS persisted. The guest boots with the interface administratively down and the console log shows:
 
-```
+```plaintext
 ERROR timed out waiting for configured network interfaces, missing interface(s): enp5s0 (<original-mac>)
 ```
 
@@ -102,7 +102,7 @@ incus network list-leases iapetus:management
 
 The correct fix is setting IncusOS's own hostname so its DHCP client advertises `operations-center01`:
 
-```
+```yaml
 config:
   dns:
     hostname: operations-center01
@@ -123,29 +123,29 @@ via `incus admin os system network edit --force-local`, run *locally* on the ins
 
 ## Inputs
 
-| Name                | Description                                              | Type          | Default                    | Required |
-| ------------------- | ---------------------------------------------------------| ------------- | --------------------------- | -------- |
-| `instance_name`     | Name of the VM instance                                  | `string`      | `"operations-center01"`     | no       |
-| `profile_name`      | Name of the Incus profile to create                      | `string`      | `"operations-center"`       | no       |
-| `profiles`          | Base/network profiles to compose (e.g. management)       | `list(string)`| `[]`                         | no       |
-| `storage_pool`      | Storage pool for the root disk and boot media             | `string`      | `"local"`                   | no       |
-| `target_node`       | Target cluster node (clustered deployments)               | `string`      | `null`                      | no       |
-| `cpu_limit`         | Number of CPU cores                                       | `string`      | `"2"`                        | no       |
-| `memory_limit`      | Memory limit                                               | `string`      | `"4GB"`                      | no       |
-| `root_disk_size`    | Root disk size, binary units (minimum 50GiB)               | `string`      | `"55GiB"`                    | no       |
-| `attach_boot_media` | Attach the installer ISO (true to install, false after)   | `bool`        | `true`                       | no       |
-| `boot_media_volume` | Name of the pre-imported ISO volume                        | `string`      | `"operations-center01-iso"` | no       |
+| Name | Description | Type | Default | Required |
+| --- | --- | --- | --- | --- |
+| `instance_name` | Name of the VM instance | `string` | `"operations-center01"` | no |
+| `profile_name` | Name of the Incus profile to create | `string` | `"operations-center"` | no |
+| `profiles` | Base/network profiles to compose (e.g. management) | `list(string)` | `[]` | no |
+| `storage_pool` | Storage pool for the root disk and boot media | `string` | `"local"` | no |
+| `target_node` | Target cluster node (clustered deployments) | `string` | `null` | no |
+| `cpu_limit` | Number of CPU cores | `string` | `"2"` | no |
+| `memory_limit` | Memory limit | `string` | `"4GB"` | no |
+| `root_disk_size` | Root disk size, binary units (minimum 50GiB) | `string` | `"55GiB"` | no |
+| `attach_boot_media` | Attach the installer ISO (true to install, false after) | `bool` | `true` | no |
+| `boot_media_volume` | Name of the pre-imported ISO volume | `string` | `"operations-center01-iso"` | no |
 
 ## Outputs
 
-| Name              | Description                                    |
-| ----------------- | ----------------------------------------------- |
-| `instance_name`   | Name of the VM instance                          |
-| `instance_status` | Current status of the VM                         |
-| `ipv4_address`    | IPv4 address of the VM                           |
-| `profile_name`    | Name of the created profile                      |
-| `web_endpoint`    | `https://<ip>:8443` UI/API endpoint              |
-| `instance_info`   | `{ name, ipv4_address }` for discovery purposes  |
+| Name | Description |
+| --- | --- |
+| `instance_name` | Name of the VM instance |
+| `instance_status` | Current status of the VM |
+| `ipv4_address` | IPv4 address of the VM |
+| `profile_name` | Name of the created profile |
+| `web_endpoint` | `https://<ip>:8443` UI/API endpoint |
+| `instance_info` | `{ name, ipv4_address }` for discovery purposes |
 
 ## References
 

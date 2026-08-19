@@ -5,6 +5,7 @@ This directory contains custom Docker images for the Atlas monitoring stack.
 ## Overview
 
 The Atlas project uses custom Docker images that are:
+
 - **Built automatically** by GitHub Actions when code is pushed to the main branch
 - **Published to GitHub Container Registry** (ghcr.io)
 - **Publicly accessible** without authentication
@@ -141,13 +142,16 @@ module "grafana01" {
 
 1. **Edit Dockerfile** in `docker/<service>/Dockerfile`
 2. **Test locally**:
+
    ```bash
    make build-<service>
    docker run atlas/<service>:latest
    ```
+
 3. **Commit and push** to trigger CI/CD
 4. **Wait for build** to complete on GitHub Actions
 5. **Deploy updated image**:
+
    ```bash
    make apply
    ```
@@ -166,6 +170,7 @@ COPY grafana.ini /etc/grafana/grafana.ini
 ```
 
 After pushing to GitHub:
+
 - GitHub Actions builds the image
 - Published to ghcr.io
 - Next `tofu apply` pulls the updated image
@@ -175,11 +180,13 @@ After pushing to GitHub:
 ### Updating Images
 
 Images are automatically rebuilt when:
+
 - Code is pushed to main (directly or via PR merge)
 - Dockerfiles are modified
 - Base images are updated (manual rebuild needed)
 
 To force a rebuild without code changes:
+
 - Make a trivial change to the Dockerfile (e.g., add a comment)
 - Or trigger workflow manually in GitHub Actions
 
@@ -219,6 +226,7 @@ When Terraform creates a container:
 ### Authentication
 
 Since images are public:
+
 - No authentication required
 - Incus can pull directly from ghcr.io
 - No credentials needed in Terraform
@@ -227,13 +235,14 @@ Since images are public:
 
 ### Image Not Found During Terraform Apply
 
-```
+```plaintext
 Error: Failed to create instance: Image not found
 ```
 
 **Solutions:**
 
 1. **Verify image exists** on ghcr.io:
+
    ```bash
    # Check package page
    open https://github.com/accuser-dev/atlas/packages
@@ -244,11 +253,13 @@ Error: Failed to create instance: Image not found
    - Check visibility (should show "Public")
 
 3. **Test pull manually**:
+
    ```bash
    incus launch ghcr:accuser-dev/atlas/grafana:latest test
    ```
 
 4. **Check image name** in Terraform module:
+
    ```bash
    grep "default.*image" terraform/modules/grafana/variables.tf
    ```
@@ -337,6 +348,7 @@ incus exec grafana01 -- grafana-cli plugins list
 If you prefer Docker Hub over ghcr.io:
 
 1. **Update GitHub Actions workflow** (`.github/workflows/terraform-ci.yml`):
+
    ```yaml
    - name: Log in to Docker Hub
      uses: docker/login-action@v3
@@ -346,6 +358,7 @@ If you prefer Docker Hub over ghcr.io:
    ```
 
 2. **Update image metadata**:
+
    ```yaml
    images: docker.io/yourusername/${{ matrix.service }}
    ```

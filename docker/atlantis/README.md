@@ -12,6 +12,7 @@ This directory contains the Dockerfile for building a custom Atlantis image for 
 ## Included Tools
 
 The base image includes:
+
 - **Terraform**: v1.13.4 (default)
 - **OpenTofu**: v1.10.6
 - **Conftest**: v0.63.0
@@ -39,11 +40,13 @@ Atlantis provides pull request automation for Terraform/OpenTofu:
 
 ### Security
 
-**Non-root User**
+**Non-root User:**
+
 - Runs as `atlantis` user at runtime (not root)
 - Follows container security best practices
 
-**Health Check**
+**Health Check:**
+
 - Built-in Docker/Incus health check using Atlantis's `/healthz` endpoint
 - Interval: 30 seconds
 - Timeout: 3 seconds
@@ -52,10 +55,10 @@ Atlantis provides pull request automation for Terraform/OpenTofu:
 
 ### Configuration
 
-**Environment Variables**
+**Environment Variables:**
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+| ---------- | ------------- | --------- |
 | `ATLANTIS_PORT` | Port Atlantis listens on | `4141` |
 | `ATLANTIS_DATA_DIR` | Data directory | `/home/atlantis` |
 | `ATLANTIS_DEFAULT_TF_VERSION` | Default Terraform version | `1.13.4` |
@@ -134,6 +137,7 @@ module "atlantis01" {
 Images are automatically built and published to `ghcr.io/accuser-dev/atlas/atlantis:latest` by GitHub Actions when code is pushed to the `main` branch.
 
 For local development:
+
 ```bash
 # Build locally
 make build-atlantis
@@ -164,7 +168,8 @@ incus exec atlantis01 -- wget -qO- http://localhost:4141/healthz
 ```
 
 Expected response when healthy:
-```
+
+```plaintext
 application/json
 ```
 

@@ -49,11 +49,13 @@ Follow the detailed manual steps below.
 The bootstrap process creates everything needed for remote state:
 
 1. **Navigate to bootstrap directory**:
+
    ```bash
    cd terraform/bootstrap
    ```
 
 2. **Initialize and apply**:
+
    ```bash
    tofu init
    tofu apply
@@ -67,12 +69,14 @@ The bootstrap process creates everything needed for remote state:
    - Backend config file (`../backend.hcl`)
 
 4. **Initialize main project**:
+
    ```bash
    cd ..
    tofu init -backend-config=backend.hcl
    ```
 
 5. **Deploy infrastructure**:
+
    ```bash
    tofu apply
    ```
@@ -226,6 +230,7 @@ incus storage bucket export terraform-state atlas-terraform-state --list-only
 ### Access Control
 
 1. **Restrict S3 API access**:
+
    ```bash
    # Bind to localhost only if Terraform runs on same host
    incus config set core.storage_buckets_address 127.0.0.1:8555
@@ -234,6 +239,7 @@ incus storage bucket export terraform-state atlas-terraform-state --list-only
 2. **Use firewall rules** to restrict access to port 8555
 
 3. **Rotate credentials** regularly:
+
    ```bash
    # Delete old key
    incus storage bucket key delete terraform-state atlas-terraform-state terraform-access
@@ -266,9 +272,11 @@ If running Terraform from a remote machine:
 
 1. Ensure Incus host is accessible on port 8555
 2. Update endpoint in backend config:
+
    ```hcl
    endpoint = "http://incus-host-ip:8555"
    ```
+
 3. Consider using HTTPS with reverse proxy for production
 
 ## Troubleshooting
@@ -316,7 +324,7 @@ terraform {
 }
 ```
 
-See: https://app.terraform.io/signup
+See: <https://app.terraform.io/signup>
 
 ## References
 
