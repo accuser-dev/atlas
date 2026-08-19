@@ -1,13 +1,13 @@
 # Custom Atlantis with OpenTofu for GitOps workflow
 # Version is parameterized via build arg for easier updates
-ARG ATLANTIS_VERSION=v0.35.0
+ARG ATLANTIS_VERSION=v0.47.0
 FROM ghcr.io/runatlantis/atlantis:${ATLANTIS_VERSION} AS base
 
 # Final stage
 FROM base
 
 # Redeclare ARG after FROM to use in labels
-ARG ATLANTIS_VERSION=v0.35.0
+ARG ATLANTIS_VERSION=v0.47.0
 
 # Switch to root to install additional tools
 USER root

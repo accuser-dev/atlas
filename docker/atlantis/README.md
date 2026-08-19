@@ -4,9 +4,9 @@ This directory contains the Dockerfile for building a custom Atlantis image for 
 
 ## Base Image
 
-- **Base**: `ghcr.io/runatlantis/atlantis:v0.35.0`
+- **Base**: `ghcr.io/runatlantis/atlantis:v0.47.0`
 - **Official**: Yes, from [runatlantis/atlantis](https://github.com/runatlantis/atlantis)
-- **Version**: Pinned to v0.35.0 for reproducibility and security (Dependabot tracks updates)
+- **Version**: Pinned to v0.47.0 for reproducibility and security (Dependabot tracks updates)
 - **User**: Runs as `atlantis` user (non-root) at runtime
 
 ## Included Tools
