@@ -16,23 +16,40 @@
 # Track: https://github.com/smallstep/certificates/releases
 CVE-2025-44005
 
-# CVE-2024-45337: golang.org/x/crypto/ssh: Misuse of ServerConfig.PublicKeyCallback
-# Affects: golang.org/x/crypto < v0.31.0
-# Status: Upstream issue - Atlantis uses older Go toolchain with vulnerable crypto
-# Impact: Atlantis image includes multiple Go binaries (terraform, git-lfs, etc.)
-#         with this vulnerability in their compiled dependencies.
-#         We cannot fix this until Atlantis upstream releases a new version.
-# Mitigation: Atlantis does not expose SSH server functionality using this code path.
-#             The vulnerability requires malicious server configuration.
-# Track: https://github.com/runatlantis/atlantis/releases
-CVE-2024-45337
-
 # CVE-2024-24790: golang: net/netip: Unexpected behavior from Is methods for IPv4-mapped IPv6 addresses
 # Affects: Go stdlib < 1.21.11 / 1.22.4
-# Status: Upstream issue - Atlantis is built with Go 1.22.1
-# Impact: Atlantis image contains binaries compiled with older Go runtime.
-#         We cannot fix this until Atlantis upstream rebuilds with newer Go.
+# Status: Upstream issue - Atlantis bundles a terraform1.8.5 binary built with Go 1.22.1
+# Impact: Only the bundled terraform1.8.5 binary is affected (other bundled terraform
+#         versions and the Atlantis binary itself are built with newer Go).
+#         We cannot fix this until Atlantis upstream rebuilds that binary with newer Go.
 # Mitigation: This is an edge case in IPv6 handling, low practical impact
 #             for Atlantis which primarily handles Terraform/OpenTofu operations.
 # Track: https://github.com/runatlantis/atlantis/releases
 CVE-2024-24790
+
+# CVE-2025-68121: crypto/tls: Incorrect certificate validation during TLS session resumption
+# Affects: Go stdlib < 1.24.13 / 1.25.7 / 1.26.0-rc.3
+# Status: Upstream issue - as of Atlantis v0.47.0 (latest release), the Atlantis binary
+#         itself and its bundled terraform1.8.5/1.9.8/1.10.5 and conftest/git-lfs
+#         binaries are all still built with older Go toolchains.
+# Impact: Atlantis image contains multiple Go binaries compiled with vulnerable
+#         crypto/tls. We cannot fix this until Atlantis upstream rebuilds with a
+#         patched Go toolchain - no newer release is available yet.
+# Mitigation: Exploiting this requires a malicious TLS server the client resumes a
+#             session against; Atlantis's outbound TLS clients (VCS API, Terraform
+#             registry) talk to trusted, pinned hosts, not attacker-controlled servers.
+# Track: https://github.com/runatlantis/atlantis/releases
+CVE-2025-68121
+
+# CVE-2026-33186: google.golang.org/grpc/authz: Authorization bypass due to improper
+#                 HTTP/2 path validation
+# Affects: google.golang.org/grpc < v1.79.3
+# Status: Upstream issue - as of Atlantis v0.47.0 (latest release), the bundled
+#         conftest and terraform binaries still vendor an older grpc-go.
+# Impact: Bundled conftest/terraform binaries include a vulnerable grpc-go dependency.
+#         We cannot fix this until those upstream projects rebuild with grpc-go >= 1.79.3.
+# Mitigation: These binaries are invoked as local CLI tools by Atlantis, not run as
+#             gRPC servers accepting external connections - the authz bypass requires
+#             gRPC's HTTP/2-based authorization interceptor to be in use as a server.
+# Track: https://github.com/runatlantis/atlantis/releases
+CVE-2026-33186
