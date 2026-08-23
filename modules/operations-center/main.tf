@@ -65,6 +65,23 @@ resource "incus_instance" "operations_center" {
     properties = {}
   }
 
+  # Pin NIC hwaddrs so IncusOS's first-boot network binding survives a
+  # detach/reattach - see var.network_interfaces and README "Known
+  # limitations" for why an unpinned MAC breaks networking. This device
+  # fully replaces (not merges with) the same-named device inherited from
+  # `profiles`, so `network` must be re-declared here alongside `hwaddr`.
+  dynamic "device" {
+    for_each = { for iface in var.network_interfaces : iface.device => iface }
+    content {
+      name = device.key
+      type = "nic"
+      properties = {
+        network = device.value.network
+        hwaddr  = device.value.hwaddr
+      }
+    }
+  }
+
   # Seeded installer ISO - detach (attach_boot_media = false) once IncusOS
   # reports "successfully installed" so the VM boots from its own disk.
   dynamic "device" {

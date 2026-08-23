@@ -32,6 +32,26 @@ variable "target_node" {
   default     = null
 }
 
+variable "network_interfaces" {
+  description = <<-EOT
+    Per-NIC hwaddr pins, overriding the device of the same name inherited from `profiles`.
+    IncusOS binds its network config to each NIC's MAC at first boot (see README) - without
+    an explicit pin here, Incus generates a random `volatile.<device>.hwaddr` that changes if
+    the device is ever detached/reattached, breaking the guest's networking. Pinning it in
+    Terraform makes the MAC a stable, declared value instead.
+
+    On an already-installed instance, the pinned hwaddr MUST match the device's current
+    `volatile.<device>.hwaddr` (`incus config get <instance> volatile.<device>.hwaddr`) or
+    applying this will change a running VM's device identity - see README "Known limitations".
+  EOT
+  type = list(object({
+    device  = string # device name to override, e.g. "mgmt" or "prod" - must match a device from `profiles`
+    network = string # Incus network name for this device (re-declared here since Incus device overrides replace, not merge, the named device)
+    hwaddr  = string
+  }))
+  default = []
+}
+
 # =============================================================================
 # Resource Limits
 # =============================================================================

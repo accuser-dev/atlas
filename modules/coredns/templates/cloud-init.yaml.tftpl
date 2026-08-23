@@ -20,16 +20,26 @@ packages:
 
 %{ if ipv4_address != "" ~}
 write_files:
-  # Static IP configuration for Debian
-  - path: /etc/network/interfaces.d/eth0
+  # Static IP configuration via systemd-networkd. This image has no ifupdown
+  # (no /etc/network/interfaces.d, no networking.service) - only
+  # systemd-networkd is present, so that's what has to be configured.
+  # Overwrites the DHCP config cloud-init's own networking stage generates
+  # at first boot under this exact filename; subsequent boots don't
+  # regenerate it since cloud-init network config is disabled below.
+  - path: /etc/systemd/network/10-cloud-init-eth0.network
     permissions: '0644'
     content: |
-      auto eth0
-      iface eth0 inet static
-        address ${ipv4_address}/24
+      [Match]
+      Name=eth0
+
+      [Network]
+      Address=${ipv4_address}/${ipv4_prefix_length}
 %{ if ipv4_gateway != "" ~}
-        gateway ${ipv4_gateway}
+      Gateway=${ipv4_gateway}
 %{ endif ~}
+%{ for dns in dns_servers ~}
+      DNS=${dns}
+%{ endfor ~}
 
   - path: /etc/resolv.conf
     permissions: '0644'
@@ -48,7 +58,8 @@ write_files:
 runcmd:
 %{ if ipv4_address != "" ~}
   # Apply static IP configuration
-  - systemctl restart networking
+  - networkctl reload
+  - networkctl reconfigure eth0
 %{ endif ~}
   # Disable systemd-resolved (conflicts with CoreDNS on port 53)
   # This MUST be done in cloud-init before Ansible runs

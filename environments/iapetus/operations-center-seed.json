@@ -1,0 +1,8 @@
+{
+  "hostname": "operations-center01",
+  "interfaces": [
+    { "device": "mgmt", "name": "enp5s0", "hwaddr": "10:66:6a:d1:b6:e7" },
+    { "device": "prod", "name": "enp6s0", "hwaddr": "10:66:6a:2f:cd:d2", "roles": ["management"] }
+  ],
+  "openfga_store_name": "operations-center"
+}

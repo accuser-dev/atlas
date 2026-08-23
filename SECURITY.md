@@ -145,6 +145,12 @@ This allows containers to have multiple network interfaces without naming collis
 | GitHub OAuth credentials | Environment variable | N/A | For Dex OIDC (optional) |
 | OpenFGA preshared key | Environment variable | N/A | For OpenFGA (optional) |
 
+### Operations Center Install Seed — Third-Party Exposure
+
+`make operations-center-iso` (see `modules/operations-center/README.md`) POSTs the IncusOS install seed to the third-party `incusos-customizer.linuxcontainers.org` service, which returns a seeded ISO stored unencrypted as an Incus storage volume on iapetus. This is a deliberate exception to "file injection over environment variables" above, accepted because there is no alternative that keeps seed processing local — the customizer service builds the image.
+
+The seed already carries the Incus client TLS certificate (public). When OpenFGA seeding is enabled (`OPENFGA_PRESHARED_KEY` passed to the Makefile target), it additionally carries the **OpenFGA preshared key**, which then transits that third-party service and persists in the ISO volume. Rotate the key if this trust boundary is a concern; OIDC seeding (issuer URL, public PKCE client ID, claim) carries no secret.
+
 ### Cloudflare Tunnel Token Security
 
 The Cloudflare tunnel token is used by cloudflared for Zero Trust access:

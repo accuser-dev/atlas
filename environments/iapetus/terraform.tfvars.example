@@ -67,6 +67,28 @@ allowed_ip_range = "192.168.1.0/24"
 # management_network_ipv6_nat = true
 
 # ============================================================================
+# OPTIONAL: DNS (CoreDNS)
+# ============================================================================
+# CoreDNS is authoritative for dns_domain and, in physical network mode, needs
+# a static IP of its own (it can't rely on DHCP since clients need to find it
+# at a fixed address):
+# dns_nameserver_ip = "192.168.1.53"     # Static LAN IP for coredns01 (bare IP, no CIDR suffix)
+# dns_gateway_ip     = "192.168.1.1"     # LAN gateway
+# dns_prefix_length  = 24                 # Must match your actual LAN subnet size (e.g. 22 for a /22)
+
+# Static records for anything not auto-registered via the Incus DNS zone.
+# Required for services dual-homed onto the physical/production network (e.g.
+# dex01, operations-center01 - see environments/iapetus/main.tf): physical-mode
+# networks don't support dns.zone.forward, so their LAN addresses need a
+# manual record here. DHCP on eno2 assigns those addresses; set a DHCP
+# reservation on your router/DHCP server for each so the IP (and this record)
+# stays stable across reboots.
+# dns_additional_records = [
+#   { name = "dex01", type = "A", value = "192.168.1.54" },
+#   { name = "operations-center01", type = "A", value = "192.168.1.55" },
+# ]
+
+# ============================================================================
 # OPTIONAL: CLOUDFLARE TUNNEL (Zero Trust)
 # ============================================================================
 # Enable secure remote access via Cloudflare Tunnel
@@ -136,10 +158,18 @@ allowed_ip_range = "192.168.1.0/24"
 # modules/operations-center/README.md for why and for the install procedure.
 #
 # Prerequisites:
-#   1. Build and import the seeded installer ISO: make operations-center-iso
-#   2. Apply with enable_operations_center = true (VM created, stopped, ISO attached)
-#   3. Follow the install procedure in modules/operations-center/README.md
-#   4. Set operations_center_boot_media = false once installed, and re-apply
+#   1. Edit environments/iapetus/operations-center-seed.json - hostname, NIC
+#      hwaddrs, and the OpenFGA store name seeded into the install ISO (also
+#      the values Terraform pins onto the instance's NICs - see
+#      modules/operations-center/README.md "Seed-based configuration").
+#   2. For a from-scratch rebuild: `make apply` (this module disabled) first,
+#      then `make configure-openfga-full` and `make configure-dex-full` so
+#      OIDC/OpenFGA can be seeded - see the README for the full ordering.
+#   3. Build and import the seeded installer ISO:
+#        OPENFGA_PRESHARED_KEY=<key> make operations-center-iso
+#   4. Apply with enable_operations_center = true (VM created, stopped, ISO attached)
+#   5. Follow the install procedure in modules/operations-center/README.md
+#   6. Set operations_center_boot_media = false once installed, and re-apply
 
 # Enable the Operations Center VM (default: false)
 # enable_operations_center = true

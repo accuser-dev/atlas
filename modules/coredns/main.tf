@@ -107,9 +107,10 @@ locals {
 
   # Generate cloud-init configuration (minimal bootstrap + static IP if needed)
   cloud_init_content = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-    ipv4_address = var.ipv4_address
-    ipv4_gateway = var.ipv4_gateway
-    dns_servers  = var.static_ip_dns_servers
+    ipv4_address       = var.ipv4_address
+    ipv4_gateway       = var.ipv4_gateway
+    ipv4_prefix_length = var.ipv4_prefix_length
+    dns_servers        = var.static_ip_dns_servers
   })
 }
 

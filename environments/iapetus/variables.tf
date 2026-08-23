@@ -269,6 +269,17 @@ variable "dns_gateway_ip" {
   default     = ""
 }
 
+variable "dns_prefix_length" {
+  description = "CIDR prefix length for CoreDNS's static IP (e.g. 24 for a /24, 22 for a /22). Must match your actual LAN subnet size - a mismatch causes incorrect on-link routing decisions for the coredns01 container."
+  type        = number
+  default     = 24
+
+  validation {
+    condition     = var.dns_prefix_length >= 0 && var.dns_prefix_length <= 32
+    error_message = "dns_prefix_length must be between 0 and 32."
+  }
+}
+
 variable "dns_additional_records" {
   description = "Additional static DNS records not managed by service modules"
   type = list(object({

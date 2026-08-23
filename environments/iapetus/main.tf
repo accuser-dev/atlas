@@ -227,8 +227,9 @@ module "coredns01" {
 
   # Static IP configuration for DNS server (required for clients to find it)
   # In physical mode: dns_nameserver_ip and gateway must be set in tfvars
-  ipv4_address = var.dns_nameserver_ip
-  ipv4_gateway = var.dns_gateway_ip
+  ipv4_address       = var.dns_nameserver_ip
+  ipv4_gateway       = var.dns_gateway_ip
+  ipv4_prefix_length = var.dns_prefix_length
 
   # Zone configuration - split-horizon for accuser.dev
   domain = var.dns_domain
@@ -375,8 +376,10 @@ module "dex01" {
   instance_name = "dex01"
   profile_name  = "dex"
 
-  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = local.management_profiles
+  # Dual-homed on management + production networks: keeps dex01.incus resolvable
+  # for internal consumers (e.g. prometheus01's scrape target) while also giving
+  # it a LAN-routable address on eno2 so it's reachable from clients off-box.
+  profiles = local.management_and_production_profiles
 
   # Dex OIDC configuration
   issuer_url = var.dex_issuer_url
@@ -508,8 +511,17 @@ module "operations_center01" {
   instance_name = "operations-center01"
   profile_name  = "operations-center"
 
-  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = local.management_profiles
+  # Dual-homed on management + production networks: adds a second NIC on eno2
+  # for direct LAN reachability (e.g. from cluster01 nodes during provisioning)
+  # without touching the existing management NIC - avoids the MAC/hwaddr
+  # rebind issue documented in modules/operations-center/README.md that occurs
+  # when an already-installed IncusOS VM's existing NIC is detached/reattached.
+  profiles = local.management_and_production_profiles
+
+  # Pins both NICs' hwaddrs to the values in operations-center-seed.json (the
+  # same file `make operations-center-iso` reads to build the install seed),
+  # so Incus never regenerates volatile.<device>.hwaddr on this instance.
+  network_interfaces = local.operations_center_network_interfaces
 
   # IncusOS install media - see modules/operations-center/README.md for the
   # install procedure this attach/detach toggle drives

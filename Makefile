@@ -598,6 +598,24 @@ verify-ovn-chassis:
 # Build a seeded IncusOS installer ISO for the Operations Center VM and
 # import it into the iapetus storage pool. Terraform does not own this
 # volume - see modules/operations-center/README.md for why.
+#
+# Seeds hostname/NIC config from environments/iapetus/operations-center-seed.json
+# (the same file main.tf reads to pin the instance's NIC hwaddrs, so the two
+# can never drift apart) and, if available, OIDC + OpenFGA config so the VM
+# comes up fully configured on first boot instead of needing the manual
+# `--force-local`/`PUT /1.0/system/security` steps in modules/operations-center/README.md.
+#
+# OIDC seeding requires dex01 to already be applied (reads `tofu output dex_issuer_url`).
+# OpenFGA seeding additionally requires OPENFGA_PRESHARED_KEY, matching the key
+# already configured on openfga01 via `make configure-openfga-full` - see
+# modules/operations-center/README.md for the full from-scratch rebuild ordering.
+# Both are skipped with a warning, not a failure, if their inputs are missing -
+# in that case the runtime procedures in the README remain the fallback.
+#
+# NOTE: the seed only applies at first boot. Changing it has no effect on an
+# already-installed instance without a full reinstall (attach media, console
+# install, detach media).
+#
 # Set FORCE=1 to overwrite an existing volume of the same name.
 operations-center-iso:
 	@if [ "$(ENV)" != "iapetus" ]; then \
@@ -611,18 +629,77 @@ operations-center-iso:
 		echo "Re-run with FORCE=1 to delete and rebuild it."; \
 		exit 1; \
 	fi; \
+	SEED_FILE="$(ENV_DIR)/operations-center-seed.json"; \
+	if [ ! -f "$$SEED_FILE" ]; then \
+		echo "ERROR: $$SEED_FILE not found"; exit 1; \
+	fi; \
 	echo "Fetching Incus client certificate..."; \
 	CERT=$$(incus remote get-client-certificate) || exit 1; \
+	echo "Resolving OIDC configuration..."; \
+	ISSUER_URL=$$(cd $(ENV_DIR) && tofu output -raw dex_issuer_url 2>/dev/null); \
+	if [ -z "$$ISSUER_URL" ] || [ "$$ISSUER_URL" = "null" ]; then \
+		echo "  Skipping OIDC seed: dex_issuer_url output unavailable (is dex01 deployed? 'make apply' first)"; \
+		ISSUER_URL=""; \
+	else \
+		echo "  Issuer: $$ISSUER_URL"; \
+	fi; \
+	echo "Resolving OpenFGA store..."; \
+	OPENFGA_URL=$$(cd $(ENV_DIR) && tofu output -raw openfga_api_url 2>/dev/null); \
+	OPENFGA_STORE_ID=""; \
+	if [ -z "$$OPENFGA_URL" ] || [ "$$OPENFGA_URL" = "null" ]; then \
+		echo "  Skipping OpenFGA seed: openfga_api_url output unavailable (is openfga01 deployed?)"; \
+	elif [ -z "$$OPENFGA_PRESHARED_KEY" ]; then \
+		echo "  Skipping OpenFGA seed: OPENFGA_PRESHARED_KEY not set."; \
+		echo "  Run: OPENFGA_PRESHARED_KEY=<key> make operations-center-iso ENV=iapetus"; \
+		echo "  (must match the key already applied via 'make configure-openfga-full')"; \
+	else \
+		STORE_NAME=$$(jq -r '.openfga_store_name' "$$SEED_FILE"); \
+		OPENFGA_STORE_ID=$$(curl -sf "$$OPENFGA_URL/stores" -H "Authorization: Bearer $$OPENFGA_PRESHARED_KEY" \
+			| jq -r --arg name "$$STORE_NAME" '.stores[]? | select(.name == $$name) | .id' | head -n1); \
+		if [ -z "$$OPENFGA_STORE_ID" ]; then \
+			echo "  Store '$$STORE_NAME' not found, creating it..."; \
+			OPENFGA_STORE_ID=$$(curl -sf -X POST "$$OPENFGA_URL/stores" -H "Authorization: Bearer $$OPENFGA_PRESHARED_KEY" \
+				-H "Content-Type: application/json" -d "{\"name\": \"$$STORE_NAME\"}" | jq -r '.id'); \
+			if [ -z "$$OPENFGA_STORE_ID" ] || [ "$$OPENFGA_STORE_ID" = "null" ]; then \
+				echo "  ERROR: Failed to create OpenFGA store '$$STORE_NAME'"; exit 1; \
+			fi; \
+			echo "  Created store: $$OPENFGA_STORE_ID"; \
+		else \
+			echo "  Reusing existing store: $$OPENFGA_STORE_ID"; \
+		fi; \
+	fi; \
 	echo "Requesting seeded IncusOS ISO from incusos-customizer..."; \
-	SEED=$$(jq -n --arg cert "$$CERT" '{ \
-		seeds: { \
-			install: { version: "1", force_install: false, force_reboot: false }, \
-			applications: { version: "1", applications: [{ name: "operations-center" }] }, \
-			"operations-center": { version: "1", trusted_client_certificates: [$$cert] } \
-		}, \
-		type: "iso", \
-		architecture: "x86_64" \
-	}'); \
+	SEED=$$(jq -n \
+		--arg cert "$$CERT" \
+		--slurpfile ocseed "$$SEED_FILE" \
+		--arg issuer "$$ISSUER_URL" \
+		--arg openfga_url "$$OPENFGA_URL" \
+		--arg openfga_token "$$OPENFGA_PRESHARED_KEY" \
+		--arg openfga_store_id "$$OPENFGA_STORE_ID" \
+		'($$ocseed[0]) as $$oc | { \
+			seeds: { \
+				install: { version: "1", force_install: false, force_reboot: false }, \
+				applications: { version: "1", applications: [{ name: "operations-center" }] }, \
+				network: { \
+					version: "1", \
+					dns: { hostname: $$oc.hostname }, \
+					interfaces: [ $$oc.interfaces[] | { name: .name, hwaddr: .hwaddr, addresses: ["dhcp4", "slaac"], required_for_online: "no" } + (if .roles then { roles: .roles } else {} end) ] \
+				}, \
+				"operations-center": ({ \
+					version: "1", \
+					trusted_client_certificates: [$$cert], \
+					apply_defaults: false \
+				} + (if $$issuer != "" then { \
+					preseed: { \
+						system_security: (({} \
+							+ { oidc: { issuer: $$issuer, client_id: "incus", scopes: "openid,profile,email", audience: "", claim: "sub" } }) \
+							+ (if $$openfga_store_id != "" then { openfga: { api_url: $$openfga_url, api_token: $$openfga_token, store_id: $$openfga_store_id } } else {} end)) \
+					} \
+				} else {} end)) \
+			}, \
+			type: "iso", \
+			architecture: "x86_64" \
+		}'); \
 	IMAGES_RESP=$$(curl -sf -X POST -d "$$SEED" "https://incusos-customizer.linuxcontainers.org/1.0/images") || { \
 		echo "ERROR: Failed to request customized image"; exit 1; \
 	}; \

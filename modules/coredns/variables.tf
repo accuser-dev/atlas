@@ -81,6 +81,17 @@ variable "ipv4_gateway" {
   default     = ""
 }
 
+variable "ipv4_prefix_length" {
+  description = "CIDR prefix length for the static IP config (e.g., 24 for a /24, 22 for a /22). Must match the actual LAN subnet size - a mismatch causes incorrect on-link routing decisions."
+  type        = number
+  default     = 24
+
+  validation {
+    condition     = var.ipv4_prefix_length >= 0 && var.ipv4_prefix_length <= 32
+    error_message = "ipv4_prefix_length must be between 0 and 32."
+  }
+}
+
 variable "static_ip_dns_servers" {
   description = "DNS servers for the container when using static IP. Defaults to upstream DNS servers."
   type        = list(string)
