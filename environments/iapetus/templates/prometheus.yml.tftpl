@@ -20,7 +20,7 @@ scrape_configs:
   # Grafana metrics
   - job_name: 'grafana'
     static_configs:
-      - targets: ['grafana01.incus:3000']
+      - targets: ['grafana01.${dns_domain}:3000']
         labels:
           service: 'grafana'
           instance: 'grafana01'
@@ -28,7 +28,7 @@ scrape_configs:
   # Loki metrics
   - job_name: 'loki'
     static_configs:
-      - targets: ['loki01.incus:3100']
+      - targets: ['loki01.${dns_domain}:3100']
         labels:
           service: 'loki'
           instance: 'loki01'
@@ -37,15 +37,16 @@ scrape_configs:
   # The /health endpoint returns JSON, not Prometheus format.
   # Health monitoring for step-ca should use blackbox exporter or external probes.
 
-  # NOTE: CoreDNS on iapetus is on the production network (10.10.0.0/24)
-  # which is isolated from the management network where Prometheus runs.
-  # CoreDNS metrics would require an OVN load balancer to be accessible.
+  # NOTE: CoreDNS is not currently scraped (unrelated to this change - not
+  # previously configured as a target here, just noting the isolation
+  # rationale in the old comment no longer applies now that every iapetus
+  # service, including Prometheus, lives on the same eno2/production network).
 
 %{~ if enable_oidc }
   # Dex OIDC metrics
   - job_name: 'dex'
     static_configs:
-      - targets: ['dex01.incus:5558']
+      - targets: ['dex01.${dns_domain}:5558']
         labels:
           service: 'dex'
           instance: 'dex01'
@@ -77,7 +78,7 @@ scrape_configs:
       # ACME domain (from 'incus config get acme.domain') to enable verification.
       #
       # Mitigating factors:
-      # - Traffic is internal (management network only)
+      # - Traffic is LAN-internal (iapetus's own network, not public)
       # - mTLS client authentication is still enforced (Incus validates our cert)
       insecure_skip_verify: true
 %{~ endif }

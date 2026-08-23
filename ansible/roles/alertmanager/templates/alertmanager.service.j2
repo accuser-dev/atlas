@@ -8,7 +8,7 @@ Type=simple
 User={{ alertmanager_user }}
 Group={{ alertmanager_group }}
 {% if alertmanager_enable_tls %}
-ExecStartPre=/usr/local/bin/setup-tls.sh
+ExecStartPre=+/usr/local/bin/setup-tls.sh
 {% endif %}
 ExecStart={{ alertmanager_binary_path }} \
   --config.file={{ alertmanager_config_dir }}/alertmanager.yml \

@@ -51,7 +51,7 @@ output "step_ca_fingerprint_command" {
 # =============================================================================
 
 output "coredns_dns_endpoint" {
-  description = "Internal DNS endpoint using .incus DNS"
+  description = "CoreDNS's own LAN address and port"
   value       = module.coredns01.dns_endpoint
 }
 

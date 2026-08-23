@@ -617,6 +617,14 @@ verify-ovn-chassis:
 # install, detach media).
 #
 # Set FORCE=1 to overwrite an existing volume of the same name.
+#
+# The seed's `network.interfaces` (the pinned-hwaddr entries from
+# operations-center-seed.json) are OMITTED by default - a prior attempt at
+# seeding the NIC list this way hit an unresolved IncusOS install failure
+# ("unable to determine the maximum MTU" for the pinned MAC). Defaulting to
+# hostname-only lets IncusOS auto-enumerate the NIC instead, to isolate
+# whether the interface list itself was the trigger. Set OC_SEED_INTERFACES=1
+# to include it again once that's been ruled out (or ruled in).
 operations-center-iso:
 	@if [ "$(ENV)" != "iapetus" ]; then \
 		echo "ERROR: Operations Center is only applicable to iapetus"; \
@@ -683,11 +691,12 @@ operations-center-iso:
 			seeds: { \
 				install: { version: "1", force_install: false, force_reboot: false }, \
 				applications: { version: "1", applications: [{ name: "operations-center" }] }, \
-				network: { \
+				network: ({ \
 					version: "1", \
-					dns: { hostname: $$oc.hostname }, \
+					dns: { hostname: $$oc.hostname } \
+				} + (if "$(OC_SEED_INTERFACES)" == "1" then { \
 					interfaces: [ $$oc.interfaces[] | { name: .name, hwaddr: .hwaddr, addresses: ["dhcp4", "slaac"], required_for_online: "no" } + (if .roles then { roles: .roles } else {} end) ] \
-				}, \
+				} else {} end)), \
 				"operations-center": ({ \
 					version: "1", \
 					trusted_client_certificates: [$$cert], \

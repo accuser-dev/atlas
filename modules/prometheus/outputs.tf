@@ -25,7 +25,7 @@ output "storage_volume_name" {
 
 output "prometheus_endpoint" {
   description = "Prometheus endpoint URL for internal use"
-  value       = "http://${var.instance_name}.incus:${var.prometheus_port}"
+  value       = "http://${var.instance_name}.${var.dns_suffix}:${var.prometheus_port}"
 }
 
 output "tls_enabled" {

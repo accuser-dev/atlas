@@ -19,8 +19,8 @@ output "storage_volume_name" {
 }
 
 output "loki_endpoint" {
-  description = "Loki endpoint URL for internal use (using .incus DNS)"
-  value       = "http://${var.instance_name}.incus:${var.loki_port}"
+  description = "Loki endpoint URL for internal use"
+  value       = "http://${var.instance_name}.${var.dns_suffix}:${var.loki_port}"
 }
 
 output "loki_endpoint_ip" {

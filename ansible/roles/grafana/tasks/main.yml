@@ -32,6 +32,12 @@
     - configure
     - datasources
 
+- name: Include TLS tasks
+  ansible.builtin.include_tasks: tls.yml
+  when: grafana_state == 'present' and grafana_enable_tls
+  tags:
+    - tls
+
 - name: Include service tasks
   ansible.builtin.include_tasks: service.yml
   when: grafana_state == 'present'

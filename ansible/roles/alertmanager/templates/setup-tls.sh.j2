@@ -7,6 +7,11 @@ CERT_FILE="${TLS_DIR}/alertmanager.crt"
 KEY_FILE="${TLS_DIR}/alertmanager.key"
 CA_FILE="${TLS_DIR}/ca.crt"
 
+# step-cli defaults to writing its own state under $HOME/.step, but
+# ProtectHome=yes on this unit blocks all access to /home - redirect it
+# into TLS_DIR, which ReadWritePaths already covers.
+export STEPPATH="${TLS_DIR}/.step"
+
 # Create TLS directory
 mkdir -p "${TLS_DIR}"
 
@@ -23,7 +28,7 @@ echo "INFO: Requesting certificate for hostname: ${HOSTNAME}"
 # Request certificate using ACME
 if ! {{ step_binary_path }} ca certificate "${HOSTNAME}" "${CERT_FILE}" "${KEY_FILE}" \
     --ca-url "{{ stepca_url }}" \
-    --provisioner acme \
+    --provisioner acme-1 \
     --not-after "{{ cert_duration }}" \
     --force; then
   echo "ERROR: Failed to obtain certificate"

@@ -10,6 +10,9 @@ Wants=network-online.target
 Type=simple
 User={{ grafana_user }}
 Group={{ grafana_group }}
+{% if grafana_enable_tls %}
+ExecStartPre=+/usr/local/bin/grafana-tls-setup.sh
+{% endif %}
 ExecStart={{ grafana_install_dir }}/bin/grafana server --config={{ grafana_config_dir }}/grafana.ini --homepath={{ grafana_install_dir }}
 Restart=on-failure
 RestartSec=10

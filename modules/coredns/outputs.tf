@@ -14,8 +14,8 @@ output "instance_status" {
 }
 
 output "dns_endpoint" {
-  description = "Internal DNS endpoint using .incus DNS"
-  value       = "${incus_instance.coredns.name}.incus:${var.dns_port}"
+  description = "CoreDNS's own LAN address and port (it's on a physical network, so there's no bridge-dnsmasq .incus name for it)"
+  value       = "${incus_instance.coredns.ipv4_address}:${var.dns_port}"
 }
 
 output "ipv4_address" {

@@ -39,7 +39,11 @@
     system: true
     create_home: false
     state: present
-  when: prometheus_user_check.failed | default(false) or prometheus_user_check.ansible_facts.getent_passwd[prometheus_user] is none
+  # `failed_when: false` above forces `.failed` to always read false, so it
+  # can't be used to detect "getent found nothing" - `ansible_facts` is only
+  # populated on genuine success, so check for its absence instead (this is
+  # also the branch that crashed on a fresh user, i.e. every first install).
+  when: (prometheus_user_check.ansible_facts is not defined) or (prometheus_user_check.ansible_facts.getent_passwd[prometheus_user] is none)
 
 - name: Create prometheus directories
   ansible.builtin.file:

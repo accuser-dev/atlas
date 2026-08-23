@@ -9,6 +9,11 @@ provisioning = {{ grafana_provisioning_dir }}
 
 [server]
 http_port = {{ grafana_port }}
+{% if grafana_enable_tls %}
+protocol = https
+cert_file = {{ grafana_tls_dir }}/grafana.crt
+cert_key = {{ grafana_tls_dir }}/grafana.key
+{% endif %}
 {% if grafana_domain %}
 domain = {{ grafana_domain }}
 root_url = %(protocol)s://%(domain)s/

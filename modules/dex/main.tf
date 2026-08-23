@@ -8,6 +8,15 @@
 # (or other upstream IdPs) while presenting a unified OIDC interface to clients.
 
 locals {
+  # DNS name clients actually connect to, extracted from issuer_url (e.g.
+  # "https://dex.accuser.dev/dex" -> "dex.accuser.dev") - requested as an
+  # extra SAN on the TLS certificate alongside the instance's own hostname.
+  dex_issuer_host = regex("^https?://([^/]+)", var.issuer_url)[0]
+
+  tls_dir       = "/var/dex/tls"
+  tls_cert_path = "${local.tls_dir}/dex.crt"
+  tls_key_path  = "${local.tls_dir}/dex.key"
+
   # Generate Dex configuration for Ansible
   dex_config = templatefile("${path.module}/templates/config.yaml.tftpl", {
     issuer_url           = var.issuer_url
@@ -18,6 +27,9 @@ locals {
     github_client_secret = var.github_client_secret
     github_allowed_orgs  = var.github_allowed_orgs
     static_clients       = var.static_clients
+    enable_tls           = var.enable_tls
+    tls_cert_path        = local.tls_cert_path
+    tls_key_path         = local.tls_key_path
   })
 
   # Cloud-init configuration (minimal bootstrap only)
@@ -85,6 +97,13 @@ resource "incus_instance" "dex" {
 
   config = {
     "cloud-init.user-data" = local.cloud_init_content
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !var.enable_tls || (var.stepca_url != "" && var.stepca_fingerprint != "")
+      error_message = "When enable_tls is true, both stepca_url and stepca_fingerprint must be provided."
+    }
   }
 
   depends_on = [

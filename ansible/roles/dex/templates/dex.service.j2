@@ -10,6 +10,9 @@ Wants=network-online.target
 Type=simple
 User={{ dex_user }}
 Group={{ dex_group }}
+{% if dex_enable_tls %}
+ExecStartPre=+/usr/local/bin/dex-tls-setup.sh
+{% endif %}
 ExecStart=/usr/local/bin/dex serve {{ dex_config_dir }}/config.yaml
 Restart=on-failure
 RestartSec=10

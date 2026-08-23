@@ -86,7 +86,7 @@ locals {
     }
     dex = {
       cpu    = "1"
-      memory = "128MB"
+      memory = "256MB" # 128MB OOM-killed the crane/tar install step (extracting the dex binary from its OCI image)
       port   = 5556
     }
     openfga = {
@@ -121,7 +121,7 @@ locals {
   operations_center_network_interfaces = [
     for iface in local.operations_center_seed.interfaces : {
       device  = iface.device
-      network = iface.device == "mgmt" ? module.base.management_network_name : module.base.production_network_name
+      network = module.base.production_network_name
       hwaddr  = iface.hwaddr
     }
   ]

@@ -5,12 +5,12 @@ output "instance_name" {
 
 output "acme_endpoint" {
   description = "ACME endpoint URL for certificate requests"
-  value       = "https://${var.instance_name}.incus:${var.acme_port}"
+  value       = "https://${var.instance_name}.${var.dns_suffix}:${var.acme_port}"
 }
 
 output "acme_directory" {
   description = "ACME directory URL for ACME clients"
-  value       = "https://${var.instance_name}.incus:${var.acme_port}/acme/acme/directory"
+  value       = "https://${var.instance_name}.${var.dns_suffix}:${var.acme_port}/acme/acme/directory"
 }
 
 output "root_ca_path" {

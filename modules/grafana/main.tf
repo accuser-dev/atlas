@@ -82,6 +82,13 @@ resource "incus_instance" "grafana" {
     "cloud-init.user-data" = local.cloud_init_content
   }
 
+  lifecycle {
+    precondition {
+      condition     = !var.enable_tls || (var.stepca_url != "" && var.stepca_fingerprint != "")
+      error_message = "When enable_tls is true, both stepca_url and stepca_fingerprint must be provided."
+    }
+  }
+
   depends_on = [
     incus_profile.grafana,
     incus_storage_volume.grafana_data

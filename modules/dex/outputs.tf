@@ -66,6 +66,12 @@ output "ansible_vars" {
     dex_config_base64 = base64encode(local.dex_config)
     dex_has_config    = true
     # GitHub credentials via env vars: DEX_GITHUB_CLIENT_ID, DEX_GITHUB_CLIENT_SECRET
+    dex_enable_tls     = var.enable_tls
+    dex_tls_san        = local.dex_issuer_host
+    stepca_url         = var.stepca_url
+    stepca_fingerprint = var.stepca_fingerprint
+    cert_duration      = var.cert_duration
+    step_version       = var.step_version
   }
 }
 

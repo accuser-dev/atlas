@@ -83,12 +83,20 @@ module "grafana01" {
   instance_name = "grafana01"
   profile_name  = "grafana"
 
-  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = local.management_profiles
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk.
+  # Moved to production (eno2) + a pinned-MAC profile so the LAN and other
+  # iapetus services can reach it directly - see nic-pins.tf.
+  profiles = concat(local.production_profiles, [incus_profile.grafana01_nic_pin.name])
 
   # Domain configuration
   domain       = "grafana.accuser.dev"
   grafana_port = "3000"
+
+  # TLS via step-ca01's internal ACME - certs trusted by anything that has
+  # step-ca01's root imported, not by public browsers/OSes by default.
+  enable_tls         = true
+  stepca_url         = module.step_ca01.acme_endpoint
+  stepca_fingerprint = var.stepca_fingerprint
 
   # Grafana admin credentials
   admin_user     = "admin"
@@ -127,9 +135,11 @@ module "loki01" {
 
   instance_name = "loki01"
   profile_name  = "loki"
+  dns_suffix    = var.dns_domain
 
-  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = local.management_profiles
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk.
+  # Moved to production (eno2) - see nic-pins.tf.
+  profiles = concat(local.production_profiles, [incus_profile.loki01_nic_pin.name])
 
   # Loki configuration
   loki_port = "3100"
@@ -153,9 +163,11 @@ module "prometheus01" {
 
   instance_name = "prometheus01"
   profile_name  = "prometheus"
+  dns_suffix    = var.dns_domain
 
-  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = local.management_profiles
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk.
+  # Moved to production (eno2) - see nic-pins.tf.
+  profiles = concat(local.production_profiles, [incus_profile.prometheus01_nic_pin.name])
 
   # Prometheus configuration
   prometheus_port = "9090"
@@ -163,6 +175,7 @@ module "prometheus01" {
   # Prometheus configuration loaded from template file for better maintainability
   prometheus_config = templatefile("${path.module}/templates/prometheus.yml.tftpl", {
     enable_oidc                = var.enable_oidc
+    dns_domain                 = var.dns_domain
     incus_metrics_address      = var.incus_metrics_address
     incus_metrics_server_name  = var.incus_metrics_server_name
     cluster01_prometheus_url   = var.cluster01_prometheus_url
@@ -191,13 +204,15 @@ module "step_ca01" {
 
   instance_name = "step-ca01"
   profile_name  = "step-ca"
+  dns_suffix    = var.dns_domain
 
-  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = local.management_profiles
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk.
+  # Moved to production (eno2) - see nic-pins.tf.
+  profiles = concat(local.production_profiles, [incus_profile.step_ca01_nic_pin.name])
 
   # CA configuration
   ca_name      = "Atlas Internal CA"
-  ca_dns_names = "step-ca01.incus,step-ca01,localhost"
+  ca_dns_names = "step-ca01.${var.dns_domain},step-ca01,localhost"
 
   # ACME endpoint configuration
   acme_port = "9000"
@@ -290,8 +305,9 @@ module "cloudflared01" {
   instance_name = "cloudflared01"
   profile_name  = "cloudflared"
 
-  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = local.management_profiles
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk.
+  # Moved to production (eno2) - see nic-pins.tf.
+  profiles = concat(local.production_profiles, [incus_profile.cloudflared01_nic_pin.name])
 
   # Tunnel token from Cloudflare Zero Trust dashboard
   tunnel_token = var.cloudflared_tunnel_token
@@ -376,13 +392,21 @@ module "dex01" {
   instance_name = "dex01"
   profile_name  = "dex"
 
-  # Dual-homed on management + production networks: keeps dex01.incus resolvable
-  # for internal consumers (e.g. prometheus01's scrape target) while also giving
-  # it a LAN-routable address on eno2 so it's reachable from clients off-box.
-  profiles = local.management_and_production_profiles
+  # Moved to production (eno2) only - dual-homing (management + production)
+  # existed solely to bridge the two; now that everything on iapetus lives on
+  # eno2 with a CoreDNS-registered name, there's nothing left to bridge to.
+  # See nic-pins.tf.
+  profiles = concat(local.production_profiles, [incus_profile.dex01_nic_pin.name])
 
   # Dex OIDC configuration
   issuer_url = var.dex_issuer_url
+
+  # TLS via step-ca01's internal ACME - the issuer_url above is https://, so
+  # Dex's own listener needs to actually terminate TLS now that Cloudflare
+  # Tunnel no longer fronts it. Certificate SAN is derived from issuer_url.
+  enable_tls         = true
+  stepca_url         = module.step_ca01.acme_endpoint
+  stepca_fingerprint = var.stepca_fingerprint
 
   # GitHub connector for authentication
   github_client_id     = var.dex_github_client_id
@@ -425,9 +449,11 @@ module "openfga01" {
 
   instance_name = "openfga01"
   profile_name  = "openfga"
+  dns_suffix    = var.dns_domain
 
-  # Profile composition - container-base provides boot.autorestart, service profile provides root disk
-  profiles = local.management_profiles
+  # Profile composition - container-base provides boot.autorestart, service profile provides root disk.
+  # Moved to production (eno2) - see nic-pins.tf.
+  profiles = concat(local.production_profiles, [incus_profile.openfga01_nic_pin.name])
 
   # OpenFGA authentication - Incus uses this key to communicate with OpenFGA
   preshared_keys = [var.openfga_preshared_key]
@@ -511,12 +537,13 @@ module "operations_center01" {
   instance_name = "operations-center01"
   profile_name  = "operations-center"
 
-  # Dual-homed on management + production networks: adds a second NIC on eno2
-  # for direct LAN reachability (e.g. from cluster01 nodes during provisioning)
-  # without touching the existing management NIC - avoids the MAC/hwaddr
-  # rebind issue documented in modules/operations-center/README.md that occurs
-  # when an already-installed IncusOS VM's existing NIC is detached/reattached.
-  profiles = local.management_and_production_profiles
+  # Single-homed on production (eno2) only - the second (management) NIC and
+  # the dual-homing it required only existed to bridge iapetus's two networks
+  # so cluster01 could reach this instance. Now everything lives on eno2 with
+  # a CoreDNS-registered name, so there's nothing left to bridge to - and one
+  # NIC is one less thing that can hit the first-boot MAC/hwaddr binding
+  # issue documented in modules/operations-center/README.md.
+  profiles = local.production_profiles
 
   # Pins both NICs' hwaddrs to the values in operations-center-seed.json (the
   # same file `make operations-center-iso` reads to build the install seed),

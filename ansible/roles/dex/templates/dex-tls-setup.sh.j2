@@ -1,0 +1,37 @@
+#!/bin/bash
+set -eu
+
+TLS_DIR="{{ dex_tls_dir }}"
+CERT_FILE="${TLS_DIR}/dex.crt"
+KEY_FILE="${TLS_DIR}/dex.key"
+CA_FILE="${TLS_DIR}/ca.crt"
+
+# step-cli defaults to writing its own state under $HOME/.step, but
+# ProtectHome=yes on this unit blocks all access to /home - redirect it
+# into TLS_DIR, which ReadWritePaths already covers.
+export STEPPATH="${TLS_DIR}/.step"
+
+mkdir -p "${TLS_DIR}"
+
+echo "Bootstrapping CA trust..."
+{{ step_binary_path }} ca bootstrap --ca-url "{{ stepca_url }}" --fingerprint "{{ stepca_fingerprint }}" --force
+
+HOSTNAME=$(hostname)
+echo "Requesting certificate for hostname: ${HOSTNAME}"
+
+{{ step_binary_path }} ca certificate "${HOSTNAME}" "${CERT_FILE}" "${KEY_FILE}" \
+  --ca-url "{{ stepca_url }}" \
+  --provisioner acme-1 \
+  --not-after "{{ cert_duration }}" \
+{% if dex_tls_san %}
+  --san "${HOSTNAME}" \
+  --san "{{ dex_tls_san }}" \
+{% endif %}
+  --force
+
+cp "$({{ step_binary_path }} path)/certs/root_ca.crt" "${CA_FILE}"
+
+chown {{ dex_user }}:{{ dex_group }} "${CERT_FILE}" "${KEY_FILE}" "${CA_FILE}"
+chmod 640 "${CERT_FILE}" "${KEY_FILE}" "${CA_FILE}"
+
+echo "TLS certificates configured successfully"

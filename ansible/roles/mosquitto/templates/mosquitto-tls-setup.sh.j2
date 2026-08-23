@@ -6,6 +6,11 @@ CERT_FILE="${TLS_DIR}/mosquitto.crt"
 KEY_FILE="${TLS_DIR}/mosquitto.key"
 CA_FILE="${TLS_DIR}/ca.crt"
 
+# step-cli defaults to writing its own state under $HOME/.step, but
+# ProtectHome=yes on this unit blocks all access to /home - redirect it
+# into TLS_DIR, which ReadWritePaths already covers.
+export STEPPATH="${TLS_DIR}/.step"
+
 mkdir -p "${TLS_DIR}"
 
 echo "Bootstrapping CA trust..."
@@ -16,7 +21,7 @@ echo "Requesting certificate for hostname: ${HOSTNAME}"
 
 {{ step_binary_path }} ca certificate "${HOSTNAME}" "${CERT_FILE}" "${KEY_FILE}" \
   --ca-url "{{ stepca_url }}" \
-  --provisioner acme \
+  --provisioner acme-1 \
   --not-after "{{ cert_duration }}" \
   --force
 

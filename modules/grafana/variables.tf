@@ -173,3 +173,45 @@ variable "snapshot_pattern" {
   type        = string
   default     = "auto-{{creation_date}}"
 }
+
+# TLS Configuration
+variable "enable_tls" {
+  description = "Enable TLS for Grafana using step-ca"
+  type        = bool
+  default     = false
+}
+
+variable "stepca_url" {
+  description = "URL of the step-ca ACME endpoint (required if enable_tls is true)"
+  type        = string
+  default     = ""
+}
+
+variable "stepca_fingerprint" {
+  description = "Fingerprint of the step-ca root certificate (required if enable_tls is true)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "cert_duration" {
+  description = "Duration for TLS certificates (e.g., 24h, 168h). Must be between 1h and 8760h (1 year)."
+  type        = string
+  default     = "24h"
+
+  validation {
+    condition     = can(regex("^[0-9]+h$", var.cert_duration))
+    error_message = "Certificate duration must be in hours format (e.g., '24h', '168h')."
+  }
+
+  validation {
+    condition     = tonumber(trimsuffix(var.cert_duration, "h")) >= 1 && tonumber(trimsuffix(var.cert_duration, "h")) <= 8760
+    error_message = "Certificate duration must be between 1h and 8760h (1 year)."
+  }
+}
+
+variable "step_version" {
+  description = "Version of step-cli to install for TLS certificate management"
+  type        = string
+  default     = "0.28.2"
+}

@@ -7,6 +7,12 @@ variable "instance_name" {
   type        = string
 }
 
+variable "dns_suffix" {
+  description = "DNS suffix for the module's *_endpoint/api_url outputs (e.g. 'incus' for bridge-network dnsmasq resolution, or a real domain if the instance is on a network with its own DNS records)"
+  type        = string
+  default     = "incus"
+}
+
 variable "profile_name" {
   description = "Name of the Incus profile to create"
   type        = string

@@ -372,6 +372,13 @@ variable "openfga_preshared_key" {
   default     = ""
 }
 
+variable "stepca_fingerprint" {
+  description = "Fingerprint of step-ca01's root certificate (from `incus exec step-ca01 -- cat /home/step/fingerprint`, after step-ca01 is deployed). Required by any service with enable_tls = true."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # =============================================================================
 # HAProxy Configuration
 # =============================================================================

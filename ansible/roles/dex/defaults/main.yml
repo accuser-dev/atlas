@@ -36,3 +36,13 @@ dex_service_enabled: true
 
 # State: present or absent
 dex_state: present
+
+# TLS configuration (step-ca ACME client)
+dex_enable_tls: false
+dex_tls_san: ""
+stepca_url: ""
+stepca_fingerprint: ""
+cert_duration: "24h"
+step_version: "0.28.2"
+dex_tls_dir: "/var/dex/tls"
+step_binary_path: "/usr/local/bin/step"

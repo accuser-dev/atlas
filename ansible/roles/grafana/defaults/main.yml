@@ -40,3 +40,12 @@ grafana_service_enabled: true
 
 # State: present or absent
 grafana_state: present
+
+# TLS configuration (step-ca ACME client)
+grafana_enable_tls: false
+stepca_url: ""
+stepca_fingerprint: ""
+cert_duration: "24h"
+step_version: "0.28.2"
+grafana_tls_dir: "/etc/grafana/tls"
+step_binary_path: "/usr/local/bin/step"

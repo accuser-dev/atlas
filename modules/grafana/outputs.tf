@@ -24,8 +24,8 @@ output "storage_volume_name" {
 }
 
 output "tls_enabled" {
-  description = "Whether TLS is enabled for this instance (always false for system containers)"
-  value       = false
+  description = "Whether TLS is enabled for this instance"
+  value       = var.enable_tls
 }
 
 output "dns_records" {
@@ -54,6 +54,11 @@ output "ansible_vars" {
     grafana_admin_user = var.admin_user
     # admin_password via env var GRAFANA_ADMIN_PASSWORD at runtime
     grafana_datasources = var.datasources
+    grafana_enable_tls  = var.enable_tls
+    stepca_url          = var.stepca_url
+    stepca_fingerprint  = var.stepca_fingerprint
+    cert_duration       = var.cert_duration
+    step_version        = var.step_version
   }
 }
 
