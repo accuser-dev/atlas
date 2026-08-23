@@ -42,7 +42,8 @@
 
 - name: Set installed version fact
   ansible.builtin.set_fact:
-    openfga_current_version: "{{ openfga_installed_version.stdout | default('') | regex_search('v([0-9.]+)', '\\1') | first | default('0.0.0') }}"
+    # `openfga version` logs to stderr, not stdout.
+    openfga_current_version: "{{ (openfga_installed_version.stdout + openfga_installed_version.stderr) | regex_search('v([0-9.]+)', '\\1') | default([], true) | first | default('0.0.0') }}"
   when: openfga_binary.stat.exists
 
 - name: Download and install OpenFGA

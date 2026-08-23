@@ -654,11 +654,14 @@ operations-center-iso:
 		echo "  (must match the key already applied via 'make configure-openfga-full')"; \
 	else \
 		STORE_NAME=$$(jq -r '.openfga_store_name' "$$SEED_FILE"); \
-		OPENFGA_STORE_ID=$$(curl -sf "$$OPENFGA_URL/stores" -H "Authorization: Bearer $$OPENFGA_PRESHARED_KEY" \
+		echo "  (querying via 'incus exec' on openfga01 - openfga01.incus doesn't resolve outside Incus-managed instances)"; \
+		OPENFGA_STORE_ID=$$(incus exec iapetus:openfga01 -- \
+			curl -sf "http://localhost:8080/stores" -H "Authorization: Bearer $$OPENFGA_PRESHARED_KEY" \
 			| jq -r --arg name "$$STORE_NAME" '.stores[]? | select(.name == $$name) | .id' | head -n1); \
 		if [ -z "$$OPENFGA_STORE_ID" ]; then \
 			echo "  Store '$$STORE_NAME' not found, creating it..."; \
-			OPENFGA_STORE_ID=$$(curl -sf -X POST "$$OPENFGA_URL/stores" -H "Authorization: Bearer $$OPENFGA_PRESHARED_KEY" \
+			OPENFGA_STORE_ID=$$(incus exec iapetus:openfga01 -- \
+				curl -sf -X POST "http://localhost:8080/stores" -H "Authorization: Bearer $$OPENFGA_PRESHARED_KEY" \
 				-H "Content-Type: application/json" -d "{\"name\": \"$$STORE_NAME\"}" | jq -r '.id'); \
 			if [ -z "$$OPENFGA_STORE_ID" ] || [ "$$OPENFGA_STORE_ID" = "null" ]; then \
 				echo "  ERROR: Failed to create OpenFGA store '$$STORE_NAME'"; exit 1; \
