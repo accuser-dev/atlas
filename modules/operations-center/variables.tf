@@ -112,3 +112,9 @@ variable "boot_media_volume" {
   type        = string
   default     = "operations-center01-iso"
 }
+
+variable "extra_seed_volume" {
+  description = "Name of a pre-imported extra seed volume (content_type=iso, volume-labeled SEED_DATA) on storage_pool, for seed categories the operations-center-iso customizer service's own request schema doesn't accept (e.g. security.custom_ca_certs). Empty string to omit. See main.tf's `extra-seed` device comment."
+  type        = string
+  default     = ""
+}

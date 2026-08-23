@@ -555,6 +555,12 @@ module "operations_center01" {
   boot_media_volume = var.operations_center_iso_volume
   attach_boot_media = var.operations_center_boot_media
 
+  # Extra seed for categories the customizer service's request schema
+  # rejects (currently: security.custom_ca_certs, so this VM trusts
+  # step-ca01's root and can verify dex01's cert during OIDC discovery).
+  # Built manually - see modules/operations-center/README.md.
+  extra_seed_volume = var.operations_center_extra_seed_volume
+
   # Resource limits (from centralized service config)
   cpu_limit    = local.services.operations_center.cpu
   memory_limit = local.services.operations_center.memory

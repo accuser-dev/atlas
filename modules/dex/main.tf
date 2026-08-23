@@ -9,9 +9,11 @@
 
 locals {
   # DNS name clients actually connect to, extracted from issuer_url (e.g.
-  # "https://dex.accuser.dev/dex" -> "dex.accuser.dev") - requested as an
-  # extra SAN on the TLS certificate alongside the instance's own hostname.
-  dex_issuer_host = regex("^https?://([^/]+)", var.issuer_url)[0]
+  # "https://dex.accuser.dev:5556/dex" -> "dex.accuser.dev") - requested as
+  # an extra SAN on the TLS certificate alongside the instance's own
+  # hostname. SANs are hostnames only, no port - step-cli rejects a SAN
+  # containing ":" ("Email Address and URI SANs are not supported").
+  dex_issuer_host = regex("^https?://([^:/]+)", var.issuer_url)[0]
 
   tls_dir       = "/var/dex/tls"
   tls_cert_path = "${local.tls_dir}/dex.crt"

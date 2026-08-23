@@ -427,6 +427,12 @@ variable "operations_center_iso_volume" {
   default     = "operations-center01-iso"
 }
 
+variable "operations_center_extra_seed_volume" {
+  description = "Name of a pre-imported extra seed volume (content_type=iso, volume-labeled SEED_DATA) for seed categories make operations-center-iso can't embed. Empty string to omit. See modules/operations-center/README.md."
+  type        = string
+  default     = ""
+}
+
 # =============================================================================
 # Cross-Environment Integration
 # =============================================================================

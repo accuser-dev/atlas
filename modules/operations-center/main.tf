@@ -97,6 +97,29 @@ resource "incus_instance" "operations_center" {
     }
   }
 
+  # Optional extra seed volume (a small ISO/FAT volume labeled SEED_DATA,
+  # containing per-category seed JSON files like security.json) - a
+  # user-provided seed source IncusOS scans for by that exact volume label
+  # (incus-osd/internal/seed/seed.go's getSeedPath()), independent of and
+  # merged on top of the seed baked into boot-media by the customizer
+  # service. Exists because that service's own request schema
+  # (ImagesPostSeeds) doesn't accept every seed category the general
+  # IncusOS seed format supports - e.g. `security.custom_ca_certs` - so
+  # anything unsupported there has to arrive this way instead. Left
+  # permanently attached (no boot priority): IncusOS re-reads it on every
+  # boot, not just install, which is what we want for this content.
+  dynamic "device" {
+    for_each = var.extra_seed_volume != "" ? [1] : []
+    content {
+      name = "extra-seed"
+      type = "disk"
+      properties = {
+        pool   = var.storage_pool
+        source = var.extra_seed_volume
+      }
+    }
+  }
+
   depends_on = [
     incus_profile.operations_center,
   ]
