@@ -73,6 +73,17 @@ module "network_zone" {
   } : {}
 }
 
+module "incus_oidc" {
+  source = "../../modules/incus-oidc-config"
+
+  count = var.enable_incus_oidc_login ? 1 : 0
+
+  issuer    = var.incus_oidc_issuer
+  client_id = var.incus_oidc_client_id
+  scopes    = var.incus_oidc_scopes
+  claim     = var.incus_oidc_claim
+}
+
 # =============================================================================
 # Services
 # =============================================================================
@@ -545,10 +556,15 @@ module "operations_center01" {
   # issue documented in modules/operations-center/README.md.
   profiles = local.production_profiles
 
-  # Pins both NICs' hwaddrs to the values in operations-center-seed.json (the
-  # same file `make operations-center-iso` reads to build the install seed),
-  # so Incus never regenerates volatile.<device>.hwaddr on this instance.
-  network_interfaces = local.operations_center_network_interfaces
+  # NOT pinning network_interfaces (hwaddr) here anymore - across three
+  # install cycles the pinned value was never actually what the VM ended up
+  # running on live (Incus's own declared config kept diverging from the
+  # guest's real NIC, see volatile.vm.needs_reset and the stray leftover
+  # `eth0` device found 2026-08-24). The "prod" NIC now comes from the
+  # production-network profile alone, unpinned - matching what was actually
+  # live every time anyway. IP is handled entirely by the DHCP
+  # reservation/dns_additional_records being kept in sync with whatever MAC
+  # actually comes up post-install, not by Terraform.
 
   # IncusOS install media - see modules/operations-center/README.md for the
   # install procedure this attach/detach toggle drives

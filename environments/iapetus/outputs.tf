@@ -164,13 +164,26 @@ output "openfga_metrics_endpoint" {
   value       = var.enable_oidc ? module.openfga01[0].metrics_endpoint : null
 }
 
-output "incus_oidc_config" {
-  description = "Incus OIDC configuration commands (run after deployment)"
+# Incus's own OIDC login (oidc.issuer/oidc.client.id/etc.) is now applied
+# directly by module.incus_oidc - see incus_oidc_issuer/incus_oidc_client_id
+# outputs below for the values actually in effect. This intentionally does
+# NOT point at Dex (module.dex01) - Dex's cert is signed by this repo's
+# internal step-ca, which Incus has no way to be told to trust, so Incus
+# logs in against a publicly-trusted issuer instead. Dex remains available
+# for other consumers (cluster01/atlas/menotius static client registration).
+output "incus_oidc_issuer" {
+  description = "OIDC issuer URL currently configured for Incus's own login"
+  value       = var.enable_incus_oidc_login ? module.incus_oidc[0].issuer : null
+}
+
+output "incus_oidc_client_id" {
+  description = "OIDC client ID currently configured for Incus's own login"
+  value       = var.enable_incus_oidc_login ? module.incus_oidc[0].client_id : null
+}
+
+output "incus_openfga_config" {
+  description = "Incus OpenFGA authorization configuration commands (run after deployment) - still manual, not yet Terraform-managed"
   value = var.enable_oidc ? join("\n", [
-    "# Configure Incus to use OIDC authentication:",
-    "incus config set oidc.issuer ${module.dex01[0].issuer_url}",
-    "incus config set oidc.client.id incus",
-    "",
     "# Configure Incus to use OpenFGA authorization:",
     "incus config set openfga.api.url ${module.openfga01[0].api_url}",
     "incus config set openfga.api.token <your-preshared-key>"

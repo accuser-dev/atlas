@@ -346,6 +346,44 @@ variable "dex_issuer_url" {
   default     = ""
 }
 
+# -----------------------------------------------------------------------------
+# Incus's own OIDC login (module.incus_oidc) - separate from Dex above.
+# Dex's issuer cert is signed by this repo's internal step-ca, which Incus has
+# no way to be told to trust, so Incus's own login uses a publicly-trusted
+# issuer instead (see modules/incus-oidc-config/README.md). Default values are
+# the Linux Containers forum's SSO.
+# -----------------------------------------------------------------------------
+
+variable "enable_incus_oidc_login" {
+  description = "Configure Incus's own OIDC login (oidc.issuer etc. server config)"
+  type        = bool
+  default     = true
+}
+
+variable "incus_oidc_issuer" {
+  description = "OIDC issuer URL for Incus's own login"
+  type        = string
+  default     = "https://sso.linuxcontainers.org"
+}
+
+variable "incus_oidc_client_id" {
+  description = "OIDC client ID registered with incus_oidc_issuer for Incus"
+  type        = string
+  default     = "387573419052444795"
+}
+
+variable "incus_oidc_scopes" {
+  description = "Comma-separated OIDC scopes for Incus's own login"
+  type        = string
+  default     = "openid,offline_access"
+}
+
+variable "incus_oidc_claim" {
+  description = "Claim used to identify the user for Incus's own login"
+  type        = string
+  default     = "preferred_username"
+}
+
 variable "dex_github_client_id" {
   description = "GitHub OAuth application client ID for Dex"
   type        = string

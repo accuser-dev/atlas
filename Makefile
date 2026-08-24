@@ -618,6 +618,27 @@ verify-ovn-chassis:
 #
 # Set FORCE=1 to overwrite an existing volume of the same name.
 #
+# The seed's `system_security.oidc` block is OMITTED by default - client-cert
+# auth to operations-center01's own API (port 8443) has never actually been
+# confirmed working, so seeding OIDC on top of an unverified auth path just
+# adds another unverified thing. Only `trusted_client_certificates` (your
+# Incus client cert) is seeded; connect with it post-install and configure
+# OIDC/OpenFGA at runtime via the API once trust is confirmed. Set
+# OC_SEED_OIDC=1 to include OIDC again once that's sorted out.
+#
+# When enabled, OIDC points at the Linux Containers forum's SSO
+# (sso.linuxcontainers.org) rather than dex01 - it's issued by a publicly
+# trusted CA, so it sidesteps the security.custom_ca_certs seeding gap
+# entirely (see modules/operations-center/README.md and the
+# project-operations-center-seed-limits note on why dex01's self-signed
+# step-ca cert can't be trusted via the customizer API). Override
+# OC_OIDC_ISSUER/OC_OIDC_CLIENT_ID/OC_OIDC_SCOPES/OC_OIDC_CLAIM if needed.
+#
+OC_OIDC_ISSUER ?= https://sso.linuxcontainers.org
+OC_OIDC_CLIENT_ID ?= 387573419052444795
+OC_OIDC_SCOPES ?= openid,offline_access
+OC_OIDC_CLAIM ?= preferred_username
+#
 # The seed's `network.interfaces` (the pinned-hwaddr entries from
 # operations-center-seed.json) are OMITTED by default - a prior attempt at
 # seeding the NIC list this way hit an unresolved IncusOS install failure
@@ -625,6 +646,77 @@ verify-ovn-chassis:
 # hostname-only lets IncusOS auto-enumerate the NIC instead, to isolate
 # whether the interface list itself was the trigger. Set OC_SEED_INTERFACES=1
 # to include it again once that's been ruled out (or ruled in).
+#
+# Both `preseed.system_certificate` and `preseed.system_security.acme` exist
+# to replace IncusOS's own self-signed server certificate - the one it
+# generates at install time only covers SANs
+# `operations-center01`/127.0.0.1/::1, a hard SAN-mismatch for anyone
+# browsing to its real LAN address, not just an ordinary untrusted-self-signed
+# warning a browser lets you click through. Neither needs the top-level
+# `security` key that's rejected by the customizer's schema (see
+# project-operations-center-seed-limits) - `system_certificate` lives under
+# `operations-center.preseed`, and `acme` lives under
+# `operations-center.preseed.system_security`, both accepted.
+#
+# PREFERRED: OC_SEED_ACME=1 (+ OC_ACME_* below) configures operations-center's
+# own native ACME client (it shells out to `lego`) against Let's Encrypt via
+# DNS-01/Cloudflare - confirmed working live this way (2026-08-24): produces
+# a real, publicly-trusted, auto-renewing 90-day cert, no manual reissue, no
+# per-browser CA trust needed anywhere (including for other IncusOS servers
+# this instance provisions, which is the whole reason this matters - a
+# step-ca-signed cert isn't verifiable by a freshly-installed server that has
+# no reason to trust step-ca01's private root). SECURITY NOTE: like
+# OPENFGA_PRESHARED_KEY below, OC_ACME_CLOUDFLARE_TOKEN gets sent to the
+# third-party incusos-customizer.linuxcontainers.org service and ends up
+# stored unencrypted in the resulting ISO volume - use a token scoped to
+# *only* Zone:DNS:Edit + Zone:Zone:Read on the specific zone (see
+# modules/step-ca and project-operations-center-seed-limits for how this was
+# proven live), never a broader one. One observed quirk: the very first
+# renewal attempt after (re)configuring ACME can fail with
+# `open .../acme/certificates/<domain>.crt: no such file or directory`
+# (a lego/directory-cleanup race) - retrying `POST /1.0/system/certificate/:renew`
+# (note the literal `:renew`, not a real path param - the route pattern is
+# copied verbatim) succeeds. Not yet confirmed whether this same race can
+# happen on a fresh install's first-boot seed application.
+#
+# FALLBACK: OC_CERT_FILE/OC_CERT_KEY_FILE bakes in a static cert instead, for
+# cases without a public DNS zone available for DNS-01 (no auto-renewal, no
+# public trust - only useful for browser access, not for provisioning other
+# servers). Generate one signed by step-ca01's intermediate CA with SANs
+# matching the DHCP-reserved IP in dns_additional_records, e.g.:
+#   incus exec iapetus:step-ca01 -- openssl ecparam -name prime256v1 -genkey -noout -out key.pem
+#   incus exec iapetus:step-ca01 -- openssl req -new -key key.pem -out csr.pem -subj /CN=operations-center01 \
+#     -addext "subjectAltName=DNS:operations-center01,DNS:operations-center01.accuser.dev,IP:<reserved-ip>"
+#   incus exec iapetus:step-ca01 -- openssl x509 -req -in csr.pem -out cert.pem -days 397 \
+#     -CA /home/step/.step/certs/intermediate_ca.crt -CAkey /home/step/.step/secrets/intermediate_ca_key \
+#     -passin file:/home/step/.step/secrets/password -CAcreateserial \
+#     -extfile <(echo "subjectAltName=DNS:operations-center01,...")
+# -days MUST stay under ~398 (825 on older macOS) - Safari/macOS enforce a
+# maximum TLS leaf certificate lifetime even for certs chaining to a
+# manually-trusted PRIVATE CA (confirmed live: a 1825-day cert here made
+# `security verify-cert` fail with CSSMERR_TP_CERT_SUSPENDED and Safari
+# refuse the connection outright, despite the root being correctly trusted
+# and openssl/chain validation passing fine - only Apple enforces this).
+# then append the intermediate_ca.crt to cert.pem (full chain) and set
+# OC_CERT_FILE=cert.pem OC_CERT_KEY_FILE=key.pem. Requires your browsers to
+# already trust step-ca01's root_ca.crt - see modules/step-ca/README.md.
+# Both paths skipped with a warning, like OIDC/OpenFGA, if unconfigured.
+OC_CERT_FILE ?=
+OC_CERT_KEY_FILE ?=
+OC_SEED_ACME ?= 0
+OC_ACME_CA_URL ?= https://acme-v02.api.letsencrypt.org/directory
+OC_ACME_DOMAIN ?= operations-center.accuser.dev
+OC_ACME_EMAIL ?=
+OC_ACME_PROVIDER ?= cloudflare
+OC_ACME_CLOUDFLARE_TOKEN ?=
+# Comma-separated nameservers lego should query directly for its DNS-01
+# propagation self-check, bypassing the system resolver - REQUIRED on this
+# network because of the accuser.dev split horizon: CoreDNS answers
+# authoritatively (and locally, statically) for accuser.dev, so it would
+# never see the _acme-challenge TXT record lego creates via the Cloudflare
+# API, causing propagation checks to hang/fail. Point this at the zone's
+# real authoritative nameservers instead (see `dig NS accuser.dev`).
+OC_ACME_PROVIDER_RESOLVERS ?=
 operations-center-iso:
 	@if [ "$(ENV)" != "iapetus" ]; then \
 		echo "ERROR: Operations Center is only applicable to iapetus"; \
@@ -643,13 +735,12 @@ operations-center-iso:
 	fi; \
 	echo "Fetching Incus client certificate..."; \
 	CERT=$$(incus remote get-client-certificate) || exit 1; \
-	echo "Resolving OIDC configuration..."; \
-	ISSUER_URL=$$(cd $(ENV_DIR) && tofu output -raw dex_issuer_url 2>/dev/null); \
-	if [ -z "$$ISSUER_URL" ] || [ "$$ISSUER_URL" = "null" ]; then \
-		echo "  Skipping OIDC seed: dex_issuer_url output unavailable (is dex01 deployed? 'make apply' first)"; \
-		ISSUER_URL=""; \
+	ISSUER_URL=""; \
+	if [ "$(OC_SEED_OIDC)" = "1" ]; then \
+		ISSUER_URL="$(OC_OIDC_ISSUER)"; \
+		echo "Seeding OIDC via $$ISSUER_URL (client_id=$(OC_OIDC_CLIENT_ID))"; \
 	else \
-		echo "  Issuer: $$ISSUER_URL"; \
+		echo "Skipping OIDC seed (OC_SEED_OIDC != 1) - client-cert auth isn't confirmed working yet"; \
 	fi; \
 	echo "Resolving OpenFGA store..."; \
 	OPENFGA_URL=$$(cd $(ENV_DIR) && tofu output -raw openfga_api_url 2>/dev/null); \
@@ -679,14 +770,48 @@ operations-center-iso:
 			echo "  Reusing existing store: $$OPENFGA_STORE_ID"; \
 		fi; \
 	fi; \
+	CERT_PEM=""; CERT_KEY_PEM=""; \
+	if [ -n "$(OC_CERT_FILE)" ] && [ -n "$(OC_CERT_KEY_FILE)" ]; then \
+		if [ ! -f "$(OC_CERT_FILE)" ] || [ ! -f "$(OC_CERT_KEY_FILE)" ]; then \
+			echo "ERROR: OC_CERT_FILE/OC_CERT_KEY_FILE set but not both readable"; exit 1; \
+		fi; \
+		echo "Seeding system_certificate from $(OC_CERT_FILE)"; \
+		CERT_PEM=$$(cat "$(OC_CERT_FILE)"); \
+		CERT_KEY_PEM=$$(cat "$(OC_CERT_KEY_FILE)"); \
+	else \
+		echo "Skipping system_certificate seed (OC_CERT_FILE/OC_CERT_KEY_FILE not set) - IncusOS's own self-signed cert will be used"; \
+	fi; \
+	ACME_CFG="{}"; \
+	if [ "$(OC_SEED_ACME)" = "1" ]; then \
+		if [ -z "$(OC_ACME_EMAIL)" ] || [ -z "$(OC_ACME_CLOUDFLARE_TOKEN)" ]; then \
+			echo "ERROR: OC_SEED_ACME=1 requires OC_ACME_EMAIL and OC_ACME_CLOUDFLARE_TOKEN"; exit 1; \
+		fi; \
+		echo "Seeding system_security.acme for $(OC_ACME_DOMAIN) via $(OC_ACME_PROVIDER)"; \
+		ACME_CFG=$$(jq -n \
+			--arg ca_url "$(OC_ACME_CA_URL)" \
+			--arg domain "$(OC_ACME_DOMAIN)" \
+			--arg email "$(OC_ACME_EMAIL)" \
+			--arg provider "$(OC_ACME_PROVIDER)" \
+			--arg cf_token "$(OC_ACME_CLOUDFLARE_TOKEN)" \
+			--arg resolvers "$(OC_ACME_PROVIDER_RESOLVERS)" \
+			'{agree_tos: true, ca_url: $$ca_url, challenge: "DNS-01", domain: $$domain, email: $$email, http_challenge_address: "", provider: $$provider, provider_environment: ["CF_DNS_API_TOKEN=\($$cf_token)"], provider_resolvers: ($$resolvers | if . == "" then [] else split(",") end)}'); \
+	else \
+		echo "Skipping system_security.acme seed (OC_SEED_ACME != 1) - IncusOS's own self-signed cert (or OC_CERT_FILE, if set) will be used"; \
+	fi; \
 	echo "Requesting seeded IncusOS ISO from incusos-customizer..."; \
 	SEED=$$(jq -n \
 		--arg cert "$$CERT" \
 		--slurpfile ocseed "$$SEED_FILE" \
 		--arg issuer "$$ISSUER_URL" \
+		--arg oidc_client_id "$(OC_OIDC_CLIENT_ID)" \
+		--arg oidc_scopes "$(OC_OIDC_SCOPES)" \
+		--arg oidc_claim "$(OC_OIDC_CLAIM)" \
 		--arg openfga_url "$$OPENFGA_URL" \
 		--arg openfga_token "$$OPENFGA_PRESHARED_KEY" \
 		--arg openfga_store_id "$$OPENFGA_STORE_ID" \
+		--arg cert_pem "$$CERT_PEM" \
+		--arg cert_key_pem "$$CERT_KEY_PEM" \
+		--argjson acme_cfg "$$ACME_CFG" \
 		'($$ocseed[0]) as $$oc | { \
 			seeds: { \
 				install: { version: "1", force_install: false, force_reboot: false }, \
@@ -701,13 +826,14 @@ operations-center-iso:
 					version: "1", \
 					trusted_client_certificates: [$$cert], \
 					apply_defaults: false \
-				} + (if $$issuer != "" then { \
-					preseed: { \
-						system_security: (({} \
-							+ { oidc: { issuer: $$issuer, client_id: "incus", scopes: "openid,profile,email", audience: "", claim: "sub" } }) \
-							+ (if $$openfga_store_id != "" then { openfga: { api_url: $$openfga_url, api_token: $$openfga_token, store_id: $$openfga_store_id } } else {} end)) \
-					} \
-				} else {} end)) \
+				} + ((({} \
+					+ (if $$issuer != "" then { oidc: { issuer: $$issuer, client_id: $$oidc_client_id, scopes: $$oidc_scopes, audience: "", claim: $$oidc_claim } } else {} end)) \
+					+ (if $$openfga_store_id != "" then { openfga: { api_url: $$openfga_url, api_token: $$openfga_token, store_id: $$openfga_store_id } } else {} end) \
+					+ (if ($$acme_cfg | length) > 0 then { acme: $$acme_cfg } else {} end)) as $$sec | \
+					({} \
+						+ (if ($$sec | length) > 0 then { system_security: $$sec } else {} end) \
+						+ (if $$cert_pem != "" then { system_certificate: { certificate: $$cert_pem, key: $$cert_key_pem } } else {} end)) as $$preseed | \
+					if ($$preseed | length) > 0 then { preseed: $$preseed } else {} end)) \
 			}, \
 			type: "iso", \
 			architecture: "x86_64" \
